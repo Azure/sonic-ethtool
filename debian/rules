@@ -2,7 +2,8 @@
 # (C) 2001, Eric Delaunay
 
 CC=gcc
-CFLAGS=-O2
+# PRE24_COMPAT is adding support for old Sparc HME ethernet driver on 2.2 kernel
+CFLAGS=-O2 -DPRE24_COMPAT
 
 a=$(shell dpkg --print-architecture)
 p=ethtool
@@ -31,10 +32,12 @@ binary-arch: build
 	dh_testroot
 	dh_clean -k
 	# install binaries
-	$(MAKE) install DESTDIR=`pwd`/debian/tmp
+	$(MAKE) install-strip DESTDIR=`pwd`/debian/tmp
+	# force removing .comment section from binary (lintian check)
+	strip -R .comment debian/tmp/usr/sbin/ethtool
 	# install documentation
 	dh_installmanpages
-	dh_installdocs AUTHORS INSTALL NEWS README
+	dh_installdocs AUTHORS NEWS README
 	dh_installchangelogs ChangeLog
 	dh_compress
 	dh_fixperms

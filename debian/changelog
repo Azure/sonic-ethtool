@@ -1,3 +1,62 @@
+ethtool (2-1) unstable; urgency=low
+
+  * New upstream release (new upstream version scheme using only 1 number).
+    Closes: #275982.
+  * Removed autoconf build-dependency (don't patch configure.in not to trigger
+    an autoconf run when building this package; PRE24_COMPAT option is
+    directly passed to Makefile through CFLAGS). Closes: #213921.
+  * Strip binary. Closes: #273715.
+  * Updated README.Debian. Closes: #213699.
+  * Don't be so verbose when called with bad arg. Display long help message
+    (ethtool -h) to stdout. Closes: #256249.
+
+ -- Eric Delaunay <delaunay@debian.org>  Tue,  9 Nov 2004 23:40:54 +0100
+
+ethtool (1.8-2) unstable; urgency=low
+
+  * Fixed autoconf troubles. Closes: #211982.
+  * Fixed package and manpage description about which kernel revision ethtool
+    is compatible with. Closes: #207798.
+
+ -- Eric Delaunay <delaunay@debian.org>  Wed, 24 Sep 2003 19:23:36 +0200
+
+ethtool (1.8-1) unstable; urgency=low
+
+  * New upstream release. Closes: #203577.
+  * Fixed typo in man page. Closes: #199711.
+
+ -- Eric Delaunay <delaunay@debian.org>  Sun, 17 Aug 2003 19:41:14 +0200
+
+ethtool (1.7-1) unstable; urgency=low
+
+  * New upstream release. Closes: #179413.
+  * Build-Depends on debhelper. Closes: #189636.
+
+ -- Eric Delaunay <delaunay@debian.org>  Thu, 24 Apr 2003 23:08:27 +0200
+
+ethtool (1.6-1) unstable; urgency=low
+
+  * New upstream release.
+  * Moved to utils section. Closes: #145095.
+
+ -- Eric Delaunay <delaunay@debian.org>  Sat, 13 Jul 2002 17:41:06 +0200
+
+ethtool (1.5-2) unstable; urgency=low
+
+  * Moved ethtool-sparc22.h into ethtool-util.h to get u8 & u32 defined before
+    use. Closes: #143431.
+
+ -- Eric Delaunay <delaunay@debian.org>  Sat, 20 Apr 2002 21:50:19 +0200
+
+ethtool (1.5-1) unstable; urgency=low
+
+  * New upstream release.
+  * New maintainer address.
+  * Updated list of drivers that support ethtool protocol in README.debian
+    based on infos found in 2.4.18 kernel tree.
+
+ -- Eric Delaunay <delaunay@debian.org>  Sun, 14 Apr 2002 19:24:18 +0200
+
 ethtool (1.3-1) unstable; urgency=low
 
   * Initial release forked from sparc-utils 1.8-2 to enable multi-arch support.

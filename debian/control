@@ -1,8 +1,9 @@
 Source: ethtool
-Section: misc
+Section: utils
 Priority: extra
-Maintainer: Eric Delaunay <delaunay@lix.polytechnique.fr>
-Standards-Version: 3.1.1
+Maintainer: Eric Delaunay <delaunay@debian.org>
+Standards-Version: 3.6.1
+Build-Depends: debhelper
 
 Package: ethtool
 Architecture: any
@@ -11,8 +12,8 @@ Conflicts: sparc-utils (<< 1.9-1)
 Description: Display or change ethernet card settings
  ethtool is used for querying settings of an ethernet device and changing them.
  .
- It is mainly targeted to 2.4 kernel where this feature is available for many
- ethernet drivers.
+ Many ethernet drivers in 2.4 or newer kernel can be queried and tuned using
+ ethtool.
  .
  However, backward compatibility is ensured on 2.2 kernel running Sparc with
  SUN Happy Meal (hme) Ethernet card.

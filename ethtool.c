@@ -32,10 +32,11 @@
 #include <string.h>
 #include <errno.h>
 #include <net/if.h>
-# include <sys/utsname.h>
+#include <sys/utsname.h>
 
 #include <linux/sockios.h>
 #include "ethtool-util.h"
+
 
 #ifndef SIOCETHTOOL
 #define SIOCETHTOOL     0x8946
@@ -139,8 +140,16 @@ static int check_for_pre24_kernel();
 
 static void show_usage(int badarg)
 {
-	fprintf(stderr, PACKAGE " version " VERSION "\n");
-	fprintf(stderr,
+	if (badarg != 0) {
+	    fprintf(stderr,
+		    "ethtool: bad command line argument(s)\n"
+		    "For more information run ethtool -h\n"
+	    );
+	}
+	else {
+	    /* ethtool -h */
+	    fprintf(stdout, PACKAGE " version " VERSION "\n");
+	    fprintf(stdout,
 		"Usage:\n"
 		"	ethtool DEVNAME\n"
 		"	ethtool -a DEVNAME\n"
@@ -208,7 +217,8 @@ static void show_usage(int badarg)
 		"		[ sopass %%x:%%x:%%x:%%x:%%x:%%x ] \\\n"
 		"		[ msglvl %%d ] \n"
 		"	ethtool -S DEVNAME\n"
-	);
+	    );
+	}
 	exit(badarg);
 }
 
@@ -2046,7 +2056,7 @@ static int check_for_pre24_kernel()
 		fprintf( stderr, "Cannot parse kernel revision: %s\n", sysinfo.release );
 		return 68;
 	}
-	if (rmaj < 2 || rmaj == 2 && rmin < 4)
+	if (rmaj < 2 || (rmaj == 2 && rmin < 4))
 		is_pre24_kernel = 1;
 	return 0;
 }
@@ -2063,4 +2073,3 @@ int main(int argc, char **argp, char **envp)
 	parse_cmdline(argc, argp);
 	return doit();
 }
-
