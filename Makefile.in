@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4-p5 from Makefile.am
+# Makefile.in generated automatically by automake 1.4-p4 from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -60,6 +60,7 @@ POST_UNINSTALL = :
 CC = @CC@
 MAKEINFO = @MAKEINFO@
 PACKAGE = @PACKAGE@
+PRE24_COMPAT = @PRE24_COMPAT@
 VERSION = @VERSION@
 
 man_MANS = ethtool.8
@@ -99,7 +100,7 @@ configure configure.in install-sh missing mkinstalldirs
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = gtar
+TAR = tar
 GZIP_ENV = --best
 SOURCES = $(ethtool_SOURCES)
 OBJECTS = $(ethtool_OBJECTS)
@@ -117,7 +118,7 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 $(ACLOCAL_M4):  configure.in 
 	cd $(srcdir) && $(ACLOCAL)
 
-config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+config.status: $(srcdir)/configure.in $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
 $(srcdir)/configure: $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
 	cd $(srcdir) && $(AUTOCONF)
@@ -314,8 +315,6 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-ethtool.o: ethtool.c config.h ethtool-copy.h
-
 info-am:
 info: info-am
 dvi-am:

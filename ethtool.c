@@ -16,12 +16,22 @@
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <net/if.h>
+#include <errno.h>
 
 typedef __uint32_t u32;		/* hack, so we may include kernel's ethtool.h */
 typedef __uint16_t u16;		/* ditto */
 typedef __uint8_t u8;		/* ditto */
 #include "ethtool-copy.h"
+#ifdef PRE24_COMPAT
+# ifdef __sparc__
+#  include "ethtool-sparc22.h"
+# endif
+# include <sys/utsname.h>
+#endif
 #include <linux/sockios.h>
+#ifndef SIOCETHTOOL
+# define SIOCETHTOOL	0x8946	/* if compiling on libc with kernel 2.2 headers */
+#endif
 
 static int parse_wolopts(char *optstr, int *data);
 static char *unparse_wolopts(int wolopts);
@@ -29,6 +39,8 @@ static int parse_sopass(char *src, unsigned char *dest);
 static int do_gdrv(int fd, struct ifreq *ifr);
 static int do_gset(int fd, struct ifreq *ifr);
 static int do_sset(int fd, struct ifreq *ifr);
+static int send_ioctl(int fd, struct ifreq *ifr);
+static int check_for_pre24_kernel();
 
 /* Syntax:
  *
@@ -58,6 +70,7 @@ static int wol_change = 0;
 static u8 sopass_wanted[SOPASS_MAX];
 static int sopass_change = 0;
 static int gwol_changed = 0; /* did anything in GWOL change? */
+static int is_pre24_kernel = 0;
 
 static void show_usage(int badarg)
 {
@@ -487,7 +500,7 @@ static int do_gdrv(int fd, struct ifreq *ifr)
 	struct ethtool_cmd *ecmd = (struct ethtool_cmd *)ifr->ifr_data;
 
 	ecmd->cmd = ETHTOOL_GDRVINFO;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if(err < 0) {
 		perror("Cannot get driver information");
 		return 71;
@@ -501,7 +514,7 @@ static int do_gset(int fd, struct ifreq *ifr)
 	struct ethtool_cmd *ecmd = (struct ethtool_cmd *)ifr->ifr_data;
 
 	ecmd->cmd = ETHTOOL_GSET;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if(err < 0) {
 		perror("Cannot get device settings");
 		return 71;
@@ -512,10 +525,10 @@ static int do_gset(int fd, struct ifreq *ifr)
 	}
 
 	ecmd->cmd = ETHTOOL_GWOL;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if(err < 0) {
 		perror("Cannot get wake-on-lan settings");
-		return 72;
+		return (err == EOPNOTSUPP ? 0 : 72);
 	}
 	err = dump_wol((struct ethtool_wolinfo *)ifr->ifr_data);
 	return 0;
@@ -529,7 +542,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 
 	if (gset_changed) {
 		ecmd->cmd = ETHTOOL_GSET;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if(err < 0) {
 			perror("Cannot get current device settings");
 			return 71;
@@ -551,7 +564,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 	
 		/* Try to perform the update. */
 		ecmd->cmd = ETHTOOL_SSET;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if(err < 0) {
 			perror("Cannot update new settings");
 			return 72;
@@ -560,7 +573,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 
 	if (gwol_changed) {
 		ecmd->cmd = ETHTOOL_GWOL;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err < 0) {
 			perror("Cannot get current wake-on-lan settings");
 			return 73;
@@ -579,7 +592,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 
 		/* Try to perform the update. */
 		ecmd->cmd = ETHTOOL_SWOL;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if(err < 0) {
 			perror("Cannot update new wake-on-lan settings");
 			return 74;
@@ -589,8 +602,76 @@ static int do_sset(int fd, struct ifreq *ifr)
 	return 0;
 }
 
+static int send_ioctl(int fd, struct ifreq *ifr)
+{
+	int err;
+	if (! is_pre24_kernel) {
+		err = ioctl(fd, SIOCETHTOOL, ifr);
+	}
+	else {
+#if defined(__sparc__) && defined(PRE24_COMPAT)
+		/* this part is working only on sparc HME ethernet driver */
+		struct ethtool_cmd_22 old_ecmd;
+		struct ethtool_cmd *ecmd = (struct ethtool_cmd *)ifr->ifr_data;
+		/* fill in old pre-2.4 ethtool struct */
+		old_ecmd.cmd = ecmd->cmd;
+		old_ecmd.supported = ecmd->supported;
+		old_ecmd.speed = ecmd->speed;
+		old_ecmd.duplex = ecmd->duplex;
+		old_ecmd.port = ecmd->port;
+		old_ecmd.phy_address = ecmd->phy_address;
+		old_ecmd.transceiver = ecmd->transceiver;
+		old_ecmd.autoneg = ecmd->autoneg;
+		/* issue the ioctl */
+		ifr->ifr_data = (caddr_t) &old_ecmd;
+		err = ioctl( fd, SIOCETHTOOL_22, ifr );
+		ifr->ifr_data = (caddr_t) ecmd;
+		/* copy back results from ioctl (on get cmd) */
+		if (ecmd->cmd == ETHTOOL_GSET) {
+			ecmd->supported = old_ecmd.supported;
+			ecmd->speed = old_ecmd.speed;
+			ecmd->duplex = old_ecmd.duplex;
+			ecmd->port = old_ecmd.port;
+			ecmd->phy_address = old_ecmd.phy_address;
+			ecmd->transceiver = old_ecmd.transceiver;
+			ecmd->autoneg = old_ecmd.autoneg;
+		}
+#else
+		err = -1;
+		errno = EOPNOTSUPP;
+#endif
+	}
+	return err;
+}
+
+#ifdef PRE24_COMPAT
+static int check_for_pre24_kernel()
+{
+	struct utsname sysinfo;
+	int rmaj, rmin, rpl;
+	if (uname( &sysinfo ) < 0) {
+		perror( "Cannot get system informations:" );
+		return 68;
+	}
+	if (sscanf( sysinfo.release, "%d.%d.%d", &rmaj, &rmin, &rpl ) != 3) {
+		fprintf( stderr, "Cannot parse kernel revision: %s\n", sysinfo.release );
+		return 68;
+	}
+	if (rmaj < 2 || rmaj == 2 && rmin < 4)
+		is_pre24_kernel = 1;
+	return 0;
+}
+#endif
+
 int main(int argc, char **argp, char **envp)
 {
+	int err;
+#ifdef PRE24_COMPAT
+	err = check_for_pre24_kernel();
+	if (err != 0)
+		return err;
+#endif
 	parse_cmdline(argc, argp);
 	return doit();
 }
+

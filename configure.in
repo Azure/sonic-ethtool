@@ -18,4 +18,14 @@ AC_PROG_GCC_TRADITIONAL
 AC_HEADER_STDC
 AC_CHECK_FUNCS(socket strtol)
 
+dnl Enable pre-2.4 compatibility if --enable-compat=yes
+AC_ARG_ENABLE(compat,
+    [  --enable-compat         enable pre-2.4 backward compatibility],
+    PRE24_COMPAT=$enableval, PRE24_COMPAT=no)
+AC_MSG_RESULT($PRE24_COMPAT)
+AC_SUBST(PRE24_COMPAT)
+if test "$PRE24_COMPAT" = "yes"; then
+    AC_DEFINE(PRE24_COMPAT)
+fi
+
 AC_OUTPUT(Makefile)

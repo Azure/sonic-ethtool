@@ -4,6 +4,9 @@
 @TOP@
 @BOTTOM@
 
+/* Define if you want pre-2.4 kernel compatibility. */
+#undef PRE24_COMPAT
+
 #undef PACKAGE
 #undef VERSION
 

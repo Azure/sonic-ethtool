@@ -1,0 +1,10 @@
+This is the Debian GNU/Linux prepackaged version of "ethtool".
+
+This package is currently maintained by Eric Delaunay <delaunay@debian.org>
+and built from sources obtained from Sourceforce:
+
+http://sourceforge.net/projects/gkernel/
+
+
+On Debian GNU/Linux systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL'.

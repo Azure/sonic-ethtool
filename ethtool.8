@@ -62,7 +62,7 @@ ethtool \- Display or change ethernet card settings
 ]
 .SH DESCRIPTION
 .BI ethtool
-Is used for querying settings of an ethernet device and changing them.
+is used for querying settings of an ethernet device and changing them.
 
 .I ethX
 is the name of the ethernet device to work on.
@@ -140,19 +140,20 @@ Disable (wake on nothing).  This option clears all previous options.
 Set the SecureOn(tm) password.  The argument to this option must be 6
 bytes in ethernet MAC hex format (xx:yy:zz:aa:bb:cc).
 .SH BUGS
-Not supported (in part or whole) on all ethernet drivers.
+Not supported (in part or whole) on all ethernet drivers (read
+/usr/share/doc/ethtool/README.debian to get an idea about supported features).
+Only supported on 2.4 kernel and Sparc running 2.2 kernel with Happy
+Meal ethernet card.
 .SH AUTHOR
 .B ethtool
 was written by David Miller <davem@redhat.com>.
 
-Modifications by 
-Jeff Garzik <jgarzik@mandrakesoft.com>, 
+Modifications by
+Jeff Garzik <jgarzik@mandrakesoft.com>,
 Tim Hockin <thockin@sun.com>.
 
 Manual page written by Jakub Jelinek <jj@ultra.linux.cz>.
 .SH AVAILABILITY
 .B ethtool
-is available for anonymous ftp from sunsite.mff.cuni.cz in
-/OS/Linux/Sparc/local/ethtool/.
-Master copy of the sources is available on
-.B vger.rutgers.edu
+is available on SourceForge in gkernel project
+(http://sourceforge.net/projects/gkernel/).
