@@ -32,9 +32,9 @@ binary-arch: build
 	dh_testroot
 	dh_clean -k
 	# install binaries
-	$(MAKE) install-strip DESTDIR=`pwd`/debian/tmp
+	$(MAKE) install-strip DESTDIR=`pwd`/debian/ethtool
 	# force removing .comment section from binary (lintian check)
-	strip -R .comment debian/tmp/usr/sbin/ethtool
+	strip -R .comment debian/ethtool/usr/sbin/ethtool
 	# install documentation
 	dh_installmanpages
 	dh_installdocs AUTHORS NEWS README

@@ -2,12 +2,12 @@ Source: ethtool
 Section: utils
 Priority: extra
 Maintainer: Eric Delaunay <delaunay@debian.org>
-Standards-Version: 3.6.1
+Standards-Version: 3.6.2
 Build-Depends: debhelper
 
 Package: ethtool
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Conflicts: sparc-utils (<< 1.9-1)
 Description: Display or change ethernet card settings
  ethtool is used for querying settings of an ethernet device and changing them.
