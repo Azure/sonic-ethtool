@@ -1,3 +1,13 @@
+ethtool (5-1) unstable; urgency=low
+
+  * New maintainer.
+  * New upstream release. Closes: #380681.
+  * Set Standards-Version to 3.7.2.
+  * Set debhelper compatibility to 5.
+  * Added debian/watch.
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Fri, 27 Oct 2006 13:05:16 +1000
+
 ethtool (3-1) unstable; urgency=low
 
   * New upstream release.  Closes: #308954.
