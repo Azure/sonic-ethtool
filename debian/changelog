@@ -1,3 +1,10 @@
+ethtool (5-2) unstable; urgency=low
+
+  * Removed outdated information in package description.
+    Closes: #389689.
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Fri, 11 May 2007 22:12:08 +1000
+
 ethtool (5-1) unstable; urgency=low
 
   * New maintainer.
