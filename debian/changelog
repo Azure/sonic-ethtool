@@ -1,3 +1,12 @@
+ethtool (6-0) unstable; urgency=low
+
+  * New upstream release.
+  * Fixed "Reports 10GbE speed as 'Unknown! (10000)'". Closes: #398438.
+  * Fixed the following lintian message:
+    - W: ethtool source: debian-rules-ignores-make-clean-error line 22
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Sat, 11 Aug 2007 20:43:55 +1000
+
 ethtool (5-2) unstable; urgency=low
 
   * Removed outdated information in package description.
