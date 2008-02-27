@@ -1,2 +1,2 @@
 version=3
-http://prdownloads.sourceforge.net/gkernel/ethtool-([\d\.]+).tar.gz
+http://sf.net/gkernel/ ethtool-([\d]+[\.\d]*).tar.gz

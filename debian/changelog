@@ -1,3 +1,17 @@
+ethtool (6+20080227-1) unstable; urgency=low
+
+  * New git pull
+    - Recent fixes for 10000 support. Closes: #468089
+  * Fixed debian/watch
+    Patch by Raphael Geissert <atomo64@gmail.com>
+    Closes: #449638
+  * Bumped Standards-Version to 3.7.3
+  * Added homepage control header
+  * Running autoconf and automake in debian/rules
+  * Updated debian/copyright
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Wed, 27 Feb 2008 18:08:04 +1100
+
 ethtool (6-0) unstable; urgency=low
 
   * New upstream release.

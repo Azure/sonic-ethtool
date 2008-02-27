@@ -11,6 +11,7 @@ p=ethtool
 build: build-stamp
 build-stamp:
 	dh_testdir
+	./autogen.sh
 	./configure --prefix=/usr --mandir=/usr/share/man --enable-compat
 	$(MAKE) all CC=$(CC) CFLAGS="$(CFLAGS)"
 	touch $@
