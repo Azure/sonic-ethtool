@@ -68,10 +68,7 @@ Copyright Notices
   vioc.c
     Copyright 2006 Fabric7 Systems, Inc
 
-  ethtool-sparc22.h
-    Copyright (C) 1998 David S. Miller (davem@redhat.com)
+ethtool is licensed under the GNU General Public License version 2.
 
-ethtool is GPL lincensed.
-
-On Debian GNU/Linux systems, the complete text of the GNU General
-Public License can be found in `/usr/share/common-licenses/GPL'.
+On Debian GNU/Linux systems, the complete text of the GNU General Public
+License version 2 can be found in `/usr/share/common-licenses/GPL-2'.

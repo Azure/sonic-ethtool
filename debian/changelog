@@ -1,3 +1,24 @@
+ethtool (6+20080913-1) unstable; urgency=low
+
+  * Add myself to uploaders
+  * New git pull
+    - Add support for speeds >65535 Mbps
+    - Add control of RX flow hashing
+    - Add control of Large Receive Offload. Closes: #503959
+  * Drop changes to support Linux 2.2 on SPARC
+  * Convert remaining changes to quilt
+  * Fix wrong long name for -p option in man page. Closes: #488067
+  * Fix typos in man page. Closes: #506225
+  * Expand package description and fix capitalisation. Closes: #469444
+  * Use dh_strip to strip binaries. Closes: #436820
+  * Do not override CC or CFLAGS in debian/rules
+  * Remove unused variables from debian/rules
+  * Use dh_installman instead of deprecated dh_installmanpages
+  * Update copyright to refer specifically to GPLv2
+  * Bump priority to optional
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Wed, 26 Nov 2008 02:36:02 +0000
+
 ethtool (6+20080227-1) unstable; urgency=low
 
   * New git pull
@@ -113,6 +134,4 @@ ethtool (1.3-1) unstable; urgency=low
 
  -- Eric Delaunay <delaunay@lix.polytechnique.fr>  Tue,  2 Oct 2001 20:25:05 +0200
 
-Local variables:
-mode: debian-changelog
-End:
+

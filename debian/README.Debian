@@ -4,10 +4,6 @@ ethtool for Debian
 ethtool is a small utility for examining and tuning your ethernet-based network
 interface.  See the man page for more details.
 
-ethtool is only supported on 2.2 kernel for use with Sparc Happy Meal (hme)
-ethernet cards.
-On 2.4 or newer kernel, more architectures and cards are supported (see below).
-
 Note: as of nov. 2004, this file is quite out of date (need to be synchronized
 on kernel sources).
 

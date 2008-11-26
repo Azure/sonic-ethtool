@@ -18,9 +18,6 @@ typedef __uint16_t u16;         /* ditto */
 typedef __uint8_t u8;           /* ditto */
 
 #include "ethtool-copy.h"
-#if defined(PRE24_COMPAT) && defined(__sparc__)
-# include "ethtool-sparc22.h"
-#endif
 
 /* National Semiconductor DP83815, DP83816 */
 int natsemi_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
