@@ -16,7 +16,7 @@ clean: unpatch
 	dh_testroot
 	rm -f build-stamp
 	[ ! -f Makefile ] || $(MAKE) distclean
-	dh_clean
+	dh_clean INSTALL Makefile.in aclocal.m4 configure depcomp ethtool-config.h.in install-sh missing
 
 binary: binary-arch binary-indep
 
@@ -29,6 +29,10 @@ binary-arch: build
 	dh_clean -k
 	$(MAKE) install DESTDIR=`pwd`/debian/ethtool
 	dh_strip
+	mkdir -p debian/ethtool/etc/network/if-pre-up.d
+	install debian/ethtool.if-pre-up debian/ethtool/etc/network/if-pre-up.d/ethtool
+	mkdir -p debian/ethtool/etc/network/if-up.d
+	install debian/ethtool.if-up debian/ethtool/etc/network/if-up.d/ethtool
 	dh_installman ethtool.8
 	dh_installdocs AUTHORS NEWS README
 	dh_installchangelogs ChangeLog

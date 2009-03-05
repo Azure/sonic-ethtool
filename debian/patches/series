@@ -1,2 +1,5 @@
 101_fix-man-page.diff
 102_short-usage-on-error.diff
+103_support-arbitrary-speeds.diff
+104_add-offload-gro.diff
+105_update-man-page-offload.diff

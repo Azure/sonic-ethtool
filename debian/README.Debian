@@ -1,74 +1,54 @@
 ethtool for Debian
 ------------------
 
-ethtool is a small utility for examining and tuning your ethernet-based network
-interface.  See the man page for more details.
+Most settings that can be controlled through ethtool can be specified
+in /etc/network/interfaces.  They will then be applied to interfaces
+that are brought up automatically at boot time or using the 'ifup'
+command.  The following settings are supported:
 
-Note: as of nov. 2004, this file is quite out of date (need to be synchronized
-on kernel sources).
+Link mode (--change):
+	link-speed <speed>
+	link-duplex half|full
 
+Ethernet settings (--change):
+	ethernet-autoneg on|off|<mask>
+	ethernet-port <port>
+	ethernet-wol <mode> [<pass-key>]
 
-2.4 kernel support for ETHTOOL protocol
----------------------------------------
+Driver control (--change):
+	driver-message-level <level>
 
-Informations shown below were extracted from 2.4.18 kernel sources.
-Please, report back to me misinterpretation of it contents.
+Ethernet flow control (--pause):
+	ethernet-pause-rx on|off
+	ethernet-pause-tx on|off
+	ethernet-pause-autoneg on|off
 
-Last column show current capabilities of these drivers:
-  D = get driver infos
-  C = get/set card settings
-  W = get/set wake-on-lan settings
-  M = get/set message-level
-  L = get link status
-  R = restart autonegotiation
-  G = get registers
-  P = get EEPROM
+Protocol offload (--offload):
+	offload-rx on|off
+	offload-tx on|off
+	offload-sg on|off
+	offload-tso on|off
+	offload-ufo on|off
+	offload-gso on|off
+	offload-lro on|off
 
-An 'x' indicates that the feature is available, a '.' indicates not.
+Hardware tuning (--coalesce, --ring):
+	hardware-irq-coalesce-adaptive-rx on|off
+	hardware-irq-coalesce-adaptive-tx on|off
+	hardware-irq-coalesce-rx-usecs <n>
+	hardware-irq-coalesce-rx-frames <n>
+	(etc.)
+	hardware-dma-ring-rx <size>
+	hardware-dma-ring-rx-mini <size>
+	hardware-dma-ring-rx-jumbo <size>
+	hardware-dma-ring-tx <size>
 
-Ethernet card family                        linux driver    DCWMLRGP
---------------------------------------------------------------------
-3Com 3c501 cards                            3c501           x..x....
-3Com 3c503 and 3c503/16 cards               3c503           x.......
-3Com Etherlink Plus (3C505) cards           3c505           x..x....
-3Com EtherLink16 (3c507) cards              3c507           x..x....
-3Com EtherLink3 (3c509) cards               3c509           x..x....
-3Com ISA EtherLink XL (3c515) cards         3c515           x..x....
-3Com Etherlink/MC (3c523) cards (i82586)    3c523           x.......
-3Com Etherlink/MC32 (3c527) cards           3c527           x..x....
-3Com "Vortex" and "Boomerang" series        3c59x           x.......
-RealTek RTL-8139C+ Ethernet cards           8139cp          xx.xxx..
-RealTek RTL-8139 Fast Ethernet              8139too         xxxxxx..
-Alteon AceNIC Gigabit Ethernet              acenic          .x......
-Davicom DM9102* NIC Fast Ethernet           dfme            x.......
-Intel i82544EI Gigabit Ethernet	            e1000           x.......
-Intel i82557-559 Ethernet cards             eepro100        x.......
-SMC 83c170 EPIC/100 Fast Ethernet           epic100         xx.xxx..
-Myson MTD-8xx 100/10M Ethernet PCI          fealnx          xx.xxx..
-Packet Engines GNIC-II Gigabit Ethernet     hamachi         x.......
-SGI's IOC3 based Ethernet cards             ioc3-eth        .x......
-NatSemi DP8381x series                      natsemi         xxxxxxxx
-NE2000 clone on PCI bus                     ne2k-pci        x.......
-National Semiconductor DP83820 10/100/1000  ns83820         x...x...
-AMD PCnet32 ethernet cards                  pcnet32         xx.xxx..
-SiS 900/7016 PCI Fast Ethernet              sis900          x.......
-Adaptec Starfire                            starfire        xx.xxx..
-Sundance ST201 "Alta"                       sundance        x.......
-Sun GEM Gbit ethernet                       sungem          xx.xx...
-SUN Happy Meal (BigMac) Ethernet            sunhme          .x......
-Digital 21*4* Tulip ethernet cards          tulip           x.......
-VIA Rhine PCI Fast Ethernet                 via-rhine       xx.xxx..
-Winbond W89c840 PCI Ethernet                winbond-840     xx.xxx..
-Packet Engines G-NIC PCI Gigabit Ethernet   yellowfin       x.......
+Example:
 
-PCMCIA Ethernet card family                 linux driver    DCWMLRGP
---------------------------------------------------------------------
-3com 3c589 PCMCIA ethernet cards            3c589_cs        x..x....
-Aironet 4500 Pcmcia ethernet cards          aironet4500_cs  x..x....
-fmvj18x (and compatibles) PCMCIA cards      fmvj18x_cs      x..x....
-Netwave AirSurfer Wireless LAN PC Card      netwave_cs      x..x....
-New Media PCMCIA ethernet cards             nmclan_cs       x..x....
-Xircom CBE-100 ethernet cards               xircom_tulip_cb xx......
+iface eth0 inet dhcp
+	link-speed 100
+	link-duplex full
+	ethernet-autoneg off
+	ethernet-wol s 46:65:62:69:61:6e
 
---
- Eric Delaunay <delaunay@debian.org>
+ -- Ben Hutchings <ben@decadent.org.uk>, Sat, 21 Feb 2009 03:48:28 +0000
