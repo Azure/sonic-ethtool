@@ -1,3 +1,10 @@
+ethtool (6+20090307-1) unstable; urgency=low
+
+  * New upstream release
+    - Includes all our patches
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Sat, 07 Mar 2009 00:41:14 +0000
+
 ethtool (6+20080913-2) unstable; urgency=low
 
   * Add support for settings specified in /etc/network/interfaces.
