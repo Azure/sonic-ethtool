@@ -1,3 +1,11 @@
+ethtool (6+20090323-3) unstable; urgency=low
+
+  * Exit immediately if IFACE=lo in if-up script
+    Patch by Steve Langasek
+    Closes: 556569
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Tue, 17 Nov 2009 11:32:53 +1100
+
 ethtool (6+20090323-2) unstable; urgency=low
 
   * Remove conflicting type definitions. Closes: #545850

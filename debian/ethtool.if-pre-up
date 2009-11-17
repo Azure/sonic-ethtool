@@ -4,6 +4,8 @@ ETHTOOL=/usr/sbin/ethtool
 
 test -x $ETHTOOL || exit 0
 
+[ "$IFACE" != "lo" ] || exit 0
+
 # Gather together the mixed bag of settings applied with -s/--change
 SETTINGS="\
 ${IF_ETHERNET_PORT:+ port $IF_ETHERNET_PORT}\

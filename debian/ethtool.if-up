@@ -4,6 +4,8 @@ ETHTOOL=/usr/sbin/ethtool
 
 test -x $ETHTOOL || exit 0
 
+[ "$IFACE" != "lo" ] || exit 0
+
 # Find settings with a given prefix and print them as they appeared in
 # /etc/network/interfaces, only with the prefix removed.
 gather_settings () {
