@@ -42,7 +42,7 @@ SETTINGS="$(gather_settings HARDWARE_IRQ_COALESCE_)"
 [ -z "$SETTINGS" ] || $ETHTOOL --coalesce "$IFACE" $SETTINGS
 
 SETTINGS="$(gather_settings HARDWARE_DMA_RING_)"
-[ -z "$SETTINGS" ] || $ETHTOOL --ring "$IFACE" $SETTINGS
+[ -z "$SETTINGS" ] || $ETHTOOL --set-ring "$IFACE" $SETTINGS
 
 SETTINGS="$(gather_settings OFFLOAD_)"
 [ -z "$SETTINGS" ] || $ETHTOOL --offload "$IFACE" $SETTINGS

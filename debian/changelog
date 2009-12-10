@@ -1,3 +1,13 @@
+ethtool (6+20091202-1) unstable; urgency=low
+
+  * New git pull
+    - Includes all of our patches
+  * Remove watch file; there are no regular releases to watch for
+  * Fix application of DMA ring settings from /etc/network/interfaces,
+    thanks to Moritz Möller <m.moeller@bigpoint.net> (Closes: #555550)
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Thu, 10 Dec 2009 05:34:09 +0000
+
 ethtool (6+20090323-3) unstable; urgency=low
 
   * Exit immediately if IFACE=lo in if-up script
