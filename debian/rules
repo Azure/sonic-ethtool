@@ -1,17 +1,15 @@
 #! /usr/bin/make -f
 # (C) 2001, Eric Delaunay
 
-include /usr/share/quilt/quilt.make
-
 build: build-stamp
-build-stamp: $(QUILT_STAMPFN)
+build-stamp:
 	dh_testdir
 	./autogen.sh
 	./configure --prefix=/usr --mandir=/usr/share/man
 	$(MAKE) all CC=$(CC) CFLAGS="$(CFLAGS)"
 	touch $@
 
-clean: unpatch
+clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
@@ -26,7 +24,7 @@ binary-indep:
 binary-arch: build
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	$(MAKE) install DESTDIR=`pwd`/debian/ethtool
 	dh_strip
 	mkdir -p debian/ethtool/etc/network/if-pre-up.d

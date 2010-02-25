@@ -1,3 +1,14 @@
+ethtool (1:2.6.33-1) unstable; urgency=low
+
+  * New upstream release 
+  * Debian source format is 3.0 (quilt)
+  * DH compatibility level is 7
+  * Fix quilt-build-dep-but-no-series-file
+  * Fix out-of-date-standards-version
+  * Fix dh-clean-k-is-deprecated
+
+ -- Anibal Monsalve Salazar <anibal@debian.org>  Thu, 25 Feb 2010 15:38:42 +1100
+
 ethtool (6+20091202-1) unstable; urgency=low
 
   * New git pull
