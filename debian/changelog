@@ -1,3 +1,12 @@
+ethtool (1:2.6.34-1) unstable; urgency=low
+
+  * New upstream release
+  * Add watch file for new version scheme
+  * Move to net section (Closes: #570924)
+  * Fix list of hash options in manual page
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Wed, 26 May 2010 02:01:22 +0100
+
 ethtool (1:2.6.33-1) unstable; urgency=low
 
   * New upstream release 

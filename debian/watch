@@ -1,0 +1,3 @@
+version=3
+opts=dversionmangle=s/^1:// \
+http://sf.net/gkernel/ethtool-(2\.6\..*)\.tar\.gz

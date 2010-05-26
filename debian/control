@@ -1,5 +1,5 @@
 Source: ethtool
-Section: utils
+Section: net
 Priority: optional
 Maintainer: Anibal Monsalve Salazar <anibal@debian.org>
 Uploaders: Ben Hutchings <ben@decadent.org.uk>
