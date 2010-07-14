@@ -4,10 +4,19 @@
 #define ETHTOOL_UTIL_H__
 
 #include <sys/types.h>
-typedef unsigned long long u64;         /* hack, so we may include kernel's ethtool.h */
+
+/* hack, so we may include kernel's ethtool.h */
+typedef unsigned long long __u64;
+typedef __uint32_t __u32;         /* ditto */
+typedef __uint16_t __u16;         /* ditto */
+typedef __uint8_t __u8;           /* ditto */
+
+/* historical: we used to use kernel-like types; remove these once cleaned */
+typedef unsigned long long u64;
 typedef __uint32_t u32;         /* ditto */
 typedef __uint16_t u16;         /* ditto */
 typedef __uint8_t u8;           /* ditto */
+
 #include "ethtool-copy.h"
 #if defined(PRE24_COMPAT) && defined(__sparc__)
 # include "ethtool-sparc22.h"
@@ -45,10 +54,22 @@ int fec_8xx_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 /* PowerPC 4xx on-chip Ethernet controller */
 int ibm_emac_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
+/* Intel(R) PRO/10GBe Gigabit Adapter Family */
+int ixgb_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
 /* Broadcom Tigon3 Ethernet controller */
 int tg3_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 /* SysKonnect Gigabit (Genesis and Yukon) */
 int skge_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
+/* SysKonnect Gigabit (Yukon2) */
+int sky2_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
+/* Fabric7 VIOC */
+int vioc_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
+/* SMSC LAN911x/LAN921x embedded ethernet controller */
+int smsc911x_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 #endif

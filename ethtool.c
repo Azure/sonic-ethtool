@@ -10,8 +10,10 @@
  * ETHTOOL_PHYS_ID support by Chris Leech <christopher.leech@intel.com>
  * e1000 support by Scott Feldman <scott.feldman@intel.com>
  * e100 support by Wen Tao <wen-hwa.tao@intel.com>
+ * ixgb support by Nicholas Nunley <Nicholas.d.nunley@intel.com>
  * amd8111e support by Reeja John <reeja.john@amd.com>
  * long arguments by Andi Kleen.
+ * SMSC LAN911x support by Steve Glendinning <steve.glendinning@smsc.com>
  *
  * TODO:
  *   * no-args => summary of each device (mii-tool style)
@@ -28,7 +30,9 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -99,10 +103,11 @@ static struct option {
     char *opthelp;
 } args[] = {
     { "-s", "--change", MODE_SSET, "Change generic options",
-		"		[ speed 10|100|1000 ]\n"
+		"		[ speed 10|100|1000|2500|10000 ]\n"
 		"		[ duplex half|full ]\n"
 		"		[ port tp|aui|bnc|mii|fibre ]\n"
 		"		[ autoneg on|off ]\n"
+		"		[ advertise %%x ]\n"
 		"		[ phyad %%d ]\n"
 		"		[ xcvr internal|external ]\n"
 		"		[ wol p|u|m|b|a|g|s|d... ]\n"
@@ -152,7 +157,9 @@ static struct option {
 	        "		[ ufo on|off ]\n"
 	        "		[ gso on|off ]\n" },
     { "-i", "--driver", MODE_GDRV, "Show driver information" },
-    { "-d", "--register-dump", MODE_GREGS, "Do a register dump" },
+    { "-d", "--register-dump", MODE_GREGS, "Do a register dump",
+		"		[ raw on|off ]\n"
+		"		[ file FILENAME ]\n" },
     { "-e", "--eeprom-dump", MODE_GEEPROM, "Do a EEPROM dump",
 		"		[ raw on|off ]\n"
 		"		[ offset N ]\n"
@@ -263,6 +270,8 @@ static int phys_id_time = 0;
 static int is_pre24_kernel = 0;
 static int gregs_changed = 0;
 static int gregs_dump_raw = 0;
+static int gregs_dump_hex = 0;
+static char *gregs_dump_file = NULL;
 static int geeprom_changed = 0;
 static int geeprom_dump_raw = 0;
 static int geeprom_offset = 0;
@@ -280,6 +289,7 @@ typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
 	CMDL_INT,
+	CMDL_STR,
 } cmdline_type_t;
 
 struct cmdline_info {
@@ -291,6 +301,8 @@ struct cmdline_info {
 
 static struct cmdline_info cmdline_gregs[] = {
 	{ "raw", CMDL_BOOL, &gregs_dump_raw, NULL },
+	{ "hex", CMDL_BOOL, &gregs_dump_hex, NULL },
+	{ "file", CMDL_STR, &gregs_dump_file, NULL },
 };
 
 static struct cmdline_info cmdline_geeprom[] = {
@@ -367,20 +379,28 @@ static void parse_generic_cmdline(int argc, char **argp,
 				if (i >= argc)
 					show_usage(1);
 				p = info[idx].wanted_val;
-				if (info[idx].type == CMDL_BOOL) {
+				switch (info[idx].type) {
+				case CMDL_BOOL:
 					if (!strcmp(argp[i], "on"))
 						*p = 1;
 					else if (!strcmp(argp[i], "off"))
 						*p = 0;
 					else
 						show_usage(1);
-				} else if (info[idx].type == CMDL_INT) {
-					long v;
-					v = strtol(argp[i], NULL, 0);
+					break;
+				case CMDL_INT: {
+					long v = strtol(argp[i], NULL, 0);
 					if (v < 0)
 						show_usage(1);
 					*p = (int) v;
-				} else {
+					break;
+				}
+				case CMDL_STR: {
+					char **s = info[idx].wanted_val;
+					*s = strdup(argp[i]);
+					break;
+				}
+				default:
 					show_usage(1);
 				}
 			}
@@ -516,6 +536,10 @@ static void parse_cmdline(int argc, char **argp)
 					speed_wanted = SPEED_100;
 				else if (!strcmp(argp[i], "1000"))
 					speed_wanted = SPEED_1000;
+				else if (!strcmp(argp[i], "2500"))
+					speed_wanted = SPEED_2500;
+				else if (!strcmp(argp[1], "10000"))
+					speed_wanted = SPEED_10000;
 				else
 					show_usage(1);
 				break;
@@ -562,6 +586,15 @@ static void parse_cmdline(int argc, char **argp)
 				} else {
 					show_usage(1);
 				}
+				break;
+			} else if (!strcmp(argp[i], "advertise")) {
+				gset_changed = 1;
+				i += 1;
+				if (i >= argc)
+					show_usage(1);
+				advertising_wanted = strtol(argp[i], NULL, 16);
+				if (advertising_wanted < 0)
+					show_usage(1);
 				break;
 			} else if (!strcmp(argp[i], "phyad")) {
 				gset_changed = 1;
@@ -615,7 +648,7 @@ static void parse_cmdline(int argc, char **argp)
 		}
 	}
 
-	if (autoneg_wanted == AUTONEG_ENABLE){
+	if ((autoneg_wanted == AUTONEG_ENABLE) && (advertising_wanted < 0)) {
 		if (speed_wanted == SPEED_10 && duplex_wanted == DUPLEX_HALF)
 			advertising_wanted = ADVERTISED_10baseT_Half;
 		else if (speed_wanted == SPEED_10 &&
@@ -633,6 +666,12 @@ static void parse_cmdline(int argc, char **argp)
 		else if (speed_wanted == SPEED_1000 &&
 			 duplex_wanted == DUPLEX_FULL)
 			advertising_wanted = ADVERTISED_1000baseT_Full;
+		else if (speed_wanted == SPEED_2500 &&
+			 duplex_wanted == DUPLEX_FULL)
+			advertising_wanted = ADVERTISED_2500baseX_Full;
+		else if (speed_wanted == SPEED_10000 &&
+			 duplex_wanted == DUPLEX_FULL)
+			advertising_wanted = ADVERTISED_10000baseT_Full;
 		else
 			/* auto negotiate without forcing,
 			 * all supported speed will be assigned in do_sset()
@@ -693,6 +732,13 @@ static void dump_supported(struct ethtool_cmd *ep)
 	if (mask & SUPPORTED_1000baseT_Full) {
 		did1++; fprintf(stdout, "1000baseT/Full ");
 	}
+	if (did1 && (mask & SUPPORTED_2500baseX_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	                        ");
+	}
+	if (mask & SUPPORTED_2500baseX_Full) {
+		did1++; fprintf(stdout, "2500baseX/Full ");
+	}
 	fprintf(stdout, "\n");
 
 	fprintf(stdout, "	Supports auto-negotiation: ");
@@ -735,6 +781,20 @@ static void dump_advertised(struct ethtool_cmd *ep)
 	if (mask & ADVERTISED_1000baseT_Full) {
 		did1++; fprintf(stdout, "1000baseT/Full ");
 	}
+	if (did1 && (mask & ADVERTISED_2500baseX_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	                        ");
+	}
+	if (mask & ADVERTISED_2500baseX_Full) {
+		did1++; fprintf(stdout, "2500baseX/Full ");
+	}
+	if (did1 && (mask & ADVERTISED_10000baseT_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	                        ");
+	}
+	if (mask & ADVERTISED_10000baseT_Full) {
+		did1++; fprintf(stdout, "10000baseT/Full ");
+	}
 	if (did1 == 0)
 		 fprintf(stdout, "Not reported");
 	fprintf(stdout, "\n");
@@ -761,6 +821,12 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 		break;
 	case SPEED_1000:
 		fprintf(stdout, "1000Mb/s\n");
+		break;
+	case SPEED_2500:
+		fprintf(stdout, "2500Mb/s\n");
+		break;
+	case SPEED_10000:
+		fprintf(stdout, "10000Mb/s\n");
 		break;
 	default:
 		fprintf(stdout, "Unknown! (%i)\n", ep->speed);
@@ -951,6 +1017,7 @@ static struct {
 	{ "r8169", realtek_dump_regs },
 	{ "de2104x", de2104x_dump_regs },
 	{ "e1000", e1000_dump_regs },
+	{ "ixgb", ixgb_dump_regs },
 	{ "natsemi", natsemi_dump_regs },
 	{ "e100", e100_dump_regs },
 	{ "amd8111e", amd8111e_dump_regs },
@@ -959,6 +1026,9 @@ static struct {
 	{ "ibm_emac", ibm_emac_dump_regs },
 	{ "tg3", tg3_dump_regs },
 	{ "skge", skge_dump_regs },
+	{ "sky2", sky2_dump_regs },
+        { "vioc", vioc_dump_regs },
+        { "smsc911x", smsc911x_dump_regs },
 };
 
 static int dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
@@ -970,10 +1040,27 @@ static int dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(driver_list); i++)
-		if (!strncmp(driver_list[i].name, info->driver,
-			     ETHTOOL_BUSINFO_LEN))
-			return driver_list[i].func(info, regs);
+	if (gregs_dump_file) {
+		FILE *f = fopen(gregs_dump_file, "r");
+		struct stat st;
+
+		if (!f || fstat(fileno(f), &st) < 0) {
+			fprintf(stderr, "Can't open '%s': %s\n",
+				gregs_dump_file, strerror(errno));
+			return -1;
+		}
+
+		regs = realloc(regs, sizeof(*regs) + st.st_size);
+		regs->len = st.st_size;
+		fread(regs->data, regs->len, 1, f);
+		fclose(f);
+	}
+
+	if (!gregs_dump_hex)
+		for (i = 0; i < ARRAY_SIZE(driver_list); i++)
+			if (!strncmp(driver_list[i].name, info->driver,
+				     ETHTOOL_BUSINFO_LEN))
+				return driver_list[i].func(info, regs);
 
 	fprintf(stdout, "Offset\tValues\n");
 	fprintf(stdout, "--------\t-----");
@@ -1662,7 +1749,9 @@ static int do_sset(int fd, struct ifreq *ifr)
 						 ADVERTISED_100baseT_Half |
 						 ADVERTISED_100baseT_Full |
 						 ADVERTISED_1000baseT_Half |
-						 ADVERTISED_1000baseT_Full);
+						 ADVERTISED_1000baseT_Full |
+						 ADVERTISED_2500baseX_Full |
+						 ADVERTISED_10000baseT_Full);
 				else
 					ecmd.advertising = advertising_wanted;
 			}
@@ -1989,12 +2078,10 @@ static int do_gstats(int fd, struct ifreq *ifr)
 	/* todo - pretty-print the strings per-driver */
 	fprintf(stdout, "NIC statistics:\n");
 	for (i = 0; i < n_stats; i++) {
-		char s[ETH_GSTRING_LEN];
-
-		strncpy(s, (const char *) &strings->data[i * ETH_GSTRING_LEN],
-			ETH_GSTRING_LEN);
-		fprintf(stdout, "     %s: %llu\n",
-			s, stats->data[i]);
+		fprintf(stdout, "     %.*s: %llu\n",
+			ETH_GSTRING_LEN,
+			&strings->data[i * ETH_GSTRING_LEN],
+			stats->data[i]);
 	}
 	free(strings);
 	free(stats);

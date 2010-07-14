@@ -54,9 +54,10 @@ sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
 am_ethtool_OBJECTS = ethtool.$(OBJEXT) amd8111e.$(OBJEXT) \
 	de2104x.$(OBJEXT) e100.$(OBJEXT) e1000.$(OBJEXT) \
-	fec_8xx.$(OBJEXT) ibm_emac.$(OBJEXT) natsemi.$(OBJEXT) \
-	pcnet32.$(OBJEXT) realtek.$(OBJEXT) tg3.$(OBJEXT) \
-	skge.$(OBJEXT)
+	fec_8xx.$(OBJEXT) ibm_emac.$(OBJEXT) ixgb.$(OBJEXT) \
+	natsemi.$(OBJEXT) pcnet32.$(OBJEXT) realtek.$(OBJEXT) \
+	tg3.$(OBJEXT) marvell.$(OBJEXT) vioc.$(OBJEXT) \
+	smsc911x.$(OBJEXT)
 ethtool_OBJECTS = $(am_ethtool_OBJECTS)
 ethtool_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
@@ -163,8 +164,9 @@ man_MANS = ethtool.8
 EXTRA_DIST = ethtool.8 ethtool.spec.in aclocal.m4 ChangeLog autogen.sh
 ethtool_SOURCES = ethtool.c ethtool-copy.h ethtool-util.h	\
 		  amd8111e.c de2104x.c e100.c e1000.c		\
-		  fec_8xx.c ibm_emac.c natsemi.c pcnet32.c	\
-		  realtek.c tg3.c skge.c
+		  fec_8xx.c ibm_emac.c ixgb.c natsemi.c		\
+		  pcnet32.c realtek.c tg3.c marvell.c vioc.c	\
+		  smsc911x.c
 
 all: ethtool-config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -263,11 +265,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ethtool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fec_8xx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ibm_emac.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ixgb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/marvell.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/natsemi.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pcnet32.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/realtek.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/skge.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/smsc911x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tg3.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vioc.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

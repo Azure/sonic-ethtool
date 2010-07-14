@@ -1,5 +1,5 @@
 Name		: ethtool
-Version		: 5
+Version		: 6
 Release		: 1
 Group		: Utilities
 
