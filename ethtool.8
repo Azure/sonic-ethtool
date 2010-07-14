@@ -158,7 +158,7 @@ ethtool \- Display or change ethernet card settings
 .B ethtool \-k|\-\-show\-offload
 .I ethX
 
-.B ethtool \-K\-\-offload
+.B ethtool \-K|\-\-offload
 .I ethX
 .B2 rx on off
 .B2 tx on off
@@ -166,10 +166,12 @@ ethtool \- Display or change ethernet card settings
 .B2 tso on off
 .B2 ufo on off
 .B2 gso on off
+.B2 gro on off
+.B2 lro on off
 
-.B ethtool \-p|\-\-blink
+.B ethtool \-p|\-\-identify
 .I ethX
-.IR [ N ]
+.RI [ N ]
 
 .B ethtool \-r|\-\-negotiate
 .I ethX
@@ -183,7 +185,7 @@ ethtool \- Display or change ethernet card settings
 
 .B ethtool \-s
 .I ethX
-.B4 speed 10 100 1000 2500 10000
+.BI speed \ N
 .B2 duplex half full
 .B4 port tp aui bnc mii fibre
 .B2 autoneg on off
@@ -311,6 +313,12 @@ Specifies whether UDP fragmentation offload should be enabled
 .A2 gso on off
 Specifies whether generic segmentation offload should be enabled 
 .TP
+.A2 gro on off
+Specifies whether generic receive offload should be enabled
+.TP
+.A2 lro on off
+Specifies whether large receive offload should be enabled
+.TP
 .B \-p \-\-identify
 Initiates adapter-specific action intended to enable an operator to
 easily identify the adapter by sight.  Typically this involves
@@ -343,7 +351,7 @@ All following options only apply if
 .B \-s
 was specified.
 .TP
-.A4 speed 10 100 1000 2500 10000
+.BI speed \ N
 Set speed in Mb/s.
 .B ethtool
 with just the device name as an argument will show you the supported device speeds.

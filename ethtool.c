@@ -37,9 +37,11 @@
 #include <string.h>
 #include <errno.h>
 #include <net/if.h>
+#include <sys/utsname.h>
 
 #include <linux/sockios.h>
 #include "ethtool-util.h"
+
 
 #ifndef SIOCETHTOOL
 #define SIOCETHTOOL     0x8946
@@ -75,6 +77,7 @@ static char *unparse_rxfhashopts(u64 opts);
 static int dump_rxfhash(int fhash, u64 val);
 static int do_srxclass(int fd, struct ifreq *ifr);
 static int do_grxclass(int fd, struct ifreq *ifr);
+static int send_ioctl(int fd, struct ifreq *ifr);
 
 static enum {
 	MODE_HELP = -1,
@@ -107,7 +110,7 @@ static struct option {
     char *opthelp;
 } args[] = {
     { "-s", "--change", MODE_SSET, "Change generic options",
-		"		[ speed 10|100|1000|2500|10000 ]\n"
+		"		[ speed %%d ]\n"
 		"		[ duplex half|full ]\n"
 		"		[ port tp|aui|bnc|mii|fibre ]\n"
 		"		[ autoneg on|off ]\n"
@@ -160,7 +163,8 @@ static struct option {
 	        "		[ tso on|off ]\n"
 	        "		[ ufo on|off ]\n"
 		"		[ gso on|off ]\n"
-		"               [ lro on|off ]\n"
+		"		[ gro on|off ]\n"
+		"		[ lro on|off ]\n"
     },
     { "-i", "--driver", MODE_GDRV, "Show driver information" },
     { "-d", "--register-dump", MODE_GREGS, "Do a register dump",
@@ -196,15 +200,24 @@ static struct option {
 static void show_usage(int badarg)
 {
 	int i;
-	fprintf(stderr, PACKAGE " version " VERSION "\n");
-	fprintf(stderr,
+	if (badarg != 0) {
+		fprintf(stderr,
+			"ethtool: bad command line argument(s)\n"
+			"For more information run ethtool -h\n"
+		);
+	}
+	else {
+		/* ethtool -h */
+		fprintf(stdout, PACKAGE " version " VERSION "\n");
+		fprintf(stdout,
 		"Usage:\n"
 		"ethtool DEVNAME\tDisplay standard information about device\n");
-	for (i = 0; args[i].srt; i++) {
-		fprintf(stderr, "        ethtool %s|%s DEVNAME\t%s\n%s",
-			args[i].srt, args[i].lng,
-			args[i].help,
-			args[i].opthelp ? args[i].opthelp : "");
+		for (i = 0; args[i].srt; i++) {
+			fprintf(stdout, "        ethtool %s|%s DEVNAME\t%s\n%s",
+				args[i].srt, args[i].lng,
+				args[i].help,
+				args[i].opthelp ? args[i].opthelp : "");
+		}
 	}
 	exit(badarg);
 }
@@ -219,6 +232,7 @@ static int off_tso_wanted = -1;
 static int off_ufo_wanted = -1;
 static int off_gso_wanted = -1;
 static int off_lro_wanted = -1;
+static int off_gro_wanted = -1;
 
 static struct ethtool_pauseparam epause;
 static int gpause_changed = 0;
@@ -334,6 +348,7 @@ static struct cmdline_info cmdline_offload[] = {
 	{ "ufo", CMDL_BOOL, &off_ufo_wanted, NULL },
 	{ "gso", CMDL_BOOL, &off_gso_wanted, NULL },
 	{ "lro", CMDL_BOOL, &off_lro_wanted, NULL },
+	{ "gro", CMDL_BOOL, &off_gro_wanted, NULL },
 };
 
 static struct cmdline_info cmdline_pause[] = {
@@ -608,17 +623,8 @@ static void parse_cmdline(int argc, char **argp)
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
-				if (!strcmp(argp[i], "10"))
-					speed_wanted = SPEED_10;
-				else if (!strcmp(argp[i], "100"))
-					speed_wanted = SPEED_100;
-				else if (!strcmp(argp[i], "1000"))
-					speed_wanted = SPEED_1000;
-				else if (!strcmp(argp[i], "2500"))
-					speed_wanted = SPEED_2500;
-				else if (!strcmp(argp[i], "10000"))
-					speed_wanted = SPEED_10000;
-				else
+				speed_wanted = strtol(argp[i], NULL, 10);
+				if (speed_wanted <= 0)
 					show_usage(1);
 				break;
 			} else if (!strcmp(argp[i], "duplex")) {
@@ -893,30 +899,17 @@ static void dump_advertised(struct ethtool_cmd *ep)
 
 static int dump_ecmd(struct ethtool_cmd *ep)
 {
+	u32 speed;
+
 	dump_supported(ep);
 	dump_advertised(ep);
 
 	fprintf(stdout, "	Speed: ");
-	switch (ethtool_cmd_speed(ep)) {
-	case SPEED_10:
-		fprintf(stdout, "10Mb/s\n");
-		break;
-	case SPEED_100:
-		fprintf(stdout, "100Mb/s\n");
-		break;
-	case SPEED_1000:
-		fprintf(stdout, "1000Mb/s\n");
-		break;
-	case SPEED_2500:
-		fprintf(stdout, "2500Mb/s\n");
-		break;
-	case SPEED_10000:
-		fprintf(stdout, "10000Mb/s\n");
-		break;
-	default:
-		fprintf(stdout, "Unknown! (%i)\n", ethtool_cmd_speed(ep));
-		break;
-	};
+	speed = ethtool_cmd_speed(ep);
+	if (speed == 0 || speed == (u16)(-1) || speed == (u32)(-1))
+		fprintf(stdout, "Unknown!\n");
+	else
+		fprintf(stdout, "%uMb/s\n", speed);
 
 	fprintf(stdout, "	Duplex: ");
 	switch (ep->duplex) {
@@ -1387,22 +1380,25 @@ static int dump_coalesce(void)
 	return 0;
 }
 
-static int dump_offload(int rx, int tx, int sg, int tso, int ufo, int gso, int lro)
+static int dump_offload(int rx, int tx, int sg, int tso, int ufo, int gso,
+			int gro, int lro)
 {
 	fprintf(stdout,
 		"rx-checksumming: %s\n"
 		"tx-checksumming: %s\n"
 		"scatter-gather: %s\n"
-		"tcp segmentation offload: %s\n"
-		"udp fragmentation offload: %s\n"
-		"generic segmentation offload: %s\n"
-		"large receive offload: %s\n",
+		"tcp-segmentation-offload: %s\n"
+		"udp-fragmentation-offload: %s\n"
+		"generic-segmentation-offload: %s\n"
+		"generic-receive-offload: %s\n"
+		"large-receive-offload: %s\n",
 		rx ? "on" : "off",
 		tx ? "on" : "off",
 		sg ? "on" : "off",
 		tso ? "on" : "off",
 		ufo ? "on" : "off",
 		gso ? "on" : "off",
+		gro ? "on" : "off",
 		lro ? "on" : "off");
 
 	return 0;
@@ -1446,7 +1442,7 @@ static int dump_rxfhash(int fhash, u64 val)
 	fprintf(stdout, " use these fields for computing Hash flow key:\n");
 
 	fprintf(stdout, "%s\n", unparse_rxfhashopts(val));
-		
+
 	return 0;
 }
 
@@ -1519,7 +1515,7 @@ static int do_gdrv(int fd, struct ifreq *ifr)
 
 	drvinfo.cmd = ETHTOOL_GDRVINFO;
 	ifr->ifr_data = (caddr_t)&drvinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get driver information");
 		return 71;
@@ -1535,7 +1531,7 @@ static int do_gpause(int fd, struct ifreq *ifr)
 
 	epause.cmd = ETHTOOL_GPAUSEPARAM;
 	ifr->ifr_data = (caddr_t)&epause;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		err = dump_pause();
 		if (err)
@@ -1583,7 +1579,7 @@ static int do_spause(int fd, struct ifreq *ifr)
 
 	epause.cmd = ETHTOOL_GPAUSEPARAM;
 	ifr->ifr_data = (caddr_t)&epause;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot get device pause settings");
 		return 77;
@@ -1598,7 +1594,7 @@ static int do_spause(int fd, struct ifreq *ifr)
 
 	epause.cmd = ETHTOOL_SPAUSEPARAM;
 	ifr->ifr_data = (caddr_t)&epause;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot set device pause parameters");
 		return 79;
@@ -1613,7 +1609,7 @@ static int do_sring(int fd, struct ifreq *ifr)
 
 	ering.cmd = ETHTOOL_GRINGPARAM;
 	ifr->ifr_data = (caddr_t)&ering;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot get device ring settings");
 		return 76;
@@ -1628,7 +1624,7 @@ static int do_sring(int fd, struct ifreq *ifr)
 
 	ering.cmd = ETHTOOL_SRINGPARAM;
 	ifr->ifr_data = (caddr_t)&ering;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot set device ring parameters");
 		return 81;
@@ -1645,7 +1641,7 @@ static int do_gring(int fd, struct ifreq *ifr)
 
 	ering.cmd = ETHTOOL_GRINGPARAM;
 	ifr->ifr_data = (caddr_t)&ering;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		err = dump_ring();
 		if (err)
@@ -1666,7 +1662,7 @@ static int do_gcoalesce(int fd, struct ifreq *ifr)
 
 	ecoal.cmd = ETHTOOL_GCOALESCE;
 	ifr->ifr_data = (caddr_t)&ecoal;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		err = dump_coalesce();
 		if (err)
@@ -1685,7 +1681,7 @@ static int do_scoalesce(int fd, struct ifreq *ifr)
 
 	ecoal.cmd = ETHTOOL_GCOALESCE;
 	ifr->ifr_data = (caddr_t)&ecoal;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot get device coalesce settings");
 		return 76;
@@ -1701,7 +1697,7 @@ static int do_scoalesce(int fd, struct ifreq *ifr)
 
 	ecoal.cmd = ETHTOOL_SCOALESCE;
 	ifr->ifr_data = (caddr_t)&ecoal;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err) {
 		perror("Cannot set device coalesce parameters");
 		return 81;
@@ -1714,13 +1710,13 @@ static int do_goffload(int fd, struct ifreq *ifr)
 {
 	struct ethtool_value eval;
 	int err, allfail = 1, rx = 0, tx = 0, sg = 0;
-	int tso = 0, ufo = 0, gso = 0, lro = 0;
+	int tso = 0, ufo = 0, gso = 0, gro = 0, lro = 0;
 
 	fprintf(stdout, "Offload parameters for %s:\n", devname);
 
 	eval.cmd = ETHTOOL_GRXCSUM;
 	ifr->ifr_data = (caddr_t)&eval;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err)
 		perror("Cannot get device rx csum settings");
 	else {
@@ -1730,7 +1726,7 @@ static int do_goffload(int fd, struct ifreq *ifr)
 
 	eval.cmd = ETHTOOL_GTXCSUM;
 	ifr->ifr_data = (caddr_t)&eval;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err)
 		perror("Cannot get device tx csum settings");
 	else {
@@ -1740,7 +1736,7 @@ static int do_goffload(int fd, struct ifreq *ifr)
 
 	eval.cmd = ETHTOOL_GSG;
 	ifr->ifr_data = (caddr_t)&eval;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err)
 		perror("Cannot get device scatter-gather settings");
 	else {
@@ -1750,7 +1746,7 @@ static int do_goffload(int fd, struct ifreq *ifr)
 
 	eval.cmd = ETHTOOL_GTSO;
 	ifr->ifr_data = (caddr_t)&eval;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err)
 		perror("Cannot get device tcp segmentation offload settings");
 	else {
@@ -1788,12 +1784,22 @@ static int do_goffload(int fd, struct ifreq *ifr)
 		allfail = 0;
 	}
 
+	eval.cmd = ETHTOOL_GGRO;
+	ifr->ifr_data = (caddr_t)&eval;
+	err = ioctl(fd, SIOCETHTOOL, ifr);
+	if (err)
+		perror("Cannot get device GRO settings");
+	else {
+		gro = eval.data;
+		allfail = 0;
+	}
+
 	if (allfail) {
 		fprintf(stdout, "no offload info available\n");
 		return 83;
 	}
 
-	return dump_offload(rx, tx, sg, tso, ufo, gso, lro);
+	return dump_offload(rx, tx, sg, tso, ufo, gso, gro, lro);
 }
 
 static int do_soffload(int fd, struct ifreq *ifr)
@@ -1806,7 +1812,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		eval.cmd = ETHTOOL_SRXCSUM;
 		eval.data = (off_csum_rx_wanted == 1);
 		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err) {
 			perror("Cannot set device rx csum settings");
 			return 84;
@@ -1818,7 +1824,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		eval.cmd = ETHTOOL_STXCSUM;
 		eval.data = (off_csum_tx_wanted == 1);
 		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err) {
 			perror("Cannot set device tx csum settings");
 			return 85;
@@ -1830,7 +1836,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		eval.cmd = ETHTOOL_SSG;
 		eval.data = (off_sg_wanted == 1);
 		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err) {
 			perror("Cannot set device scatter-gather settings");
 			return 86;
@@ -1842,7 +1848,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		eval.cmd = ETHTOOL_STSO;
 		eval.data = (off_tso_wanted == 1);
 		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err) {
 			perror("Cannot set device tcp segmentation offload settings");
 			return 88;
@@ -1893,6 +1899,17 @@ static int do_soffload(int fd, struct ifreq *ifr)
 			return 92;
 		}
 	}
+	if (off_gro_wanted >= 0) {
+		changed = 1;
+		eval.cmd = ETHTOOL_SGRO;
+		eval.data = (off_gro_wanted == 1);
+		ifr->ifr_data = (caddr_t)&eval;
+		err = ioctl(fd, SIOCETHTOOL, ifr);
+		if (err) {
+			perror("Cannot set device GRO settings");
+			return 93;
+		}
+	}
 
 	if (!changed) {
 		fprintf(stdout, "no offload settings changed\n");
@@ -1913,7 +1930,7 @@ static int do_gset(int fd, struct ifreq *ifr)
 
 	ecmd.cmd = ETHTOOL_GSET;
 	ifr->ifr_data = (caddr_t)&ecmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		err = dump_ecmd(&ecmd);
 		if (err)
@@ -1925,7 +1942,7 @@ static int do_gset(int fd, struct ifreq *ifr)
 
 	wolinfo.cmd = ETHTOOL_GWOL;
 	ifr->ifr_data = (caddr_t)&wolinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		err = dump_wol(&wolinfo);
 		if (err)
@@ -1937,7 +1954,7 @@ static int do_gset(int fd, struct ifreq *ifr)
 
 	edata.cmd = ETHTOOL_GMSGLVL;
 	ifr->ifr_data = (caddr_t)&edata;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		fprintf(stdout, "	Current message level: 0x%08x (%d)\n",
 			edata.data, edata.data);
@@ -1948,7 +1965,7 @@ static int do_gset(int fd, struct ifreq *ifr)
 
 	edata.cmd = ETHTOOL_GLINK;
 	ifr->ifr_data = (caddr_t)&edata;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err == 0) {
 		fprintf(stdout, "	Link detected: %s\n",
 			edata.data ? "yes":"no");
@@ -1973,7 +1990,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 
 		ecmd.cmd = ETHTOOL_GSET;
 		ifr->ifr_data = (caddr_t)&ecmd;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err < 0) {
 			perror("Cannot get current device settings");
 		} else {
@@ -2008,7 +2025,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 			/* Try to perform the update. */
 			ecmd.cmd = ETHTOOL_SSET;
 			ifr->ifr_data = (caddr_t)&ecmd;
-			err = ioctl(fd, SIOCETHTOOL, ifr);
+			err = send_ioctl(fd, ifr);
 			if (err < 0)
 				perror("Cannot set new settings");
 		}
@@ -2033,7 +2050,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 
 		wol.cmd = ETHTOOL_GWOL;
 		ifr->ifr_data = (caddr_t)&wol;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err < 0) {
 			perror("Cannot get current wake-on-lan settings");
 		} else {
@@ -2051,7 +2068,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 			/* Try to perform the update. */
 			wol.cmd = ETHTOOL_SWOL;
 			ifr->ifr_data = (caddr_t)&wol;
-			err = ioctl(fd, SIOCETHTOOL, ifr);
+			err = send_ioctl(fd, ifr);
 			if (err < 0)
 				perror("Cannot set new wake-on-lan settings");
 		}
@@ -2069,7 +2086,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 		edata.cmd = ETHTOOL_SMSGLVL;
 		edata.data = msglvl_wanted;
 		ifr->ifr_data = (caddr_t)&edata;;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
+		err = send_ioctl(fd, ifr);
 		if (err < 0)
 			perror("Cannot set new msglvl");
 	}
@@ -2085,7 +2102,7 @@ static int do_gregs(int fd, struct ifreq *ifr)
 
 	drvinfo.cmd = ETHTOOL_GDRVINFO;
 	ifr->ifr_data = (caddr_t)&drvinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get driver information");
 		return 72;
@@ -2099,7 +2116,7 @@ static int do_gregs(int fd, struct ifreq *ifr)
 	regs->cmd = ETHTOOL_GREGS;
 	regs->len = drvinfo.regdump_len;
 	ifr->ifr_data = (caddr_t)regs;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get register dump");
 		free(regs);
@@ -2122,7 +2139,7 @@ static int do_nway_rst(int fd, struct ifreq *ifr)
 
 	edata.cmd = ETHTOOL_NWAY_RST;
 	ifr->ifr_data = (caddr_t)&edata;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0)
 		perror("Cannot restart autonegotiation");
 
@@ -2137,7 +2154,7 @@ static int do_geeprom(int fd, struct ifreq *ifr)
 
 	drvinfo.cmd = ETHTOOL_GDRVINFO;
 	ifr->ifr_data = (caddr_t)&drvinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get driver information");
 		return 74;
@@ -2158,7 +2175,7 @@ static int do_geeprom(int fd, struct ifreq *ifr)
 	eeprom->len = geeprom_length;
 	eeprom->offset = geeprom_offset;
 	ifr->ifr_data = (caddr_t)eeprom;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get EEPROM data");
 		free(eeprom);
@@ -2184,7 +2201,7 @@ static int do_seeprom(int fd, struct ifreq *ifr)
 	edata.eeprom.magic = seeprom_magic;
 	edata.data = seeprom_value;
 	ifr->ifr_data = (caddr_t)&edata.eeprom;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot set EEPROM data");
 		return 87;
@@ -2202,7 +2219,7 @@ static int do_test(int fd, struct ifreq *ifr)
 
 	drvinfo.cmd = ETHTOOL_GDRVINFO;
 	ifr->ifr_data = (caddr_t)&drvinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get driver information");
 		return 72;
@@ -2221,7 +2238,7 @@ static int do_test(int fd, struct ifreq *ifr)
 	else
 		test->flags = 0;
 	ifr->ifr_data = (caddr_t)test;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot test");
 		free (test);
@@ -2240,7 +2257,7 @@ static int do_test(int fd, struct ifreq *ifr)
 	strings->string_set = ETH_SS_TEST;
 	strings->len = drvinfo.testinfo_len;
 	ifr->ifr_data = (caddr_t)strings;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get strings");
 		free (test);
@@ -2262,7 +2279,7 @@ static int do_phys_id(int fd, struct ifreq *ifr)
 	edata.cmd = ETHTOOL_PHYS_ID;
 	edata.data = phys_id_time;
 	ifr->ifr_data = (caddr_t)&edata;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0)
 		perror("Cannot identify NIC");
 
@@ -2279,7 +2296,7 @@ static int do_gstats(int fd, struct ifreq *ifr)
 
 	drvinfo.cmd = ETHTOOL_GDRVINFO;
 	ifr->ifr_data = (caddr_t)&drvinfo;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get driver information");
 		return 71;
@@ -2305,7 +2322,7 @@ static int do_gstats(int fd, struct ifreq *ifr)
 	strings->string_set = ETH_SS_STATS;
 	strings->len = n_stats;
 	ifr->ifr_data = (caddr_t) strings;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get stats strings information");
 		free(strings);
@@ -2316,7 +2333,7 @@ static int do_gstats(int fd, struct ifreq *ifr)
 	stats->cmd = ETHTOOL_GSTATS;
 	stats->n_stats = n_stats;
 	ifr->ifr_data = (caddr_t) stats;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot get stats information");
 		free(strings);
@@ -2378,6 +2395,11 @@ static int do_grxclass(int fd, struct ifreq *ifr)
 	}
 
 	return 0;
+}
+
+static int send_ioctl(int fd, struct ifreq *ifr)
+{
+	return ioctl(fd, SIOCETHTOOL, ifr);
 }
 
 int main(int argc, char **argp, char **envp)
