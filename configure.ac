@@ -1,10 +1,15 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(ethtool.c)
-AM_INIT_AUTOMAKE(ethtool, 1.3)
-AM_CONFIG_HEADER(config.h)
+AC_INIT(ethtool, 2, [Jeff Garzik <jgarzik@pobox.com>])
+AC_PREREQ(2.52)
+AC_CONFIG_SRCDIR([ethtool.c])
+AM_INIT_AUTOMAKE([gnu])
+AC_CONFIG_HEADERS([ethtool-config.h])
+
+AM_MAINTAINER_MODE
 
 dnl Checks for programs.
 AC_PROG_CC
+AC_PROG_GCC_TRADITIONAL
 
 dnl Checks for libraries.
 
@@ -14,8 +19,8 @@ AC_CHECK_HEADERS(sys/ioctl.h)
 dnl Checks for typedefs, structures, and compiler characteristics.
 
 dnl Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
 AC_HEADER_STDC
 AC_CHECK_FUNCS(socket strtol)
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile ethtool.spec])
+AC_OUTPUT
