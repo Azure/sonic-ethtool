@@ -695,12 +695,20 @@ static void parse_cmdline(int argc, char **argp)
 		else if (speed_wanted == SPEED_100 &&
 			 duplex_wanted == DUPLEX_FULL)
 			advertising_wanted = ADVERTISED_100baseT_Full;
+		else if (speed_wanted == SPEED_1000 &&
+			 duplex_wanted == DUPLEX_HALF)
+			advertising_wanted = ADVERTISED_1000baseT_Half;
+		else if (speed_wanted == SPEED_1000 &&
+			 duplex_wanted == DUPLEX_FULL)
+			advertising_wanted = ADVERTISED_1000baseT_Full;
 		else
 			/* auto negotiate without forcing */
 			advertising_wanted = ADVERTISED_100baseT_Full |
 				ADVERTISED_100baseT_Half |
 				ADVERTISED_10baseT_Full |
-				ADVERTISED_100baseT_Half;
+				ADVERTISED_10baseT_Half | 
+				ADVERTISED_1000baseT_Full |
+				ADVERTISED_1000baseT_Half;
 
 	}
 
@@ -871,7 +879,7 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 		fprintf(stdout, "internal\n");
 		break;
 	case XCVR_EXTERNAL:
-		fprintf(stdout, "externel\n");
+		fprintf(stdout, "external\n");
 		break;
 	default:
 		fprintf(stdout, "Unknown!\n");
@@ -1010,6 +1018,7 @@ static struct {
 } driver_list[] = {
 	{ "8139cp", realtek_dump_regs },
 	{ "8139too", realtek_dump_regs },
+	{ "r8169", realtek_dump_regs },
 	{ "de2104x", de2104x_dump_regs },
 	{ "e1000", e1000_dump_regs },
 	{ "natsemi", natsemi_dump_regs },

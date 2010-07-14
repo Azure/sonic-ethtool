@@ -44,7 +44,7 @@ struct fec {
 
 #define DUMP_REG(f, x)	fprintf(stdout, \
 			"0x%04lx: %-16s 0x%08x\n", \
-				offsetof(struct fec, x), \
+				(unsigned long)(offsetof(struct fec, x)), \
 				#x, f->x)
 
 int fec_8xx_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)

@@ -1,4 +1,11 @@
 
+Version 3 - January 27, 2005
+
+	* Feature: r8159 register dump support
+	* Feature / bug fix: Support advertising gigabit ethernet
+	* Bug fix: make sure to advertise 10baseT-HD
+	* Other minor bug fixes.
+
 Version 2 - August 17, 2004
 
 	* Feature: ethtool register dump raw mode
