@@ -81,7 +81,7 @@ Fri Mar 28 2003   Jeb Cramer  <cramerj@intel.com>
 	speed and width to register dump printout.
 	* ethtool.c (show_usage): Add -S to printout of supported commands.
 
-Tue Jan 32 2003   Jeff Garzik  <jgarzik@pobox.com>
+Tue Jan 22 2003   Jeff Garzik  <jgarzik@pobox.com>
 
 	* natsemi.c (PRINT_INTR, __print_intr): Decompose PRINT_INTR
 	macro into macro abuse and function call portions.  Move the
@@ -161,7 +161,7 @@ Tue Jun 11 2002   Jeff Garzik  <jgarzik@mandrakesoft.com>
 	(parse_cmdline, doit): handle get/set pause parameters (-a,-A)
 	* ethtool.8: document -a, -A, -e, and -p
 
-2002-05-22  Chris Leech <christopher.leech@intel.com>
+Wed May 22 2002  Chris Leech <christopher.leech@intel.com>
             Scott Feldman <scott.feldman@intel.com>
 
 	* ethtool-copy.h: add support for ETHTOOL_PHYS_ID function.
@@ -171,26 +171,26 @@ Tue Jun 11 2002   Jeff Garzik  <jgarzik@mandrakesoft.com>
 	* e1000.c: reg dump support for Intel(R) PRO/1000 adapters.
 	* ethtool-util.h: add e1000 reg dump support.
 
-2002-05-11  Eli Kupermann  <eli.kupermann@intel.com>
+Sat May 11 2002  Eli Kupermann  <eli.kupermann@intel.com>
 
 	* ethtool.c (do_test): add support for online/offline test modes
 	Elsewhere: document "-t" arg usage, and handle usage
 
-2002-05-11  Jes Sorensen  <jes@wildopensource.com>
+Sat May 11 2002  Jes Sorensen  <jes@wildopensource.com>
 
 	* ethtool.c (dump_ecmd): If unknown value is
 	encountered in speed, duplex, or port ETHTOOL_GSET
 	return data, print the numeric value returned.
 
-2002-05-01  Eli Kupermann  <eli.kupermann@intel.com>
+Wed May 1 2002  Eli Kupermann  <eli.kupermann@intel.com>
 
 	* ethtool.8: document new -t test option
 
-2002-05-01  Christoph Hellwig  <hch@lst.de>
+Wed May 1 2002  Christoph Hellwig  <hch@lst.de>
 
 	* Makefile.am (dist-hook): Use $(top-srcdir) for refering to sources.
 
-2002-04-29  Christoph Hellwig  <hch@lst.de>
+Mon Apr 29 2002  Christoph Hellwig  <hch@lst.de>
 
 	* Makefile.am (SUBDIRS): Remove.
 	(RPMSRCS): Likewise.
