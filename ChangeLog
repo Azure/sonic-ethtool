@@ -1,0 +1,28 @@
+Wed Sep 19 2001  Jeff Garzik  <jgarzik@mandrakesoft.com>
+
+	* ethtool.c, ethtool-copy.h:
+	Import copy of kernel 2.4.10-pre12's ethtool.h.
+
+Wed Sep 19 2001  Tim Hockin  <thockin@sun.com>
+
+	* Makefile.am, redhat/ethtool.spec.in:
+	Basic "make rpm" support.
+
+Wed Sep 19 2001  Tim Hockin  <thockin@sun.com>
+
+	* AUTHORS, NEWS, ethtool.8, ethtool.c:
+	Wake-on-LAN support.
+
+Thu May 17 2001  Jeff Garzik  <jgarzik@mandrakesoft.com>
+
+	* configure.in, NEWS, README: Version 1.2 release
+
+	* ethtool.c: Support ETHTOOL_GDRVINFO.
+	* ethtool.8: Document it.
+
+Fri Mar 20 2001  Jeff Garzik  <jgarzik@mandrakesoft.com>
+
+	* Makefile.am, configure.in, autogen.sh, NEWS,
+	  ChangeLog, AUTHORS, README:
+	  Add autoconf/automake support.
+

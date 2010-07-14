@@ -1,0 +1,9 @@
+Version 1.2 - May 17, 2001
+
+	* Support ETHTOOL_GDRVINFO ioctl, which obtains
+	  information from the ethernet driver associated
+	  with the specified interface.
+
+Version 1.3 - Aug 02, 2001
+
+	* Support Wake-on-LAN (ETHTOOL GWOL and ETHTOOL SWOL ioctl).

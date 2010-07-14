@@ -1,0 +1,158 @@
+.\" -*- nroff -*-
+.\" Copyright 1999 by David S. Miller.  All Rights Reserved.
+.\" This file may be copied under the terms of the GNU Public License.
+.\" 
+.TH ETHTOOL 8 "August 2001" "Ethtool version 1.3"
+.SH NAME
+ethtool \- Display or change ethernet card settings
+.SH SYNOPSIS
+.B ethtool
+.I ethX
+
+.B ethtool -i
+.I ethX
+
+.B ethtool -h
+
+.B ethtool -s
+.I ethX
+[
+.B speed
+{
+.I 10,100,1000
+}
+]
+[
+.B duplex
+{
+.I half,full
+}
+]
+[
+.B port
+{
+.I tp,aui,mii,fibre
+}
+]
+[
+.B autoneg
+{
+.I on,off
+}
+]
+[
+.B phyad
+.I N
+]
+[
+.B xcvr
+{
+.I internal,external
+}
+]
+[
+.B wol
+[
+.I pumbagsd
+]+
+]
+[
+.B sopass
+.I X:X:X:X:X:X
+]
+.SH DESCRIPTION
+.BI ethtool
+Is used for querying settings of an ethernet device and changing them.
+
+.I ethX
+is the name of the ethernet device to work on.
+
+.SH OPTIONS
+.B ethtool
+with a single argument specifying the device name prints current
+setting of the specified device.
+.TP
+.I -i
+queries the specified ethernet device for associated driver information.
+.TP
+.I -h
+shows a short help message.
+.TP
+.I -s
+option allows changing some or all settings of the specified ethernet device.
+All following options only apply if
+.I -s
+was specified.
+.TP
+.I speed
+Set speed in Mb/s.
+.B ethtool
+with single argument will show you the supported device speeds.
+.TP
+.I duplex
+Set full or half duplex mode.
+.TP
+.I port
+Select device port.
+.TP
+.I autoneg
+Specify if autonegotiation is enabled. In the usual case it is, but might
+cause some problems with some network devices, so you can turn it off.
+.TP
+.I phyad
+Physical address. Not used yet.
+.TP
+.I xcvr
+Select transceiver type. Currently only internal and external can be
+specified, in the future further types might be added.
+.TP
+.I wol
+Set Wake-on-LAN options.  Not all devices support this.  The argument to 
+this option is a string of characters specifying which options to enable.
+.PD 0
+.TP
+.B p
+Wake on phy activity
+.TP
+.B u
+Wake on unicast messages
+.TP
+.B m
+Wake on multicast messages
+.TP
+.B b
+Wake on broadcast messages
+.TP
+.B a
+Wake on ARP
+.TP
+.B g
+Wake on MagicPacket(tm)
+.TP
+.B s
+Enable SecureOn(tm) password for MagicPacket(tm)
+.TP
+.B d
+Disable (wake on nothing).  This option clears all previous options.
+.TP
+.TP
+.I sopass
+Set the SecureOn(tm) password.  The argument to this option must be 6
+bytes in ethernet MAC hex format (xx:yy:zz:aa:bb:cc).
+.SH BUGS
+Not supported (in part or whole) on all ethernet drivers.
+.SH AUTHOR
+.B ethtool
+was written by David Miller <davem@redhat.com>.
+
+Modifications by 
+Jeff Garzik <jgarzik@mandrakesoft.com>, 
+Tim Hockin <thockin@sun.com>.
+
+Manual page written by Jakub Jelinek <jj@ultra.linux.cz>.
+.SH AVAILABILITY
+.B ethtool
+is available for anonymous ftp from sunsite.mff.cuni.cz in
+/OS/Linux/Sparc/local/ethtool/.
+Master copy of the sources is available on
+.B vger.rutgers.edu
