@@ -22,6 +22,8 @@ enum chip_type {
 	RTL8139Cp,
 	RTL8101,
 	RTL8169,
+	RTL8169s,
+	RTL8110
 };
 
 enum {
@@ -44,6 +46,8 @@ static struct chip_info {
 	{ "RTL-8139C+",		HW_REVID(1, 1, 1, 0, 1, 1, 0) },
 	{ "RTL-8101",		HW_REVID(1, 1, 1, 0, 1, 1, 1) },
 	{ "RTL-8169",		HW_REVID(0, 0, 0, 0, 0, 0, 0) },
+	{ "RTL-8169s",		HW_REVID(0, 0, 0, 0, 1, 0, 0) },
+	{ "RTL-8110",		HW_REVID(0, 0, 1, 0, 0, 0, 0) },
 	{ }
 };
 
@@ -112,7 +116,10 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		data[0x08 >> 2],
 		data[0x0c >> 2]);
 
-	if (board_type == RTL8139Cp || board_type == RTL8169) {
+	if (board_type == RTL8139Cp ||
+	    board_type == RTL8169 ||
+	    board_type == RTL8169s ||
+	    board_type == RTL8110) {
 	fprintf(stdout,
 		"0x10: Dump Tally Counter Command   0x%08x 0x%08x\n",
 		data[0x10 >> 2],
@@ -148,7 +155,9 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		data[0x2C >> 2]);
 	}
 
-	if (board_type == RTL8169) {
+	if (board_type == RTL8169 ||
+	    board_type == RTL8169s ||
+	    board_type == RTL8110) {
 	fprintf(stdout,
 		"0x30: Flash memory read/write                 0x%08x\n",
 		data[0x30 >> 2]);
@@ -183,7 +192,9 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		v & (1 << 2) ? "on" : "off",
 		v & (1 << 4) ? ", RESET" : "");
 
-	if (board_type != RTL8169) {
+	if (board_type != RTL8169 &&
+	    board_type != RTL8169s &&
+	    board_type != RTL8110) {
 	fprintf(stdout,
 		"0x38: Current Address of Packet Read (C mode)     0x%04x\n"
 		"0x3A: Current Rx buffer address (C mode)          0x%04x\n",
@@ -218,7 +229,9 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		data8[0x51],
 		data8[0x52]);
 
-	if (board_type == RTL8169) {
+	if (board_type == RTL8169 ||
+	    board_type == RTL8169s ||
+	    board_type == RTL8110) {
 	fprintf(stdout,
 		"0x53: Config 2                                      0x%02x\n"
 		"0x54: Config 3                                      0x%02x\n"
@@ -257,7 +270,9 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x5C: Multiple Interrupt Select                   0x%04x\n",
 		data[0x5c >> 2] & 0xffff);
 
-	if (board_type == RTL8169) {
+	if (board_type == RTL8169 ||
+	    board_type == RTL8169s ||
+	    board_type == RTL8110) {
 	fprintf(stdout,
 		"0x60: PHY access                              0x%08x\n"
 		"0x64: TBI control and status                  0x%08x\n",
@@ -448,7 +463,10 @@ realtek_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 	}
 	}
 
-	if (board_type == RTL8139Cp || board_type == RTL8169) {
+	if (board_type == RTL8139Cp ||
+	    board_type == RTL8169 ||
+	    board_type == RTL8169s ||
+	    board_type == RTL8110) {
 	v = data[0xE0 >> 2] & 0xffff;
 	fprintf(stdout,
 		"0xE0: C+ Command                                  0x%04x\n",
