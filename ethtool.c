@@ -538,7 +538,7 @@ static void parse_cmdline(int argc, char **argp)
 					speed_wanted = SPEED_1000;
 				else if (!strcmp(argp[i], "2500"))
 					speed_wanted = SPEED_2500;
-				else if (!strcmp(argp[1], "10000"))
+				else if (!strcmp(argp[i], "10000"))
 					speed_wanted = SPEED_10000;
 				else
 					show_usage(1);
@@ -738,6 +738,13 @@ static void dump_supported(struct ethtool_cmd *ep)
 	}
 	if (mask & SUPPORTED_2500baseX_Full) {
 		did1++; fprintf(stdout, "2500baseX/Full ");
+	}
+	if (did1 && (mask & SUPPORTED_10000baseT_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	                        ");
+	}
+	if (mask & SUPPORTED_10000baseT_Full) {
+		did1++; fprintf(stdout, "10000baseT/Full ");
 	}
 	fprintf(stdout, "\n");
 
@@ -1017,7 +1024,10 @@ static struct {
 	{ "r8169", realtek_dump_regs },
 	{ "de2104x", de2104x_dump_regs },
 	{ "e1000", e1000_dump_regs },
+	{ "e1000e", e1000_dump_regs },
+	{ "igb", igb_dump_regs },
 	{ "ixgb", ixgb_dump_regs },
+	{ "ixgbe", ixgbe_dump_regs },
 	{ "natsemi", natsemi_dump_regs },
 	{ "e100", e100_dump_regs },
 	{ "amd8111e", amd8111e_dump_regs },
@@ -1481,7 +1491,7 @@ static int do_scoalesce(int fd, struct ifreq *ifr)
 		       &changed);
 
 	if (!changed) {
-		fprintf(stderr, "no ring parameters changed, aborting\n");
+		fprintf(stderr, "no coalesce parameters changed, aborting\n");
 		return 80;
 	}
 
@@ -1489,7 +1499,7 @@ static int do_scoalesce(int fd, struct ifreq *ifr)
 	ifr->ifr_data = (caddr_t)&ecoal;
 	err = send_ioctl(fd, ifr);
 	if (err) {
-		perror("Cannot set device ring parameters");
+		perror("Cannot set device coalesce parameters");
 		return 81;
 	}
 
