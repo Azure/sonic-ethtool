@@ -324,6 +324,7 @@ typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
 	CMDL_INT,
+	CMDL_UINT,
 	CMDL_STR,
 } cmdline_type_t;
 
@@ -404,6 +405,20 @@ static struct cmdline_info cmdline_coalesce[] = {
 
 static int get_int(char *str, int base)
 {
+	long v;
+	char *endp;
+
+	if (!str)
+		show_usage(1);
+	errno = 0;
+	v = strtol(str, &endp, base);
+	if ( errno || *endp || v > INT_MAX)
+		show_usage(1);
+	return (int)v;
+}
+
+static int get_uint(char *str, int base)
+{
 	unsigned long v;
 	char *endp;
 
@@ -411,9 +426,9 @@ static int get_int(char *str, int base)
 		show_usage(1);
 	errno = 0;
 	v = strtoul(str, &endp, base);
-	if ( errno || *endp || v > INT_MAX)
+	if ( errno || *endp || v > UINT_MAX)
 		show_usage(1);
-	return (int)v;
+	return v;
 }
 
 static void parse_generic_cmdline(int argc, char **argp,
@@ -445,6 +460,10 @@ static void parse_generic_cmdline(int argc, char **argp,
 					break;
 				case CMDL_INT: {
 					*p = get_int(argp[i],0);
+					break;
+				}
+				case CMDL_UINT: {
+					*p = get_uint(argp[i],0);
 					break;
 				}
 				case CMDL_STR: {
@@ -948,7 +967,9 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 
 	dump_supported(ep);
 	dump_advertised(ep, "Advertised", ep->advertising);
-	dump_advertised(ep, "Link partner advertised", ep->lp_advertising);
+	if (ep->lp_advertising)
+		dump_advertised(ep, "Link partner advertised",
+				ep->lp_advertising);
 
 	fprintf(stdout, "	Speed: ");
 	speed = ethtool_cmd_speed(ep);
@@ -1253,6 +1274,7 @@ static struct {
 	{ "sky2", sky2_dump_regs },
         { "vioc", vioc_dump_regs },
         { "smsc911x", smsc911x_dump_regs },
+        { "at76c50x-usb", at76c50x_usb_dump_regs },
 };
 
 static int dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
