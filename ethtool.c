@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <net/if.h>
 #include <sys/utsname.h>
+#include <limits.h>
 
 #include <linux/sockios.h>
 #include "ethtool-util.h"
@@ -77,6 +78,7 @@ static char *unparse_rxfhashopts(u64 opts);
 static int dump_rxfhash(int fhash, u64 val);
 static int do_srxclass(int fd, struct ifreq *ifr);
 static int do_grxclass(int fd, struct ifreq *ifr);
+static int do_flash(int fd, struct ifreq *ifr);
 static int send_ioctl(int fd, struct ifreq *ifr);
 
 static enum {
@@ -101,6 +103,7 @@ static enum {
 	MODE_GSTATS,
 	MODE_GNFC,
 	MODE_SNFC,
+	MODE_FLASHDEV,
 } mode = MODE_GSET;
 
 static struct option {
@@ -110,16 +113,16 @@ static struct option {
     char *opthelp;
 } args[] = {
     { "-s", "--change", MODE_SSET, "Change generic options",
-		"		[ speed %%d ]\n"
+		"		[ speed %d ]\n"
 		"		[ duplex half|full ]\n"
 		"		[ port tp|aui|bnc|mii|fibre ]\n"
 		"		[ autoneg on|off ]\n"
-		"		[ advertise %%x ]\n"
-		"		[ phyad %%d ]\n"
+		"		[ advertise %x ]\n"
+		"		[ phyad %d ]\n"
 		"		[ xcvr internal|external ]\n"
 		"		[ wol p|u|m|b|a|g|s|d... ]\n"
-		"		[ sopass %%x:%%x:%%x:%%x:%%x:%%x ]\n"
-		"		[ msglvl %%d ] \n" },
+		"		[ sopass %x:%x:%x:%x:%x:%x ]\n"
+		"		[ msglvl %d ] \n" },
     { "-a", "--show-pause", MODE_GPAUSE, "Show pause options" },
     { "-A", "--pause", MODE_SPAUSE, "Set pause options",
       "		[ autoneg on|off ]\n"
@@ -177,6 +180,7 @@ static struct option {
     { "-E", "--change-eeprom", MODE_SEEPROM, "Change bytes in device EEPROM",
 		"		[ magic N ]\n"
 		"		[ offset N ]\n"
+		"		[ length N ]\n"
 		"		[ value N ]\n" },
     { "-r", "--negotiate", MODE_NWAY_RST, "Restart N-WAY negotation" },
     { "-p", "--identify", MODE_PHYS_ID, "Show visible port identification (e.g. blinking)",
@@ -188,10 +192,13 @@ static struct option {
 		"options",
 		"		[ rx-flow-hash tcp4|udp4|ah4|sctp4|"
 		"tcp6|udp6|ah6|sctp6 ]\n" },
+    { "-f", "--flash", MODE_FLASHDEV, "FILENAME " "Flash firmware image "
+    		"from the specified file to a region on the device",
+		"               [ REGION-NUMBER-TO-FLASH ]\n" },
     { "-N", "--config-nfc", MODE_SNFC, "Configure Rx network flow "
 		"classification options",
 		"		[ rx-flow-hash tcp4|udp4|ah4|sctp4|"
-		"tcp6|udp6|ah6|sctp6 p|m|v|t|s|d|f|n|r... ]\n" },
+		"tcp6|udp6|ah6|sctp6 m|v|t|s|d|f|n|r... ]\n" },
     { "-h", "--help", MODE_HELP, "Show this help" },
     {}
 };
@@ -298,12 +305,16 @@ static int geeprom_offset = 0;
 static int geeprom_length = -1;
 static int seeprom_changed = 0;
 static int seeprom_magic = 0;
-static int seeprom_offset = -1;
-static int seeprom_value = 0;
+static int seeprom_length = -1;
+static int seeprom_offset = 0;
+static int seeprom_value = EOF;
 static int rx_fhash_get = 0;
 static int rx_fhash_set = 0;
 static u32 rx_fhash_val = 0;
 static int rx_fhash_changed = 0;
+static char *flash_file = NULL;
+static int flash = -1;
+static int flash_region = -1;
 static enum {
 	ONLINE=0,
 	OFFLINE,
@@ -338,6 +349,7 @@ static struct cmdline_info cmdline_geeprom[] = {
 static struct cmdline_info cmdline_seeprom[] = {
 	{ "magic", CMDL_INT, &seeprom_magic, NULL },
 	{ "offset", CMDL_INT, &seeprom_offset, NULL },
+	{ "length", CMDL_INT, &seeprom_length, NULL },
 	{ "value", CMDL_INT, &seeprom_value, NULL },
 };
 
@@ -390,16 +402,33 @@ static struct cmdline_info cmdline_coalesce[] = {
 	{ "tx-frames-high", CMDL_INT, &coal_tx_frames_high_wanted, &ecoal.tx_max_coalesced_frames_high },
 };
 
+static int get_int(char *str, int base)
+{
+	unsigned long v;
+	char *endp;
+
+	if (!str)
+		show_usage(1);
+	errno = 0;
+	v = strtoul(str, &endp, base);
+	if ( errno || *endp || v > INT_MAX)
+		show_usage(1);
+	return (int)v;
+}
+
 static void parse_generic_cmdline(int argc, char **argp,
 				  int first_arg, int *changed,
 				  struct cmdline_info *info,
 				  unsigned int n_info)
 {
 	int i, idx, *p;
+	int found;
 
 	for (i = first_arg; i < argc; i++) {
+		found = 0;
 		for (idx = 0; idx < n_info; idx++) {
 			if (!strcmp(info[idx].name, argp[i])) {
+				found = 1;
 				*changed = 1;
 				i += 1;
 				if (i >= argc)
@@ -415,10 +444,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 						show_usage(1);
 					break;
 				case CMDL_INT: {
-					long v = strtol(argp[i], NULL, 0);
-					if (v < 0)
-						show_usage(1);
-					*p = (int) v;
+					*p = get_int(argp[i],0);
 					break;
 				}
 				case CMDL_STR: {
@@ -429,8 +455,11 @@ static void parse_generic_cmdline(int argc, char **argp,
 				default:
 					show_usage(1);
 				}
+				break;
 			}
 		}
+		if( !found)
+			show_usage(1);
 	}
 }
 
@@ -496,7 +525,8 @@ static void parse_cmdline(int argc, char **argp)
 			    (mode == MODE_GSTATS) ||
 			    (mode == MODE_GNFC) ||
 			    (mode == MODE_SNFC) ||
-			    (mode == MODE_PHYS_ID)) {
+			    (mode == MODE_PHYS_ID) ||
+			    (mode == MODE_FLASHDEV)) {
 				devname = argp[i];
 				break;
 			}
@@ -512,9 +542,11 @@ static void parse_cmdline(int argc, char **argp)
 				}
 				break;
 			} else if (mode == MODE_PHYS_ID) {
-				phys_id_time = strtol(argp[i], NULL, 0);
-				if (phys_id_time < 0)
-					show_usage(1);
+				phys_id_time = get_int(argp[i],0);
+				break;
+			} else if (mode == MODE_FLASHDEV) {
+				flash_file = argp[i];
+				flash = 1;
 				break;
 			}
 			/* fallthrough */
@@ -590,6 +622,12 @@ static void parse_cmdline(int argc, char **argp)
 					show_usage(1);
 				break;
 			}
+			if (mode == MODE_FLASHDEV) {
+				flash_region = strtol(argp[i], NULL, 0);
+				if ((flash_region < 0))
+					show_usage(1);
+				break;
+			}
 			if (mode == MODE_SNFC) {
 				if (!strcmp(argp[i], "rx-flow-hash")) {
 					i += 1;
@@ -624,9 +662,7 @@ static void parse_cmdline(int argc, char **argp)
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
-				speed_wanted = strtol(argp[i], NULL, 10);
-				if (speed_wanted <= 0)
-					show_usage(1);
+				speed_wanted = get_int(argp[i],10);
 				break;
 			} else if (!strcmp(argp[i], "duplex")) {
 				gset_changed = 1;
@@ -677,18 +713,14 @@ static void parse_cmdline(int argc, char **argp)
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
-				advertising_wanted = strtol(argp[i], NULL, 16);
-				if (advertising_wanted < 0)
-					show_usage(1);
+				advertising_wanted = get_int(argp[i], 16);
 				break;
 			} else if (!strcmp(argp[i], "phyad")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
-				phyad_wanted = strtol(argp[i], NULL, 0);
-				if (phyad_wanted < 0)
-					show_usage(1);
+				phyad_wanted = get_int(argp[i], 0);
 				break;
 			} else if (!strcmp(argp[i], "xcvr")) {
 				gset_changed = 1;
@@ -724,9 +756,7 @@ static void parse_cmdline(int argc, char **argp)
 				i++;
 				if (i >= argc)
 					show_usage(1);
-				msglvl_wanted = strtol(argp[i], NULL, 0);
-				if (msglvl_wanted < 0)
-					show_usage(1);
+				msglvl_wanted = get_int(argp[i], 0);
 				break;
 			}
 			show_usage(1);
@@ -840,12 +870,13 @@ static void dump_supported(struct ethtool_cmd *ep)
 		fprintf(stdout, "No\n");
 }
 
-static void dump_advertised(struct ethtool_cmd *ep)
+static void dump_advertised(struct ethtool_cmd *ep,
+			    const char *prefix, u_int32_t mask)
 {
-	u_int32_t mask = ep->advertising;
+	int indent = strlen(prefix) + 14;
 	int did1;
 
-	fprintf(stdout, "	Advertised link modes:  ");
+	fprintf(stdout, "	%s link modes:  ", prefix);
 	did1 = 0;
 	if (mask & ADVERTISED_10baseT_Half) {
 		did1++; fprintf(stdout, "10baseT/Half ");
@@ -855,7 +886,7 @@ static void dump_advertised(struct ethtool_cmd *ep)
 	}
 	if (did1 && (mask & (ADVERTISED_100baseT_Half|ADVERTISED_100baseT_Full))) {
 		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
+		fprintf(stdout, "	%*s", indent, "");
 	}
 	if (mask & ADVERTISED_100baseT_Half) {
 		did1++; fprintf(stdout, "100baseT/Half ");
@@ -865,7 +896,7 @@ static void dump_advertised(struct ethtool_cmd *ep)
 	}
 	if (did1 && (mask & (ADVERTISED_1000baseT_Half|ADVERTISED_1000baseT_Full))) {
 		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
+		fprintf(stdout, "	%*s", indent, "");
 	}
 	if (mask & ADVERTISED_1000baseT_Half) {
 		did1++; fprintf(stdout, "1000baseT/Half ");
@@ -875,14 +906,14 @@ static void dump_advertised(struct ethtool_cmd *ep)
 	}
 	if (did1 && (mask & ADVERTISED_2500baseX_Full)) {
 		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
+		fprintf(stdout, "	%*s", indent, "");
 	}
 	if (mask & ADVERTISED_2500baseX_Full) {
 		did1++; fprintf(stdout, "2500baseX/Full ");
 	}
 	if (did1 && (mask & ADVERTISED_10000baseT_Full)) {
 		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
+		fprintf(stdout, "	%*s", indent, "");
 	}
 	if (mask & ADVERTISED_10000baseT_Full) {
 		did1++; fprintf(stdout, "10000baseT/Full ");
@@ -891,7 +922,20 @@ static void dump_advertised(struct ethtool_cmd *ep)
 		 fprintf(stdout, "Not reported");
 	fprintf(stdout, "\n");
 
-	fprintf(stdout, "	Advertised auto-negotiation: ");
+	fprintf(stdout, "	%s pause frame use: ", prefix);
+	if (mask & ADVERTISED_Pause) {
+		fprintf(stdout, "Symmetric");
+		if (mask & ADVERTISED_Asym_Pause)
+			fprintf(stdout, " Receive-only");
+		fprintf(stdout, "\n");
+	} else {
+		if (mask & ADVERTISED_Asym_Pause)
+			fprintf(stdout, "Transmit-only\n");
+		else
+			fprintf(stdout, "No\n");
+	}
+
+	fprintf(stdout, "	%s auto-negotiation: ", prefix);
 	if (mask & ADVERTISED_Autoneg)
 		fprintf(stdout, "Yes\n");
 	else
@@ -903,7 +947,8 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 	u32 speed;
 
 	dump_supported(ep);
-	dump_advertised(ep);
+	dump_advertised(ep, "Advertised", ep->advertising);
+	dump_advertised(ep, "Link partner advertised", ep->lp_advertising);
 
 	fprintf(stdout, "	Speed: ");
 	speed = ethtool_cmd_speed(ep);
@@ -942,6 +987,15 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 	case PORT_FIBRE:
 		fprintf(stdout, "FIBRE\n");
 		break;
+	case PORT_DA:
+		fprintf(stdout, "Direct Attach Copper\n");
+		break;
+	case PORT_NONE:
+		fprintf(stdout, "None\n");
+		break;
+	case PORT_OTHER:
+		fprintf(stdout, "Other\n");
+		break;
 	default:
 		fprintf(stdout, "Unknown! (%i)\n", ep->port);
 		break;
@@ -964,6 +1018,22 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 	fprintf(stdout, "	Auto-negotiation: %s\n",
 		(ep->autoneg == AUTONEG_DISABLE) ?
 		"off" : "on");
+
+	if (ep->port == PORT_TP) {
+		fprintf(stdout, "	MDI-X: ");
+		switch (ep->eth_tp_mdix) {
+		case ETH_TP_MDI:
+			fprintf(stdout, "off\n");
+			break;
+		case ETH_TP_MDI_X:
+			fprintf(stdout, "on\n");
+			break;
+		default:
+			fprintf(stdout, "Unknown\n");
+			break;
+		}
+	}
+
 	return 0;
 }
 
@@ -1091,9 +1161,6 @@ static int parse_rxfhashopts(char *optstr, u32 *data)
 	*data = 0;
 	while (*optstr) {
 		switch (*optstr) {
-			case 'p':
-				*data |= RXH_DEV_PORT;
-				break;
 			case 'm':
 				*data |= RXH_L2DA;
 				break;
@@ -1133,9 +1200,6 @@ static char *unparse_rxfhashopts(u64 opts)
 	memset(buf, 0, sizeof(buf));
 
 	if (opts) {
-		if (opts & RXH_DEV_PORT) {
-			strcat(buf, "Dev port\n");
-		}
 		if (opts & RXH_L2DA) {
 			strcat(buf, "L2DA\n");
 		}
@@ -1504,6 +1568,8 @@ static int doit(void)
 		return do_grxclass(fd, &ifr);
 	} else if (mode == MODE_SNFC) {
 		return do_srxclass(fd, &ifr);
+	} else if (mode == MODE_FLASHDEV) {
+		return do_flash(fd, &ifr);
 	}
 
 	return 69;
@@ -2191,22 +2257,49 @@ static int do_geeprom(int fd, struct ifreq *ifr)
 static int do_seeprom(int fd, struct ifreq *ifr)
 {
 	int err;
-	struct {
-		struct ethtool_eeprom eeprom;
-		u8 data;
-	} edata;
+	struct ethtool_drvinfo drvinfo;
+	struct ethtool_eeprom *eeprom;
 
-	edata.eeprom.cmd = ETHTOOL_SEEPROM;
-	edata.eeprom.len = 1;
-	edata.eeprom.offset = seeprom_offset;
-	edata.eeprom.magic = seeprom_magic;
-	edata.data = seeprom_value;
-	ifr->ifr_data = (caddr_t)&edata.eeprom;
+	drvinfo.cmd = ETHTOOL_GDRVINFO;
+	ifr->ifr_data = (caddr_t)&drvinfo;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot get driver information");
+		return 74;
+	}
+
+	if (seeprom_value != EOF)
+		seeprom_length = 1;
+
+	if (seeprom_length <= 0)
+		seeprom_length = drvinfo.eedump_len;
+
+	if (drvinfo.eedump_len < seeprom_offset + seeprom_length)
+		seeprom_length = drvinfo.eedump_len - seeprom_offset;
+
+	eeprom = calloc(1, sizeof(*eeprom)+seeprom_length);
+	if (!eeprom) {
+		perror("Cannot allocate memory for EEPROM data");
+		return 75;
+	}
+
+	eeprom->cmd = ETHTOOL_SEEPROM;
+	eeprom->len = seeprom_length;
+	eeprom->offset = seeprom_offset;
+	eeprom->magic = seeprom_magic;
+	eeprom->data[0] = seeprom_value;
+
+	/* Multi-byte write: read input from stdin */
+	if (seeprom_value == EOF)
+		eeprom->len = fread(eeprom->data, 1, eeprom->len, stdin);
+
+	ifr->ifr_data = (caddr_t)eeprom;
 	err = send_ioctl(fd, ifr);
 	if (err < 0) {
 		perror("Cannot set EEPROM data");
-		return 87;
+		err = 87;
 	}
+	free(eeprom);
 
 	return err;
 }
@@ -2396,6 +2489,38 @@ static int do_grxclass(int fd, struct ifreq *ifr)
 	}
 
 	return 0;
+}
+
+static int do_flash(int fd, struct ifreq *ifr)
+{
+	struct ethtool_flash efl;
+	int err;
+
+	if (flash < 0) {
+		fprintf(stdout, "Missing filename argument\n");
+		show_usage(1);
+		return 98;
+	}
+
+	if (strlen(flash_file) > ETHTOOL_FLASH_MAX_FILENAME - 1) {
+		fprintf(stdout, "Filename too long\n");
+		return 99;
+	}
+
+	efl.cmd = ETHTOOL_FLASHDEV;
+	strcpy(efl.data, flash_file);
+
+	if (flash_region < 0)
+		efl.region = ETHTOOL_FLASH_ALL_REGIONS;
+	else
+		efl.region = flash_region;
+
+	ifr->ifr_data = (caddr_t)&efl;
+	err = send_ioctl(fd, ifr);
+	if (err < 0)
+		perror("Flashing failed");
+
+	return err;
 }
 
 static int send_ioctl(int fd, struct ifreq *ifr)

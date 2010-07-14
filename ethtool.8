@@ -152,6 +152,8 @@ ethtool \- Display or change ethernet card settings
 .IR N ]
 .RB [ offset
 .IR N ]
+.RB [ length
+.IR N ]
 .RB [ value
 .IR N ]
 
@@ -207,6 +209,11 @@ ethtool \- Display or change ethernet card settings
 .I ethX
 .RB [ rx-flow-hash \ \*(FL
 .RB \ \*(HO]
+
+.B ethtool \-f|\-\-flash
+.I ethX
+.RI FILE
+.RI [ N ]
 .SH DESCRIPTION
 .BI ethtool
 is used for querying settings of an ethernet device and changing them.
@@ -284,10 +291,12 @@ length and offset parameters allow dumping certain portions of the EEPROM.
 Default is to dump the entire EEPROM.
 .TP
 .B \-E \-\-change\-eeprom
-Changes EEPROM byte for the specified ethernet device.  offset and value
-specify which byte and it's new value.  Because of the persistent nature
-of writing to the EEPROM, a device-specific magic key must be specified
-to prevent the accidental writing to the EEPROM.
+If value is specified, changes EEPROM byte for the specified ethernet device.
+offset and value specify which byte and it's new value. If value is not
+specified, stdin is read and written to the EEPROM. The length and offset
+parameters allow writing to certain portions of the EEPROM.
+Because of the persistent nature of writing to the EEPROM, a device-specific
+magic key must be specified to prevent the accidental writing to the EEPROM.
 .TP
 .B \-k \-\-show\-offload
 Queries the specified ethernet device for offload information.
@@ -473,9 +482,6 @@ Configures the hash options for the specified network traffic type.
 .RS
 .PD 0
 .TP 3
-.B p
-Hash on the device port number on which the packet was received.
-.TP 3
 .B m
 Hash on the Layer 2 destination address of the rx packet.
 .TP 3
@@ -499,6 +505,16 @@ Hash on bytes 2 and 3 of the Layer 4 header of the rx packet.
 .TP 3
 .B r
 Discard all packets of this flow type. When this option is set, all other options are ignored.
+.PD
+.RE
+.TP
+.B \-f \-\-flash \ FILE
+Flash firmware image from the specified file to a region on the adapter.
+By default this will flash all the regions on the adapter.
+.TP
+.B N
+A number to identify flash region where the image should be flashed.
+Default region is 0 which denotes all regions in the flash.
 .PD
 .RE
 .SH BUGS
