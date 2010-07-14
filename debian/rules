@@ -1,6 +1,9 @@
 #! /usr/bin/make -f
 # (C) 2001, Eric Delaunay
 
+AUTOTGEN_FILES = INSTALL Makefile.in aclocal.m4 configure depcomp \
+		 ethtool-config.h.in install-sh missing
+
 build: build-stamp
 build-stamp:
 	dh_testdir
@@ -14,7 +17,12 @@ clean:
 	dh_testroot
 	rm -f build-stamp
 	[ ! -f Makefile ] || $(MAKE) distclean
-	dh_clean INSTALL Makefile.in aclocal.m4 configure depcomp ethtool-config.h.in install-sh missing
+	dh_clean
+	if [ -d .git ]; then				\
+		git checkout HEAD $(AUTOGEN_FILES);	\
+	else						\
+		rm $(AUTOGEN_FILES);			\
+	fi
 
 binary: binary-arch binary-indep
 
