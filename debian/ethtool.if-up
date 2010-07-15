@@ -8,12 +8,19 @@ test -x $ETHTOOL || exit 0
 
 # Find settings with a given prefix and print them as they appeared in
 # /etc/network/interfaces, only with the prefix removed.
+# This actually prints each name and value on a separate line, but that
+# doesn't matter to the shell.
 gather_settings () {
-    env | awk -F= "/^IF_$1/ {
-                       sub(\"^IF_$1\", \"\");
-                       gsub(\"_\", \"-\");
-                       print tolower(\$1), \$2
-                   }"
+    set | sed -n "
+/^IF_$1[A-Za-z0-9_]*=/ {
+    h;                             # hold line
+    s/^IF_$1//; s/=.*//; s/_/-/g;  # get name without prefix
+    y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/;  # lower-case
+    p;
+    g;                             # restore line
+    s/^[^=]*=//; s/^'\(.*\)'/\1/;  # get value
+    p;
+}"
 }
 
 # Gather together the mixed bag of settings applied with -s/--change
