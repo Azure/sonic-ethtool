@@ -1,8 +1,8 @@
 #! /usr/bin/make -f
 # (C) 2001, Eric Delaunay
 
-AUTOTGEN_FILES = INSTALL Makefile.in aclocal.m4 configure depcomp \
-		 ethtool-config.h.in install-sh missing
+AUTOGEN_FILES = INSTALL Makefile.in aclocal.m4 configure depcomp \
+		ethtool-config.h.in install-sh missing
 
 build: build-stamp
 build-stamp:
