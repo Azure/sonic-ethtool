@@ -47,7 +47,7 @@
 .\"
 .\"	\(*HO - hash options
 .\"
-.ds HO \fBp\fP|\fm\fP|\fBv\fP|\fBt\fP|\fBs\fP|\fBd\fP|\fBf\fP|\fBn\fP|\fBr\fP...
+.ds HO \fBm\fP|\fBv\fP|\fBt\fP|\fBs\fP|\fBd\fP|\fBf\fP|\fBn\fP|\fBr\fP...
 .TH ETHTOOL 8 "July 2007" "Ethtool version 6"
 .SH NAME
 ethtool \- Display or change ethernet card settings
@@ -200,7 +200,10 @@ ethtool \- Display or change ethernet card settings
 .RB [ wol \ \*(WO]
 .RB [ sopass \ \*(MA]
 .RB [ msglvl
-.IR N ]
+.IR N \ |
+.BI msglvl \ type
+.A1 on off
+.RB ...]
 
 .B ethtool \-n
 .I ethX
@@ -210,6 +213,17 @@ ethtool \- Display or change ethernet card settings
 .I ethX
 .RB [ rx-flow-hash \ \*(FL
 .RB \ \*(HO]
+
+.B ethtool \-x|\-\-show\-rxfh\-indir
+.I ethX
+
+.B ethtool \-X|\-\-set\-rxfh\-indir
+.I ethX
+.RB [\  equal
+.IR N \ |
+.BI weight\  W0
+.IR W1
+.RB ...\ ]
 
 .B ethtool \-f|\-\-flash
 .I ethX
@@ -482,9 +496,66 @@ Disable (wake on nothing).  This option clears all previous options.
 .B sopass \*(MA\c
 Sets the SecureOn(tm) password.  The argument to this option must be 6
 bytes in ethernet MAC hex format (\*(MA).
-.TP
+.PP
 .BI msglvl \ N
-Sets the driver message level. Meanings differ per driver.
+.br
+.BI msglvl \ type
+.A1 on off
+.RB ...
+.RS
+Sets the driver message type flags by name or number. \fItype\fR
+names the type of message to enable or disable; \fIN\fR specifies the
+new flags numerically. The defined type names and numbers are:
+.PD 0
+.TP 12
+.B drv
+0x0001  General driver status
+.TP 12
+.B probe
+0x0002  Hardware probing
+.TP 12
+.B link
+0x0004  Link state
+.TP 12
+.B timer
+0x0008  Periodic status check
+.TP 12
+.B ifdown
+0x0010  Interface being brought down
+.TP 12
+.B ifup
+0x0020  Interface being brought up
+.TP 12
+.B rx_err
+0x0040  Receive error
+.TP 12
+.B tx_err
+0x0080  Transmit error
+.TP 12
+.B tx_queued
+0x0100  Transmit queueing
+.TP 12
+.B intr
+0x0200  Interrupt handling
+.TP 12
+.B tx_done
+0x0400  Transmit completion
+.TP 12
+.B rx_status
+0x0800  Receive completion
+.TP 12
+.B pktdata
+0x1000  Packet contents
+.TP 12
+.B hw
+0x2000  Hardware status
+.TP 12
+.B wol
+0x4000  Wake-on-LAN status
+.PP
+The precise meanings of these type flags differ between drivers.
+.PD
+.RE
 .TP
 .B \-n \-\-show-nfc
 Retrieves the receive network flow classification configurations.
@@ -546,6 +617,21 @@ Discard all packets of this flow type. When this option is set, all other option
 .PD
 .RE
 .TP
+.B \-x \-\-show\-rxfh\-indir
+Retrieves the receive flow hash indirection table.
+.TP
+.B \-X \-\-set\-rxfh\-indir
+Configures the receive flow hash indirection table.
+.TP
+.BI equal\  N
+Sets the receive flow hash indirection table to spread flows evenly
+between the first \fIN\fR receive queues.
+.TP
+\fBweight\fR \fIW0 W1\fR ...
+Sets the receive flow hash indirection table to spread flows between
+receive queues according to the given weights.  The sum of the weights
+must be non-zero and must not exceed the size of the indirection table.
+.TP
 .B \-f \-\-flash \ FILE
 Flash firmware image from the specified file to a region on the adapter.
 By default this will flash all the regions on the adapter.
@@ -577,40 +663,41 @@ Configure Rx ntuple filters and actions
 .RE
 .TP
 .BI src-ip \ addr
-Includes the source IP address, specified in hex.
+Includes the source IP address, specified using dotted-quad notation
+or as a single 32-bit number.
 .TP
 .BI src-ip-mask \ mask
-Specify a mask for the source IP address, specified in hex.
+Specify a mask for the source IP address.
 .TP
 .BI dst-ip \ addr
-Includes the destination IP address, specified in hex.
+Includes the destination IP address.
 .TP
 .BI dst-ip-mask \ mask
-Specify a mask for the destination IP address, specified in hex.
+Specify a mask for the destination IP address.
 .TP
 .BI src-port \ port
-Includes the source port, specified in decimal.
+Includes the source port.
 .TP
 .BI src-port-mask \ mask
-Specify a mask for the source port, specified in hex.
+Specify a mask for the source port.
 .TP
 .BI dst-port \ port
-Includes the destination port, specified in decimal.
+Includes the destination port.
 .TP
 .BI dst-port-mask \ mask
-Specify a mask for the destination port, specified in hex.
+Specify a mask for the destination port.
 .TP
 .BI vlan \ VLAN-tag
-Includes the VLAN tag, specified in hex.
+Includes the VLAN tag.
 .TP
 .BI vlan-mask \ mask
-Specify a mask for the VLAN tag, specified in hex.
+Specify a mask for the VLAN tag.
 .TP
 .BI user-def \ data
-Includes 64-bits of user-specific data, specified in hex.
+Includes 64-bits of user-specific data.
 .TP
 .BI user-def-mask \ mask
-Specify a mask for the user-specific data, specified in hex.
+Specify a mask for the user-specific data.
 .TP
 .BI action \ N
 Specifies either the Rx queue to send packets to, or to drop

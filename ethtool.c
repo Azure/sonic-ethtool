@@ -20,7 +20,6 @@
  *   * better man page (steal from mii-tool?)
  *   * fall back on SIOCMII* ioctl()s and possibly SIOCDEVPRIVATE*
  *   * abstract ioctls to allow for fallback modes of data gathering
- *   * symbolic names for msglvl bitmask
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,6 +38,11 @@
 #include <net/if.h>
 #include <sys/utsname.h>
 #include <limits.h>
+#include <ctype.h>
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <linux/sockios.h>
 #include "ethtool-util.h"
@@ -49,6 +53,26 @@
 #endif
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#ifndef HAVE_NETIF_MSG
+enum {
+	NETIF_MSG_DRV		= 0x0001,
+	NETIF_MSG_PROBE		= 0x0002,
+	NETIF_MSG_LINK		= 0x0004,
+	NETIF_MSG_TIMER		= 0x0008,
+	NETIF_MSG_IFDOWN	= 0x0010,
+	NETIF_MSG_IFUP		= 0x0020,
+	NETIF_MSG_RX_ERR	= 0x0040,
+	NETIF_MSG_TX_ERR	= 0x0080,
+	NETIF_MSG_TX_QUEUED	= 0x0100,
+	NETIF_MSG_INTR		= 0x0200,
+	NETIF_MSG_TX_DONE	= 0x0400,
+	NETIF_MSG_RX_STATUS	= 0x0800,
+	NETIF_MSG_PKTDATA	= 0x1000,
+	NETIF_MSG_HW		= 0x2000,
+	NETIF_MSG_WOL		= 0x4000,
+};
 #endif
 
 static int parse_wolopts(char *optstr, u32 *data);
@@ -78,6 +102,8 @@ static char *unparse_rxfhashopts(u64 opts);
 static int dump_rxfhash(int fhash, u64 val);
 static int do_srxclass(int fd, struct ifreq *ifr);
 static int do_grxclass(int fd, struct ifreq *ifr);
+static int do_grxfhindir(int fd, struct ifreq *ifr);
+static int do_srxfhindir(int fd, struct ifreq *ifr);
 static int do_srxntuple(int fd, struct ifreq *ifr);
 static int do_grxntuple(int fd, struct ifreq *ifr);
 static int do_flash(int fd, struct ifreq *ifr);
@@ -105,6 +131,8 @@ static enum {
 	MODE_GSTATS,
 	MODE_GNFC,
 	MODE_SNFC,
+	MODE_GRXFHINDIR,
+	MODE_SRXFHINDIR,
 	MODE_SNTUPLE,
 	MODE_GNTUPLE,
 	MODE_FLASHDEV,
@@ -126,7 +154,7 @@ static struct option {
 		"		[ xcvr internal|external ]\n"
 		"		[ wol p|u|m|b|a|g|s|d... ]\n"
 		"		[ sopass %x:%x:%x:%x:%x:%x ]\n"
-		"		[ msglvl %d ] \n" },
+		"		[ msglvl %d | msglvl type on|off ... ]\n" },
     { "-a", "--show-pause", MODE_GPAUSE, "Show pause options" },
     { "-A", "--pause", MODE_SPAUSE, "Set pause options",
       "		[ autoneg on|off ]\n"
@@ -205,6 +233,10 @@ static struct option {
 		"classification options",
 		"		[ rx-flow-hash tcp4|udp4|ah4|sctp4|"
 		"tcp6|udp6|ah6|sctp6 m|v|t|s|d|f|n|r... ]\n" },
+    { "-x", "--show-rxfh-indir", MODE_GRXFHINDIR, "Show Rx flow hash "
+		"indirection" },
+    { "-X", "--set-rxfh-indir", MODE_SRXFHINDIR, "Set Rx flow hash indirection",
+		"		equal N | weight W0 W1 ...\n" },
     { "-U", "--config-ntuple", MODE_SNTUPLE, "Configure Rx ntuple filters "
 		"and actions",
 		"               [ flow-type tcp4|udp4|sctp4 src-ip <addr> "
@@ -219,6 +251,8 @@ static struct option {
     {}
 };
 
+
+static void show_usage(int badarg) __attribute__((noreturn));
 
 static void show_usage(int badarg)
 {
@@ -255,10 +289,9 @@ static int off_sg_wanted = -1;
 static int off_tso_wanted = -1;
 static int off_ufo_wanted = -1;
 static int off_gso_wanted = -1;
-static int off_lro_wanted = -1;
+static u32 off_flags_wanted = 0;
+static u32 off_flags_unwanted = 0;
 static int off_gro_wanted = -1;
-static int off_ntuple_wanted = -1;
-static int off_rxhash_wanted = -1;
 
 static struct ethtool_pauseparam epause;
 static int gpause_changed = 0;
@@ -268,35 +301,35 @@ static int pause_tx_wanted = -1;
 
 static struct ethtool_ringparam ering;
 static int gring_changed = 0;
-static int ring_rx_wanted = -1;
-static int ring_rx_mini_wanted = -1;
-static int ring_rx_jumbo_wanted = -1;
-static int ring_tx_wanted = -1;
+static s32 ring_rx_wanted = -1;
+static s32 ring_rx_mini_wanted = -1;
+static s32 ring_rx_jumbo_wanted = -1;
+static s32 ring_tx_wanted = -1;
 
 static struct ethtool_coalesce ecoal;
 static int gcoalesce_changed = 0;
-static int coal_stats_wanted = -1;
+static s32 coal_stats_wanted = -1;
 static int coal_adaptive_rx_wanted = -1;
 static int coal_adaptive_tx_wanted = -1;
-static int coal_sample_rate_wanted = -1;
-static int coal_pkt_rate_low_wanted = -1;
-static int coal_pkt_rate_high_wanted = -1;
-static int coal_rx_usec_wanted = -1;
-static int coal_rx_frames_wanted = -1;
-static int coal_rx_usec_irq_wanted = -1;
-static int coal_rx_frames_irq_wanted = -1;
-static int coal_tx_usec_wanted = -1;
-static int coal_tx_frames_wanted = -1;
-static int coal_tx_usec_irq_wanted = -1;
-static int coal_tx_frames_irq_wanted = -1;
-static int coal_rx_usec_low_wanted = -1;
-static int coal_rx_frames_low_wanted = -1;
-static int coal_tx_usec_low_wanted = -1;
-static int coal_tx_frames_low_wanted = -1;
-static int coal_rx_usec_high_wanted = -1;
-static int coal_rx_frames_high_wanted = -1;
-static int coal_tx_usec_high_wanted = -1;
-static int coal_tx_frames_high_wanted = -1;
+static s32 coal_sample_rate_wanted = -1;
+static s32 coal_pkt_rate_low_wanted = -1;
+static s32 coal_pkt_rate_high_wanted = -1;
+static s32 coal_rx_usec_wanted = -1;
+static s32 coal_rx_frames_wanted = -1;
+static s32 coal_rx_usec_irq_wanted = -1;
+static s32 coal_rx_frames_irq_wanted = -1;
+static s32 coal_tx_usec_wanted = -1;
+static s32 coal_tx_frames_wanted = -1;
+static s32 coal_tx_usec_irq_wanted = -1;
+static s32 coal_tx_frames_irq_wanted = -1;
+static s32 coal_rx_usec_low_wanted = -1;
+static s32 coal_rx_frames_low_wanted = -1;
+static s32 coal_tx_usec_low_wanted = -1;
+static s32 coal_tx_frames_low_wanted = -1;
+static s32 coal_rx_usec_high_wanted = -1;
+static s32 coal_rx_frames_high_wanted = -1;
+static s32 coal_tx_usec_high_wanted = -1;
+static s32 coal_tx_frames_high_wanted = -1;
 
 static int speed_wanted = -1;
 static int duplex_wanted = -1;
@@ -311,7 +344,6 @@ static int wol_change = 0;
 static u8 sopass_wanted[SOPASS_MAX];
 static int sopass_change = 0;
 static int gwol_changed = 0; /* did anything in GWOL change? */
-static int msglvl_wanted = -1;
 static int phys_id_time = 0;
 static int gregs_changed = 0;
 static int gregs_dump_raw = 0;
@@ -319,22 +351,29 @@ static int gregs_dump_hex = 0;
 static char *gregs_dump_file = NULL;
 static int geeprom_changed = 0;
 static int geeprom_dump_raw = 0;
-static int geeprom_offset = 0;
-static int geeprom_length = -1;
+static s32 geeprom_offset = 0;
+static s32 geeprom_length = -1;
 static int seeprom_changed = 0;
-static int seeprom_magic = 0;
-static int seeprom_length = -1;
-static int seeprom_offset = 0;
-static int seeprom_value = EOF;
+static s32 seeprom_magic = 0;
+static s32 seeprom_length = -1;
+static s32 seeprom_offset = 0;
+static s32 seeprom_value = EOF;
 static int rx_fhash_get = 0;
 static int rx_fhash_set = 0;
 static u32 rx_fhash_val = 0;
 static int rx_fhash_changed = 0;
+static int rxfhindir_equal = 0;
+static char **rxfhindir_weight = NULL;
 static int sntuple_changed = 0;
 static struct ethtool_rx_ntuple_flow_spec ntuple_fs;
 static char *flash_file = NULL;
 static int flash = -1;
 static int flash_region = -1;
+
+static int msglvl_changed;
+static u32 msglvl_wanted = 0;
+static u32 msglvl_unwanted =0;
+
 static enum {
 	ONLINE=0,
 	OFFLINE,
@@ -343,16 +382,28 @@ static enum {
 typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
-	CMDL_INT,
-	CMDL_UINT,
+	CMDL_S32,
+	CMDL_U16,
+	CMDL_U32,
+	CMDL_U64,
+	CMDL_BE16,
+	CMDL_IP4,
 	CMDL_STR,
+	CMDL_FLAG,
 } cmdline_type_t;
 
 struct cmdline_info {
 	const char *name;
 	cmdline_type_t type;
+	/* Points to int (BOOL), s32, u16, u32 (U32/FLAG/IP4), u64 or
+	 * char * (STR).  For FLAG, the value accumulates all flags
+	 * to be set. */
 	void *wanted_val;
 	void *ioctl_val;
+	/* For FLAG, the flag value to be set/cleared */
+	u32 flag_val;
+	/* For FLAG, accumulates all flags to be cleared */
+	u32 *unwanted_val;
 };
 
 static struct cmdline_info cmdline_gregs[] = {
@@ -362,16 +413,16 @@ static struct cmdline_info cmdline_gregs[] = {
 };
 
 static struct cmdline_info cmdline_geeprom[] = {
-	{ "offset", CMDL_INT, &geeprom_offset, NULL },
-	{ "length", CMDL_INT, &geeprom_length, NULL },
+	{ "offset", CMDL_S32, &geeprom_offset, NULL },
+	{ "length", CMDL_S32, &geeprom_length, NULL },
 	{ "raw", CMDL_BOOL, &geeprom_dump_raw, NULL },
 };
 
 static struct cmdline_info cmdline_seeprom[] = {
-	{ "magic", CMDL_INT, &seeprom_magic, NULL },
-	{ "offset", CMDL_INT, &seeprom_offset, NULL },
-	{ "length", CMDL_INT, &seeprom_length, NULL },
-	{ "value", CMDL_INT, &seeprom_value, NULL },
+	{ "magic", CMDL_S32, &seeprom_magic, NULL },
+	{ "offset", CMDL_S32, &seeprom_offset, NULL },
+	{ "length", CMDL_S32, &seeprom_length, NULL },
+	{ "value", CMDL_S32, &seeprom_value, NULL },
 };
 
 static struct cmdline_info cmdline_offload[] = {
@@ -381,10 +432,13 @@ static struct cmdline_info cmdline_offload[] = {
 	{ "tso", CMDL_BOOL, &off_tso_wanted, NULL },
 	{ "ufo", CMDL_BOOL, &off_ufo_wanted, NULL },
 	{ "gso", CMDL_BOOL, &off_gso_wanted, NULL },
-	{ "lro", CMDL_BOOL, &off_lro_wanted, NULL },
+	{ "lro", CMDL_FLAG, &off_flags_wanted, NULL,
+	  ETH_FLAG_LRO, &off_flags_unwanted },
 	{ "gro", CMDL_BOOL, &off_gro_wanted, NULL },
-	{ "ntuple", CMDL_BOOL, &off_ntuple_wanted, NULL },
-	{ "rxhash", CMDL_BOOL, &off_rxhash_wanted, NULL },
+	{ "ntuple", CMDL_FLAG, &off_flags_wanted, NULL,
+	  ETH_FLAG_NTUPLE, &off_flags_unwanted },
+	{ "rxhash", CMDL_FLAG, &off_flags_wanted, NULL,
+	  ETH_FLAG_RXHASH, &off_flags_unwanted },
 };
 
 static struct cmdline_info cmdline_pause[] = {
@@ -394,79 +448,124 @@ static struct cmdline_info cmdline_pause[] = {
 };
 
 static struct cmdline_info cmdline_ring[] = {
-	{ "rx", CMDL_INT, &ring_rx_wanted, &ering.rx_pending },
-	{ "rx-mini", CMDL_INT, &ring_rx_mini_wanted, &ering.rx_mini_pending },
-	{ "rx-jumbo", CMDL_INT, &ring_rx_jumbo_wanted, &ering.rx_jumbo_pending },
-	{ "tx", CMDL_INT, &ring_tx_wanted, &ering.tx_pending },
+	{ "rx", CMDL_S32, &ring_rx_wanted, &ering.rx_pending },
+	{ "rx-mini", CMDL_S32, &ring_rx_mini_wanted, &ering.rx_mini_pending },
+	{ "rx-jumbo", CMDL_S32, &ring_rx_jumbo_wanted, &ering.rx_jumbo_pending },
+	{ "tx", CMDL_S32, &ring_tx_wanted, &ering.tx_pending },
 };
 
 static struct cmdline_info cmdline_coalesce[] = {
 	{ "adaptive-rx", CMDL_BOOL, &coal_adaptive_rx_wanted, &ecoal.use_adaptive_rx_coalesce },
 	{ "adaptive-tx", CMDL_BOOL, &coal_adaptive_tx_wanted, &ecoal.use_adaptive_tx_coalesce },
-	{ "sample-interval", CMDL_INT, &coal_sample_rate_wanted, &ecoal.rate_sample_interval },
-	{ "stats-block-usecs", CMDL_INT, &coal_stats_wanted, &ecoal.stats_block_coalesce_usecs },
-	{ "pkt-rate-low", CMDL_INT, &coal_pkt_rate_low_wanted, &ecoal.pkt_rate_low },
-	{ "pkt-rate-high", CMDL_INT, &coal_pkt_rate_high_wanted, &ecoal.pkt_rate_high },
-	{ "rx-usecs", CMDL_INT, &coal_rx_usec_wanted, &ecoal.rx_coalesce_usecs },
-	{ "rx-frames", CMDL_INT, &coal_rx_frames_wanted, &ecoal.rx_max_coalesced_frames },
-	{ "rx-usecs-irq", CMDL_INT, &coal_rx_usec_irq_wanted, &ecoal.rx_coalesce_usecs_irq },
-	{ "rx-frames-irq", CMDL_INT, &coal_rx_frames_irq_wanted, &ecoal.rx_max_coalesced_frames_irq },
-	{ "tx-usecs", CMDL_INT, &coal_tx_usec_wanted, &ecoal.tx_coalesce_usecs },
-	{ "tx-frames", CMDL_INT, &coal_tx_frames_wanted, &ecoal.tx_max_coalesced_frames },
-	{ "tx-usecs-irq", CMDL_INT, &coal_tx_usec_irq_wanted, &ecoal.tx_coalesce_usecs_irq },
-	{ "tx-frames-irq", CMDL_INT, &coal_tx_frames_irq_wanted, &ecoal.tx_max_coalesced_frames_irq },
-	{ "rx-usecs-low", CMDL_INT, &coal_rx_usec_low_wanted, &ecoal.rx_coalesce_usecs_low },
-	{ "rx-frames-low", CMDL_INT, &coal_rx_frames_low_wanted, &ecoal.rx_max_coalesced_frames_low },
-	{ "tx-usecs-low", CMDL_INT, &coal_tx_usec_low_wanted, &ecoal.tx_coalesce_usecs_low },
-	{ "tx-frames-low", CMDL_INT, &coal_tx_frames_low_wanted, &ecoal.tx_max_coalesced_frames_low },
-	{ "rx-usecs-high", CMDL_INT, &coal_rx_usec_high_wanted, &ecoal.rx_coalesce_usecs_high },
-	{ "rx-frames-high", CMDL_INT, &coal_rx_frames_high_wanted, &ecoal.rx_max_coalesced_frames_high },
-	{ "tx-usecs-high", CMDL_INT, &coal_tx_usec_high_wanted, &ecoal.tx_coalesce_usecs_high },
-	{ "tx-frames-high", CMDL_INT, &coal_tx_frames_high_wanted, &ecoal.tx_max_coalesced_frames_high },
+	{ "sample-interval", CMDL_S32, &coal_sample_rate_wanted, &ecoal.rate_sample_interval },
+	{ "stats-block-usecs", CMDL_S32, &coal_stats_wanted, &ecoal.stats_block_coalesce_usecs },
+	{ "pkt-rate-low", CMDL_S32, &coal_pkt_rate_low_wanted, &ecoal.pkt_rate_low },
+	{ "pkt-rate-high", CMDL_S32, &coal_pkt_rate_high_wanted, &ecoal.pkt_rate_high },
+	{ "rx-usecs", CMDL_S32, &coal_rx_usec_wanted, &ecoal.rx_coalesce_usecs },
+	{ "rx-frames", CMDL_S32, &coal_rx_frames_wanted, &ecoal.rx_max_coalesced_frames },
+	{ "rx-usecs-irq", CMDL_S32, &coal_rx_usec_irq_wanted, &ecoal.rx_coalesce_usecs_irq },
+	{ "rx-frames-irq", CMDL_S32, &coal_rx_frames_irq_wanted, &ecoal.rx_max_coalesced_frames_irq },
+	{ "tx-usecs", CMDL_S32, &coal_tx_usec_wanted, &ecoal.tx_coalesce_usecs },
+	{ "tx-frames", CMDL_S32, &coal_tx_frames_wanted, &ecoal.tx_max_coalesced_frames },
+	{ "tx-usecs-irq", CMDL_S32, &coal_tx_usec_irq_wanted, &ecoal.tx_coalesce_usecs_irq },
+	{ "tx-frames-irq", CMDL_S32, &coal_tx_frames_irq_wanted, &ecoal.tx_max_coalesced_frames_irq },
+	{ "rx-usecs-low", CMDL_S32, &coal_rx_usec_low_wanted, &ecoal.rx_coalesce_usecs_low },
+	{ "rx-frames-low", CMDL_S32, &coal_rx_frames_low_wanted, &ecoal.rx_max_coalesced_frames_low },
+	{ "tx-usecs-low", CMDL_S32, &coal_tx_usec_low_wanted, &ecoal.tx_coalesce_usecs_low },
+	{ "tx-frames-low", CMDL_S32, &coal_tx_frames_low_wanted, &ecoal.tx_max_coalesced_frames_low },
+	{ "rx-usecs-high", CMDL_S32, &coal_rx_usec_high_wanted, &ecoal.rx_coalesce_usecs_high },
+	{ "rx-frames-high", CMDL_S32, &coal_rx_frames_high_wanted, &ecoal.rx_max_coalesced_frames_high },
+	{ "tx-usecs-high", CMDL_S32, &coal_tx_usec_high_wanted, &ecoal.tx_coalesce_usecs_high },
+	{ "tx-frames-high", CMDL_S32, &coal_tx_frames_high_wanted, &ecoal.tx_max_coalesced_frames_high },
 };
 
 static struct cmdline_info cmdline_ntuple[] = {
-	{ "src-ip", CMDL_INT, &ntuple_fs.h_u.tcp_ip4_spec.ip4src, NULL },
-	{ "src-ip-mask", CMDL_UINT, &ntuple_fs.m_u.tcp_ip4_spec.ip4src, NULL },
-	{ "dst-ip", CMDL_INT, &ntuple_fs.h_u.tcp_ip4_spec.ip4dst, NULL },
-	{ "dst-ip-mask", CMDL_UINT, &ntuple_fs.m_u.tcp_ip4_spec.ip4dst, NULL },
-	{ "src-port", CMDL_INT, &ntuple_fs.h_u.tcp_ip4_spec.psrc, NULL },
-	{ "src-port-mask", CMDL_UINT, &ntuple_fs.m_u.tcp_ip4_spec.psrc, NULL },
-	{ "dst-port", CMDL_INT, &ntuple_fs.h_u.tcp_ip4_spec.pdst, NULL },
-	{ "dst-port-mask", CMDL_UINT, &ntuple_fs.m_u.tcp_ip4_spec.pdst, NULL },
-	{ "vlan", CMDL_INT, &ntuple_fs.vlan_tag, NULL },
-	{ "vlan-mask", CMDL_UINT, &ntuple_fs.vlan_tag_mask, NULL },
-	{ "user-def", CMDL_INT, &ntuple_fs.data, NULL },
-	{ "user-def-mask", CMDL_UINT, &ntuple_fs.data_mask, NULL },
-	{ "action", CMDL_INT, &ntuple_fs.action, NULL },
+	{ "src-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4src, NULL },
+	{ "src-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4src, NULL },
+	{ "dst-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4dst, NULL },
+	{ "dst-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4dst, NULL },
+	{ "src-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.psrc, NULL },
+	{ "src-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.psrc, NULL },
+	{ "dst-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.pdst, NULL },
+	{ "dst-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.pdst, NULL },
+	{ "vlan", CMDL_U16, &ntuple_fs.vlan_tag, NULL },
+	{ "vlan-mask", CMDL_U16, &ntuple_fs.vlan_tag_mask, NULL },
+	{ "user-def", CMDL_U64, &ntuple_fs.data, NULL },
+	{ "user-def-mask", CMDL_U64, &ntuple_fs.data_mask, NULL },
+	{ "action", CMDL_S32, &ntuple_fs.action, NULL },
 };
+
+static struct cmdline_info cmdline_msglvl[] = {
+	{ "drv", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_DRV, &msglvl_unwanted },
+	{ "probe", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_PROBE, &msglvl_unwanted },
+	{ "link", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_LINK, &msglvl_unwanted },
+	{ "timer", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_TIMER, &msglvl_unwanted },
+	{ "ifdown", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_IFDOWN, &msglvl_unwanted },
+	{ "ifup", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_IFUP, &msglvl_unwanted },
+	{ "rx_err", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_RX_ERR, &msglvl_unwanted },
+	{ "tx_err", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_TX_ERR, &msglvl_unwanted },
+	{ "tx_queued", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_TX_QUEUED, &msglvl_unwanted },
+	{ "intr", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_INTR, &msglvl_unwanted },
+	{ "tx_done", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_TX_DONE, &msglvl_unwanted },
+	{ "rx_status", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_RX_STATUS, &msglvl_unwanted },
+	{ "pktdata", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_PKTDATA, &msglvl_unwanted },
+	{ "hw", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_HW, &msglvl_unwanted },
+	{ "wol", CMDL_FLAG, &msglvl_wanted, NULL,
+	  NETIF_MSG_WOL, &msglvl_unwanted },
+};
+
+static long long
+get_int_range(char *str, int base, long long min, long long max)
+{
+	long long v;
+	char *endp;
+
+	if (!str)
+		show_usage(1);
+	errno = 0;
+	v = strtoll(str, &endp, base);
+	if (errno || *endp || v < min || v > max)
+		show_usage(1);
+	return v;
+}
+
+static unsigned long long
+get_uint_range(char *str, int base, unsigned long long max)
+{
+	unsigned long long v;
+	char *endp;
+
+	if (!str)
+		show_usage(1);
+	errno = 0;
+	v = strtoull(str, &endp, base);
+	if ( errno || *endp || v > max)
+		show_usage(1);
+	return v;
+}
 
 static int get_int(char *str, int base)
 {
-	long v;
-	char *endp;
-
-	if (!str)
-		show_usage(1);
-	errno = 0;
-	v = strtol(str, &endp, base);
-	if ( errno || *endp || v > INT_MAX)
-		show_usage(1);
-	return (int)v;
+	return get_int_range(str, base, INT_MIN, INT_MAX);
 }
 
-static int get_uint(char *str, int base)
+static u32 get_u32(char *str, int base)
 {
-	unsigned long v;
-	char *endp;
-
-	if (!str)
-		show_usage(1);
-	errno = 0;
-	v = strtoul(str, &endp, base);
-	if ( errno || *endp || v > UINT_MAX)
-		show_usage(1);
-	return v;
+	return get_uint_range(str, base, 0xffffffff);
 }
 
 static void parse_generic_cmdline(int argc, char **argp,
@@ -474,7 +573,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 				  struct cmdline_info *info,
 				  unsigned int n_info)
 {
-	int i, idx, *p;
+	int i, idx;
 	int found;
 
 	for (i = first_arg; i < argc; i++) {
@@ -486,9 +585,9 @@ static void parse_generic_cmdline(int argc, char **argp,
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
-				p = info[idx].wanted_val;
 				switch (info[idx].type) {
-				case CMDL_BOOL:
+				case CMDL_BOOL: {
+					int *p = info[idx].wanted_val;
 					if (!strcmp(argp[i], "on"))
 						*p = 1;
 					else if (!strcmp(argp[i], "off"))
@@ -496,12 +595,56 @@ static void parse_generic_cmdline(int argc, char **argp,
 					else
 						show_usage(1);
 					break;
-				case CMDL_INT: {
-					*p = get_int(argp[i],0);
+				}
+				case CMDL_S32: {
+					s32 *p = info[idx].wanted_val;
+					*p = get_int_range(argp[i], 0,
+							   -0x80000000LL,
+							   0x7fffffff);
 					break;
 				}
-				case CMDL_UINT: {
-					*p = get_uint(argp[i],0);
+				case CMDL_U16: {
+					u16 *p = info[idx].wanted_val;
+					*p = get_uint_range(argp[i], 0, 0xffff);
+					break;
+				}
+				case CMDL_U32: {
+					u32 *p = info[idx].wanted_val;
+					*p = get_uint_range(argp[i], 0,
+							    0xffffffff);
+					break;
+				}
+				case CMDL_U64: {
+					u64 *p = info[idx].wanted_val;
+					*p = get_uint_range(
+						argp[i], 0,
+						0xffffffffffffffffLL);
+					break;
+				}
+				case CMDL_BE16: {
+					u16 *p = info[idx].wanted_val;
+					*p = cpu_to_be16(
+						get_uint_range(argp[i], 0,
+							       0xffff));
+					break;
+				}
+				case CMDL_IP4: {
+					u32 *p = info[idx].wanted_val;
+					struct in_addr in;
+					if (!inet_aton(argp[i], &in))
+						show_usage(1);
+					*p = in.s_addr;
+					break;
+				}
+				case CMDL_FLAG: {
+					u32 *p;
+					if (!strcmp(argp[i], "on"))
+						p = info[idx].wanted_val;
+					else if (!strcmp(argp[i], "off"))
+						p = info[idx].unwanted_val;
+					else
+						show_usage(1);
+					*p |= info[idx].flag_val;
 					break;
 				}
 				case CMDL_STR: {
@@ -518,6 +661,26 @@ static void parse_generic_cmdline(int argc, char **argp,
 		if( !found)
 			show_usage(1);
 	}
+}
+
+static void
+print_flags(const struct cmdline_info *info, unsigned int n_info, u32 value)
+{
+	const char *sep = "";
+
+	while (n_info) {
+		if (info->type == CMDL_FLAG && value & info->flag_val) {
+			printf("%s%s", sep, info->name);
+			sep = " ";
+			value &= ~info->flag_val;
+		}
+		++info;
+		--n_info;
+	}
+
+	/* Print any unrecognised flags in hex */
+	if (value)
+		printf("%s%#x", sep, value);
 }
 
 static int rxflow_str_to_type(const char *str)
@@ -582,6 +745,8 @@ static void parse_cmdline(int argc, char **argp)
 			    (mode == MODE_GSTATS) ||
 			    (mode == MODE_GNFC) ||
 			    (mode == MODE_SNFC) ||
+			    (mode == MODE_GRXFHINDIR) ||
+			    (mode == MODE_SRXFHINDIR) ||
 			    (mode == MODE_SNTUPLE) ||
 			    (mode == MODE_GNTUPLE) ||
 			    (mode == MODE_PHYS_ID) ||
@@ -735,6 +900,30 @@ static void parse_cmdline(int argc, char **argp)
 					show_usage(1);
 				break;
 			}
+			if (mode == MODE_SRXFHINDIR) {
+				if (!strcmp(argp[i], "equal")) {
+					if (argc != i + 2) {
+						show_usage(1);
+						break;
+					}
+					i += 1;
+					rxfhindir_equal =
+						get_int_range(argp[i], 0, 1,
+							      INT_MAX);
+					i += 1;
+				} else if (!strcmp(argp[i], "weight")) {
+					i += 1;
+					if (i >= argc) {
+						show_usage(1);
+						break;
+					}
+					rxfhindir_weight = argp + i;
+					i = argc;
+				} else {
+					show_usage(1);
+				}
+				break;
+			}
 			if (mode != MODE_SSET)
 				show_usage(1);
 			if (!strcmp(argp[i], "speed")) {
@@ -836,7 +1025,20 @@ static void parse_cmdline(int argc, char **argp)
 				i++;
 				if (i >= argc)
 					show_usage(1);
-				msglvl_wanted = get_int(argp[i], 0);
+				if (isdigit((unsigned char)argp[i][0])) {
+					msglvl_changed = 1;
+					msglvl_unwanted = ~0;
+					msglvl_wanted =
+						get_uint_range(argp[i], 0,
+							       0xffffffff);
+				} else {
+					parse_generic_cmdline(
+						argc, argp, i,
+						&msglvl_changed,
+						cmdline_msglvl,
+						ARRAY_SIZE(cmdline_msglvl));
+					i = argc;
+				}
 				break;
 			}
 			show_usage(1);
@@ -1336,6 +1538,7 @@ static struct {
         { "vioc", vioc_dump_regs },
         { "smsc911x", smsc911x_dump_regs },
         { "at76c50x-usb", at76c50x_usb_dump_regs },
+        { "sfc", sfc_dump_regs },
 };
 
 static int dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
@@ -1655,6 +1858,10 @@ static int doit(void)
 		return do_grxclass(fd, &ifr);
 	} else if (mode == MODE_SNFC) {
 		return do_srxclass(fd, &ifr);
+	} else if (mode == MODE_GRXFHINDIR) {
+		return do_grxfhindir(fd, &ifr);
+	} else if (mode == MODE_SRXFHINDIR) {
+		return do_srxfhindir(fd, &ifr);
 	} else if (mode == MODE_SNTUPLE) {
 		return do_srxntuple(fd, &ifr);
 	} else if (mode == MODE_GNTUPLE) {
@@ -2036,7 +2243,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 			return 90;
 		}
 	}
-	if (off_lro_wanted >= 0) {
+	if (off_flags_wanted || off_flags_unwanted) {
 		changed = 1;
 		eval.cmd = ETHTOOL_GFLAGS;
 		eval.data = 0;
@@ -2048,14 +2255,12 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		}
 
 		eval.cmd = ETHTOOL_SFLAGS;
-		if (off_lro_wanted == 1)
-			eval.data |= ETH_FLAG_LRO;
-		else
-			eval.data &= ~ETH_FLAG_LRO;
+		eval.data = ((eval.data & ~off_flags_unwanted) |
+			     off_flags_wanted);
 
 		err = ioctl(fd, SIOCETHTOOL, ifr);
 		if (err) {
-			perror("Cannot set large receive offload settings");
+			perror("Cannot set device flag settings");
 			return 92;
 		}
 	}
@@ -2067,52 +2272,6 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		err = ioctl(fd, SIOCETHTOOL, ifr);
 		if (err) {
 			perror("Cannot set device GRO settings");
-			return 93;
-		}
-	}
-	if (off_ntuple_wanted >= 0) {
-		changed = 1;
-		eval.cmd = ETHTOOL_GFLAGS;
-		eval.data = 0;
-		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
-		if (err) {
-			perror("Cannot get device flag settings");
-			return 91;
-		}
-
-		eval.cmd = ETHTOOL_SFLAGS;
-		if (off_ntuple_wanted == 1)
-			eval.data |= ETH_FLAG_NTUPLE;
-		else
-			eval.data &= ~ETH_FLAG_NTUPLE;
-
-		err = ioctl(fd, SIOCETHTOOL, ifr);
-		if (err) {
-			perror("Cannot set n-tuple filter settings");
-			return 93;
-		}
-	}
-	if (off_rxhash_wanted >= 0) {
-		changed = 1;
-		eval.cmd = ETHTOOL_GFLAGS;
-		eval.data = 0;
-		ifr->ifr_data = (caddr_t)&eval;
-		err = ioctl(fd, SIOCETHTOOL, ifr);
-		if (err) {
-			perror("Cannot get device flag settings");
-			return 91;
-		}
-
-		eval.cmd = ETHTOOL_SFLAGS;
-		if (off_rxhash_wanted)
-			eval.data |= ETH_FLAG_RXHASH;
-		else
-			eval.data &= ~ETH_FLAG_RXHASH;
-
-		err = ioctl(fd, SIOCETHTOOL, ifr);
-		if (err) {
-			perror("Cannot set receive hash settings");
 			return 93;
 		}
 	}
@@ -2162,8 +2321,12 @@ static int do_gset(int fd, struct ifreq *ifr)
 	ifr->ifr_data = (caddr_t)&edata;
 	err = send_ioctl(fd, ifr);
 	if (err == 0) {
-		fprintf(stdout, "	Current message level: 0x%08x (%d)\n",
+		fprintf(stdout, "	Current message level: 0x%08x (%d)\n"
+			"			       ",
 			edata.data, edata.data);
+		print_flags(cmdline_msglvl, ARRAY_SIZE(cmdline_msglvl),
+			    edata.data);
+		fprintf(stdout, "\n");
 		allfail = 0;
 	} else if (errno != EOPNOTSUPP) {
 		perror("Cannot get message level");
@@ -2286,15 +2449,23 @@ static int do_sset(int fd, struct ifreq *ifr)
 		}
 	}
 
-	if (msglvl_wanted != -1) {
+	if (msglvl_changed) {
 		struct ethtool_value edata;
 
-		edata.cmd = ETHTOOL_SMSGLVL;
-		edata.data = msglvl_wanted;
-		ifr->ifr_data = (caddr_t)&edata;;
+		edata.cmd = ETHTOOL_GMSGLVL;
+		ifr->ifr_data = (caddr_t)&edata;
 		err = send_ioctl(fd, ifr);
-		if (err < 0)
-			perror("Cannot set new msglvl");
+		if (err < 0) {
+			perror("Cannot get msglvl");
+		} else {
+			edata.cmd = ETHTOOL_SMSGLVL;
+			edata.data = ((edata.data & ~msglvl_unwanted) |
+				      msglvl_wanted);
+			ifr->ifr_data = (caddr_t)&edata;
+			err = send_ioctl(fd, ifr);
+			if (err < 0)
+				perror("Cannot set new msglvl");
+		}
 	}
 
 	return 0;
@@ -2625,6 +2796,123 @@ static int do_grxclass(int fd, struct ifreq *ifr)
 			perror("Cannot get RX network flow hashing options");
 		else
 			dump_rxfhash(rx_fhash_get, nfccmd.data);
+	}
+
+	return 0;
+}
+
+static int do_grxfhindir(int fd, struct ifreq *ifr)
+{
+	struct ethtool_rxnfc ring_count;
+	struct ethtool_rxfh_indir indir_head;
+	struct ethtool_rxfh_indir *indir;
+	u32 i;
+	int err;
+
+	ring_count.cmd = ETHTOOL_GRXRINGS;
+	ifr->ifr_data = (caddr_t) &ring_count;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot get RX ring count");
+		return 102;
+	}
+
+	indir_head.cmd = ETHTOOL_GRXFHINDIR;
+	indir_head.size = 0;
+	ifr->ifr_data = (caddr_t) &indir_head;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot get RX flow hash indirection table size");
+		return 103;
+	}
+
+	indir = malloc(sizeof(*indir) +
+		       indir_head.size * sizeof(*indir->ring_index));
+	indir->cmd = ETHTOOL_GRXFHINDIR;
+	indir->size = indir_head.size;
+	ifr->ifr_data = (caddr_t) indir;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot get RX flow hash indirection table");
+		return 103;
+	}
+
+	printf("RX flow hash indirection table for %s with %llu RX ring(s):\n",
+	       devname, ring_count.data);
+	for (i = 0; i < indir->size; i++) {
+		if (i % 8 == 0)
+			printf("%5u: ", i);
+		printf(" %5u", indir->ring_index[i]);
+		if (i % 8 == 7)
+			fputc('\n', stdout);
+	}
+	return 0;
+}
+
+static int do_srxfhindir(int fd, struct ifreq *ifr)
+{
+	struct ethtool_rxfh_indir indir_head;
+	struct ethtool_rxfh_indir *indir;
+	u32 i;
+	int err;
+
+	if (!rxfhindir_equal && !rxfhindir_weight)
+		show_usage(1);
+
+	indir_head.cmd = ETHTOOL_GRXFHINDIR;
+	indir_head.size = 0;
+	ifr->ifr_data = (caddr_t) &indir_head;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot get RX flow hash indirection table size");
+		return 104;
+	}
+
+	indir = malloc(sizeof(*indir) +
+		       indir_head.size * sizeof(*indir->ring_index));
+	indir->cmd = ETHTOOL_SRXFHINDIR;
+	indir->size = indir_head.size;
+
+	if (rxfhindir_equal) {
+		for (i = 0; i < indir->size; i++)
+			indir->ring_index[i] = i % rxfhindir_equal;
+	} else {
+		u32 j, weight, sum = 0, partial = 0;
+
+		for (j = 0; rxfhindir_weight[j]; j++) {
+			weight = get_u32(rxfhindir_weight[j], 0);
+			sum += weight;
+		}
+
+		if (sum == 0) {
+			fprintf(stderr,
+				"At least one weight must be non-zero\n");
+			exit(1);
+		}
+
+		if (sum > indir->size) {
+			fprintf(stderr,
+				"Total weight exceeds the size of the "
+				"indirection table\n");
+			exit(1);
+		}
+
+		j = -1;
+		for (i = 0; i < indir->size; i++) {
+			while (i >= indir->size * partial / sum) {
+				j += 1;
+				weight = get_u32(rxfhindir_weight[j], 0);
+				partial += weight;
+			}
+			indir->ring_index[i] = j;
+		}
+	}
+
+	ifr->ifr_data = (caddr_t) indir;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Cannot set RX flow hash indirection table");
+		return 105;
 	}
 
 	return 0;
