@@ -12,7 +12,6 @@ Vcs-Browser: http://git.debian.org/?p=kernel/ethtool.git
 Package: ethtool
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: sparc-utils (<< 1.9-1)
 Description: display or change Ethernet device settings
  ethtool can be used to query and change settings such as speed, auto-
  negotiation and checksum offload on many network devices, especially
