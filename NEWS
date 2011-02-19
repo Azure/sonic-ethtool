@@ -1,3 +1,15 @@
+Version 2.6.37 - January 5, 2011
+
+	* Fix: Build fix for distributions with kernel headers from
+	  Linux 2.6.9 or earlier
+
+Version 2.6.36 - November 16, 2010
+
+	* Fix: RX n-tuple masks and documentation
+	* Feature: Ethernet-level RX n-tuple filtering and 'clear' action
+	* Feature: stmmac register dump support
+	* Feature: get permanent address (-P) option
+	* Feature: VLAN acceleration control
 
 Version 2.6.35 - August 10, 2010
 

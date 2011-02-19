@@ -1,5 +1,5 @@
 Name		: ethtool
-Version		: 2.6.35
+Version		: 2.6.37
 Release		: 1
 Group		: Utilities
 

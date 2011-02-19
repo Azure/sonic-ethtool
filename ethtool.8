@@ -170,11 +170,16 @@ ethtool \- Display or change ethernet card settings
 .B2 gso on off
 .B2 gro on off
 .B2 lro on off
+.B2 rxvlan on off
+.B2 txvlan on off
 .B2 rxhash on off
 
 .B ethtool \-p|\-\-identify
 .I ethX
 .RI [ N ]
+
+.B ethtool \-P|\-\-show-permaddr
+.I ethX
 
 .B ethtool \-r|\-\-negotiate
 .I ethX
@@ -233,36 +238,51 @@ ethtool \- Display or change ethernet card settings
 .B ethtool \-u|\-\-show\-ntuple
 .I ethX
 
-.B ethtool \-U|\-\-config\-ntuple
-.I ethX
-.RB [ flow-type
-.RB tcp4|udp4|sctp4 ]
+.TP
+.BI ethtool\ \-U|\-\-config\-ntuple \ ethX
+.RB {
+.A3 flow-type tcp4 udp4 sctp4
 .RB [ src-ip
-.IR addr ]
+.IR addr
 .RB [ src-ip-mask
-.IR mask ]
+.IR mask ]]
 .RB [ dst-ip
-.IR addr ]
+.IR addr
 .RB [ dst-ip-mask
-.IR mask ]
+.IR mask ]]
 .RB [ src-port
-.IR port ]
+.IR port
 .RB [ src-port-mask
-.IR mask ]
+.IR mask ]]
 .RB [ dst-port
-.IR port ]
+.IR port
 .RB [ dst-port-mask
-.IR mask ]
+.IR mask ]]
+.br
+.RB | \ flow-type\ ether
+.RB [ src
+.IR mac-addr
+.RB [ src-mask
+.IR mask ]]
+.RB [ dst
+.IR mac-addr
+.RB [ dst-mask
+.IR mask ]]
+.RB [ proto
+.IR N
+.RB [ proto-mask
+.IR mask ]]\ }
+.br
 .RB [ vlan
-.IR VLAN-tag ]
+.IR VLAN-tag
 .RB [ vlan-mask
-.IR mask ]
+.IR mask ]]
 .RB [ user-def
-.IR data ]
+.IR data
 .RB [ user-def-mask
-.IR mask ]
-.RB [ action
-.IR queue\ or\ drop ]
+.IR mask ]]
+.RI action \ N
+
 .SH DESCRIPTION
 .BI ethtool
 is used for querying settings of an ethernet device and changing them.
@@ -377,6 +397,12 @@ Specifies whether generic receive offload should be enabled
 .A2 lro on off
 Specifies whether large receive offload should be enabled
 .TP
+.A2 rxvlan on off
+Specifies whether RX VLAN acceleration should be enabled
+.TP
+.A2 txvlan on off
+Specifies whether TX VLAN acceleration should be enabled
+.TP
 .A2 rxhash on off
 Specifies whether receive hashing offload should be enabled
 .TP
@@ -387,6 +413,9 @@ blinking one or more LEDs on the specific ethernet port.
 .TP
 .B N
 Length of time to perform phys-id, in seconds.
+.TP
+.B \-P \-\-show-permaddr
+Queries the specified ethernet device for permanent hardware address.
 .TP
 .B \-r \-\-negotiate
 Restarts auto-negotiation on the specified ethernet device, if
@@ -650,7 +679,7 @@ Get Rx ntuple filters and actions, then display them to the user.
 .B \-U \-\-config-ntuple
 Configure Rx ntuple filters and actions
 .TP
-.B flow-type tcp4|udp4|sctp4
+.B flow-type tcp4|udp4|sctp4|ether
 .RS
 .PD 0
 .TP 3
@@ -659,6 +688,8 @@ Configure Rx ntuple filters and actions
 .BR "udp4" "    UDP over IPv4"
 .TP 3
 .BR "sctp4" "   SCTP over IPv4"
+.TP 3
+.BR "ether" "   Ethernet"
 .PD
 .RE
 .TP
@@ -687,6 +718,25 @@ Includes the destination port.
 .BI dst-port-mask \ mask
 Specify a mask for the destination port.
 .TP
+.BI src \ mac-addr
+Includes the source MAC address, specified as 6 bytes in hexadecimal
+separated by colons.
+.TP
+.BI src-mask \ mask
+Specify a mask for the source MAC address.
+.TP
+.BI dst \ mac-addr
+Includes the destination MAC address.
+.TP
+.BI dst-mask \ mask
+Specify a mask for the destination MAC address.
+.TP
+.BI proto \ N
+Includes the Ethernet protocol number (ethertype).
+.TP
+.BI proto-mask \ mask
+Specify a mask for the Ethernet protocol number.
+.TP
 .BI vlan \ VLAN-tag
 Includes the VLAN tag.
 .TP
@@ -700,10 +750,11 @@ Includes 64-bits of user-specific data.
 Specify a mask for the user-specific data.
 .TP
 .BI action \ N
-Specifies either the Rx queue to send packets to, or to drop
-the matched flow.
+Specifies the Rx queue to send packets to, or some other action.
 .RS
 .PD 0
+.TP 3
+.BR "-2" "             Clear the filter"
 .TP 3
 .BR "-1" "             Drop the matched flow"
 .TP 3

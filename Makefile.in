@@ -56,7 +56,7 @@ am_ethtool_OBJECTS = ethtool.$(OBJEXT) amd8111e.$(OBJEXT) \
 	ixgbe.$(OBJEXT) natsemi.$(OBJEXT) pcnet32.$(OBJEXT) \
 	realtek.$(OBJEXT) tg3.$(OBJEXT) marvell.$(OBJEXT) \
 	vioc.$(OBJEXT) smsc911x.$(OBJEXT) at76c50x-usb.$(OBJEXT) \
-	sfc.$(OBJEXT)
+	sfc.$(OBJEXT) stmmac.$(OBJEXT)
 ethtool_OBJECTS = $(am_ethtool_OBJECTS)
 ethtool_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -144,6 +144,7 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
+PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 SET_MAKE = @SET_MAKE@
@@ -199,7 +200,7 @@ ethtool_SOURCES = ethtool.c ethtool-copy.h ethtool-util.h	\
 		  amd8111e.c de2104x.c e100.c e1000.c igb.c	\
 		  fec_8xx.c ibm_emac.c ixgb.c ixgbe.c natsemi.c	\
 		  pcnet32.c realtek.c tg3.c marvell.c vioc.c	\
-		  smsc911x.c at76c50x-usb.c sfc.c
+		  smsc911x.c at76c50x-usb.c sfc.c stmmac.c
 
 all: ethtool-config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -323,6 +324,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/realtek.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/smsc911x.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stmmac.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tg3.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vioc.Po@am__quote@
 

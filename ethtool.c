@@ -14,12 +14,11 @@
  * amd8111e support by Reeja John <reeja.john@amd.com>
  * long arguments by Andi Kleen.
  * SMSC LAN911x support by Steve Glendinning <steve.glendinning@smsc.com>
+ * Various features by Ben Hutchings <bhutchings@solarflare.com>;
+ *	Copyright 2009, 2010 Solarflare Communications
  *
  * TODO:
- *   * no-args => summary of each device (mii-tool style)
- *   * better man page (steal from mii-tool?)
- *   * fall back on SIOCMII* ioctl()s and possibly SIOCDEVPRIVATE*
- *   * abstract ioctls to allow for fallback modes of data gathering
+ *   * show settings for all devices
  */
 
 #ifdef HAVE_CONFIG_H
@@ -51,6 +50,9 @@
 #ifndef SIOCETHTOOL
 #define SIOCETHTOOL     0x8946
 #endif
+#ifndef MAX_ADDR_LEN
+#define MAX_ADDR_LEN	32
+#endif
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
@@ -77,7 +79,7 @@ enum {
 
 static int parse_wolopts(char *optstr, u32 *data);
 static char *unparse_wolopts(int wolopts);
-static int parse_sopass(char *src, unsigned char *dest);
+static void get_mac_addr(char *src, unsigned char *dest);
 static int do_gdrv(int fd, struct ifreq *ifr);
 static int do_gset(int fd, struct ifreq *ifr);
 static int do_sset(int fd, struct ifreq *ifr);
@@ -99,6 +101,7 @@ static int do_gstats(int fd, struct ifreq *ifr);
 static int rxflow_str_to_type(const char *str);
 static int parse_rxfhashopts(char *optstr, u32 *data);
 static char *unparse_rxfhashopts(u64 opts);
+static void parse_rxntupleopts(int argc, char **argp, int first_arg);
 static int dump_rxfhash(int fhash, u64 val);
 static int do_srxclass(int fd, struct ifreq *ifr);
 static int do_grxclass(int fd, struct ifreq *ifr);
@@ -107,6 +110,8 @@ static int do_srxfhindir(int fd, struct ifreq *ifr);
 static int do_srxntuple(int fd, struct ifreq *ifr);
 static int do_grxntuple(int fd, struct ifreq *ifr);
 static int do_flash(int fd, struct ifreq *ifr);
+static int do_permaddr(int fd, struct ifreq *ifr);
+
 static int send_ioctl(int fd, struct ifreq *ifr);
 
 static enum {
@@ -136,6 +141,7 @@ static enum {
 	MODE_SNTUPLE,
 	MODE_GNTUPLE,
 	MODE_FLASHDEV,
+	MODE_PERMADDR,
 } mode = MODE_GSET;
 
 static struct option {
@@ -200,6 +206,8 @@ static struct option {
 		"		[ gso on|off ]\n"
 		"		[ gro on|off ]\n"
 		"		[ lro on|off ]\n"
+		"		[ rxvlan on|off ]\n"
+		"		[ txvlan on|off ]\n"
 		"		[ ntuple on|off ]\n"
 		"		[ rxhash on|off ]\n"
     },
@@ -239,14 +247,22 @@ static struct option {
 		"		equal N | weight W0 W1 ...\n" },
     { "-U", "--config-ntuple", MODE_SNTUPLE, "Configure Rx ntuple filters "
 		"and actions",
-		"               [ flow-type tcp4|udp4|sctp4 src-ip <addr> "
-		"src-ip-mask <mask> dst-ip <addr> dst-ip-mask <mask> "
-		"src-port <port> src-port-mask <mask> dst-port <port> "
-		"dst-port-mask <mask> vlan <VLAN tag> vlan-mask <mask> "
-		"user-def <data> user-def-mask <mask> "
-		"action <queue or drop>\n" },
+		"		{ flow-type tcp4|udp4|sctp4\n"
+		"		  [ src-ip ADDR [src-ip-mask MASK] ]\n"
+		"		  [ dst-ip ADDR [dst-ip-mask MASK] ]\n"
+		"		  [ src-port PORT [src-port-mask MASK] ]\n"
+		"		  [ dst-port PORT [dst-port-mask MASK] ]\n"
+		"		| flow-type ether\n"
+		"		  [ src MAC-ADDR [src-mask MASK] ]\n"
+		"		  [ dst MAC-ADDR [dst-mask MASK] ]\n"
+		"		  [ proto N [proto-mask MASK] ] }\n"
+		"		[ vlan VLAN-TAG [vlan-mask MASK] ]\n"
+		"		[ user-def DATA [user-def-mask MASK] ]\n"
+		"		action N\n" },
     { "-u", "--show-ntuple", MODE_GNTUPLE,
 		"Get Rx ntuple filters and actions\n" },
+    { "-P", "--show-permaddr", MODE_PERMADDR,
+		"Show permanent hardware address" },
     { "-h", "--help", MODE_HELP, "Show this help" },
     {}
 };
@@ -290,7 +306,7 @@ static int off_tso_wanted = -1;
 static int off_ufo_wanted = -1;
 static int off_gso_wanted = -1;
 static u32 off_flags_wanted = 0;
-static u32 off_flags_unwanted = 0;
+static u32 off_flags_mask = 0;
 static int off_gro_wanted = -1;
 
 static struct ethtool_pauseparam epause;
@@ -366,13 +382,31 @@ static int rxfhindir_equal = 0;
 static char **rxfhindir_weight = NULL;
 static int sntuple_changed = 0;
 static struct ethtool_rx_ntuple_flow_spec ntuple_fs;
+static int ntuple_ip4src_seen = 0;
+static int ntuple_ip4src_mask_seen = 0;
+static int ntuple_ip4dst_seen = 0;
+static int ntuple_ip4dst_mask_seen = 0;
+static int ntuple_psrc_seen = 0;
+static int ntuple_psrc_mask_seen = 0;
+static int ntuple_pdst_seen = 0;
+static int ntuple_pdst_mask_seen = 0;
+static int ntuple_ether_dst_seen = 0;
+static int ntuple_ether_dst_mask_seen = 0;
+static int ntuple_ether_src_seen = 0;
+static int ntuple_ether_src_mask_seen = 0;
+static int ntuple_ether_proto_seen = 0;
+static int ntuple_ether_proto_mask_seen = 0;
+static int ntuple_vlan_tag_seen = 0;
+static int ntuple_vlan_tag_mask_seen = 0;
+static int ntuple_user_def_seen = 0;
+static int ntuple_user_def_mask_seen = 0;
 static char *flash_file = NULL;
 static int flash = -1;
 static int flash_region = -1;
 
 static int msglvl_changed;
 static u32 msglvl_wanted = 0;
-static u32 msglvl_unwanted =0;
+static u32 msglvl_mask = 0;
 
 static enum {
 	ONLINE=0,
@@ -390,20 +424,23 @@ typedef enum {
 	CMDL_IP4,
 	CMDL_STR,
 	CMDL_FLAG,
+	CMDL_MAC,
 } cmdline_type_t;
 
 struct cmdline_info {
 	const char *name;
 	cmdline_type_t type;
-	/* Points to int (BOOL), s32, u16, u32 (U32/FLAG/IP4), u64 or
-	 * char * (STR).  For FLAG, the value accumulates all flags
-	 * to be set. */
+	/* Points to int (BOOL), s32, u16, u32 (U32/FLAG/IP4), u64,
+	 * char * (STR) or u8[6] (MAC).  For FLAG, the value accumulates
+	 * all flags to be set. */
 	void *wanted_val;
 	void *ioctl_val;
 	/* For FLAG, the flag value to be set/cleared */
 	u32 flag_val;
-	/* For FLAG, accumulates all flags to be cleared */
-	u32 *unwanted_val;
+	/* For FLAG, points to u32 and accumulates all flags seen.
+	 * For anything else, points to int and is set if the option is
+	 * seen. */
+	void *seen_val;
 };
 
 static struct cmdline_info cmdline_gregs[] = {
@@ -433,12 +470,16 @@ static struct cmdline_info cmdline_offload[] = {
 	{ "ufo", CMDL_BOOL, &off_ufo_wanted, NULL },
 	{ "gso", CMDL_BOOL, &off_gso_wanted, NULL },
 	{ "lro", CMDL_FLAG, &off_flags_wanted, NULL,
-	  ETH_FLAG_LRO, &off_flags_unwanted },
+	  ETH_FLAG_LRO, &off_flags_mask },
 	{ "gro", CMDL_BOOL, &off_gro_wanted, NULL },
+	{ "rxvlan", CMDL_FLAG, &off_flags_wanted, NULL,
+	  ETH_FLAG_RXVLAN, &off_flags_mask },
+	{ "txvlan", CMDL_FLAG, &off_flags_wanted, NULL,
+	  ETH_FLAG_TXVLAN, &off_flags_mask },
 	{ "ntuple", CMDL_FLAG, &off_flags_wanted, NULL,
-	  ETH_FLAG_NTUPLE, &off_flags_unwanted },
+	  ETH_FLAG_NTUPLE, &off_flags_mask },
 	{ "rxhash", CMDL_FLAG, &off_flags_wanted, NULL,
-	  ETH_FLAG_RXHASH, &off_flags_unwanted },
+	  ETH_FLAG_RXHASH, &off_flags_mask },
 };
 
 static struct cmdline_info cmdline_pause[] = {
@@ -479,53 +520,89 @@ static struct cmdline_info cmdline_coalesce[] = {
 	{ "tx-frames-high", CMDL_S32, &coal_tx_frames_high_wanted, &ecoal.tx_max_coalesced_frames_high },
 };
 
-static struct cmdline_info cmdline_ntuple[] = {
-	{ "src-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4src, NULL },
-	{ "src-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4src, NULL },
-	{ "dst-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4dst, NULL },
-	{ "dst-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4dst, NULL },
-	{ "src-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.psrc, NULL },
-	{ "src-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.psrc, NULL },
-	{ "dst-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.pdst, NULL },
-	{ "dst-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.pdst, NULL },
-	{ "vlan", CMDL_U16, &ntuple_fs.vlan_tag, NULL },
-	{ "vlan-mask", CMDL_U16, &ntuple_fs.vlan_tag_mask, NULL },
-	{ "user-def", CMDL_U64, &ntuple_fs.data, NULL },
-	{ "user-def-mask", CMDL_U64, &ntuple_fs.data_mask, NULL },
+static struct cmdline_info cmdline_ntuple_tcp_ip4[] = {
+	{ "src-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4src, NULL,
+	  0, &ntuple_ip4src_seen },
+	{ "src-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4src, NULL,
+	  0, &ntuple_ip4src_mask_seen },
+	{ "dst-ip", CMDL_IP4, &ntuple_fs.h_u.tcp_ip4_spec.ip4dst, NULL,
+	  0, &ntuple_ip4dst_seen },
+	{ "dst-ip-mask", CMDL_IP4, &ntuple_fs.m_u.tcp_ip4_spec.ip4dst, NULL,
+	  0, &ntuple_ip4dst_mask_seen },
+	{ "src-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.psrc, NULL,
+	  0, &ntuple_psrc_seen },
+	{ "src-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.psrc, NULL,
+	  0, &ntuple_psrc_mask_seen },
+	{ "dst-port", CMDL_BE16, &ntuple_fs.h_u.tcp_ip4_spec.pdst, NULL,
+	  0, &ntuple_pdst_seen },
+	{ "dst-port-mask", CMDL_BE16, &ntuple_fs.m_u.tcp_ip4_spec.pdst, NULL,
+	  0, &ntuple_pdst_mask_seen },
+	{ "vlan", CMDL_U16, &ntuple_fs.vlan_tag, NULL,
+	  0, &ntuple_vlan_tag_seen },
+	{ "vlan-mask", CMDL_U16, &ntuple_fs.vlan_tag_mask, NULL,
+	  0, &ntuple_vlan_tag_mask_seen },
+	{ "user-def", CMDL_U64, &ntuple_fs.data, NULL,
+	  0, &ntuple_user_def_seen },
+	{ "user-def-mask", CMDL_U64, &ntuple_fs.data_mask, NULL,
+	  0, &ntuple_user_def_mask_seen },
+	{ "action", CMDL_S32, &ntuple_fs.action, NULL },
+};
+
+static struct cmdline_info cmdline_ntuple_ether[] = {
+	{ "dst", CMDL_MAC, ntuple_fs.h_u.ether_spec.h_dest, NULL,
+	  0, &ntuple_ether_dst_seen },
+	{ "dst-mask", CMDL_MAC, ntuple_fs.m_u.ether_spec.h_dest, NULL,
+	  0, &ntuple_ether_dst_mask_seen },
+	{ "src", CMDL_MAC, ntuple_fs.h_u.ether_spec.h_source, NULL,
+	  0, &ntuple_ether_src_seen },
+	{ "src-mask", CMDL_MAC, ntuple_fs.m_u.ether_spec.h_source, NULL,
+	  0, &ntuple_ether_src_mask_seen },
+	{ "proto", CMDL_BE16, &ntuple_fs.h_u.ether_spec.h_proto, NULL,
+	  0, &ntuple_ether_proto_seen },
+	{ "proto-mask", CMDL_BE16, &ntuple_fs.m_u.ether_spec.h_proto, NULL,
+	  0, &ntuple_ether_proto_mask_seen },
+	{ "vlan", CMDL_U16, &ntuple_fs.vlan_tag, NULL,
+	  0, &ntuple_vlan_tag_seen },
+	{ "vlan-mask", CMDL_U16, &ntuple_fs.vlan_tag_mask, NULL,
+	  0, &ntuple_vlan_tag_mask_seen },
+	{ "user-def", CMDL_U64, &ntuple_fs.data, NULL,
+	  0, &ntuple_user_def_seen },
+	{ "user-def-mask", CMDL_U64, &ntuple_fs.data_mask, NULL,
+	  0, &ntuple_user_def_mask_seen },
 	{ "action", CMDL_S32, &ntuple_fs.action, NULL },
 };
 
 static struct cmdline_info cmdline_msglvl[] = {
 	{ "drv", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_DRV, &msglvl_unwanted },
+	  NETIF_MSG_DRV, &msglvl_mask },
 	{ "probe", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_PROBE, &msglvl_unwanted },
+	  NETIF_MSG_PROBE, &msglvl_mask },
 	{ "link", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_LINK, &msglvl_unwanted },
+	  NETIF_MSG_LINK, &msglvl_mask },
 	{ "timer", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_TIMER, &msglvl_unwanted },
+	  NETIF_MSG_TIMER, &msglvl_mask },
 	{ "ifdown", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_IFDOWN, &msglvl_unwanted },
+	  NETIF_MSG_IFDOWN, &msglvl_mask },
 	{ "ifup", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_IFUP, &msglvl_unwanted },
+	  NETIF_MSG_IFUP, &msglvl_mask },
 	{ "rx_err", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_RX_ERR, &msglvl_unwanted },
+	  NETIF_MSG_RX_ERR, &msglvl_mask },
 	{ "tx_err", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_TX_ERR, &msglvl_unwanted },
+	  NETIF_MSG_TX_ERR, &msglvl_mask },
 	{ "tx_queued", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_TX_QUEUED, &msglvl_unwanted },
+	  NETIF_MSG_TX_QUEUED, &msglvl_mask },
 	{ "intr", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_INTR, &msglvl_unwanted },
+	  NETIF_MSG_INTR, &msglvl_mask },
 	{ "tx_done", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_TX_DONE, &msglvl_unwanted },
+	  NETIF_MSG_TX_DONE, &msglvl_mask },
 	{ "rx_status", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_RX_STATUS, &msglvl_unwanted },
+	  NETIF_MSG_RX_STATUS, &msglvl_mask },
 	{ "pktdata", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_PKTDATA, &msglvl_unwanted },
+	  NETIF_MSG_PKTDATA, &msglvl_mask },
 	{ "hw", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_HW, &msglvl_unwanted },
+	  NETIF_MSG_HW, &msglvl_mask },
 	{ "wol", CMDL_FLAG, &msglvl_wanted, NULL,
-	  NETIF_MSG_WOL, &msglvl_unwanted },
+	  NETIF_MSG_WOL, &msglvl_mask },
 };
 
 static long long
@@ -582,6 +659,9 @@ static void parse_generic_cmdline(int argc, char **argp,
 			if (!strcmp(info[idx].name, argp[i])) {
 				found = 1;
 				*changed = 1;
+				if (info[idx].type != CMDL_FLAG &&
+				    info[idx].seen_val)
+					*(int *)info[idx].seen_val = 1;
 				i += 1;
 				if (i >= argc)
 					show_usage(1);
@@ -636,15 +716,20 @@ static void parse_generic_cmdline(int argc, char **argp,
 					*p = in.s_addr;
 					break;
 				}
+				case CMDL_MAC:
+					get_mac_addr(argp[i],
+						     info[idx].wanted_val);
+					break;
 				case CMDL_FLAG: {
 					u32 *p;
-					if (!strcmp(argp[i], "on"))
-						p = info[idx].wanted_val;
-					else if (!strcmp(argp[i], "off"))
-						p = info[idx].unwanted_val;
-					else
-						show_usage(1);
+					p = info[idx].seen_val;
 					*p |= info[idx].flag_val;
+					if (!strcmp(argp[i], "on")) {
+						p = info[idx].wanted_val;
+						*p |= info[idx].flag_val;
+					} else if (strcmp(argp[i], "off")) {
+						show_usage(1);
+					}
 					break;
 				}
 				case CMDL_STR: {
@@ -703,6 +788,8 @@ static int rxflow_str_to_type(const char *str)
 		flow_type = AH_ESP_V6_FLOW;
 	else if (!strcmp(str, "sctp6"))
 		flow_type = SCTP_V6_FLOW;
+	else if (!strcmp(str, "ether"))
+		flow_type = ETHER_FLOW;
 
 	return flow_type;
 }
@@ -750,7 +837,8 @@ static void parse_cmdline(int argc, char **argp)
 			    (mode == MODE_SNTUPLE) ||
 			    (mode == MODE_GNTUPLE) ||
 			    (mode == MODE_PHYS_ID) ||
-			    (mode == MODE_FLASHDEV)) {
+			    (mode == MODE_FLASHDEV) ||
+			    (mode == MODE_PERMADDR)) {
 				devname = argp[i];
 				break;
 			}
@@ -838,13 +926,7 @@ static void parse_cmdline(int argc, char **argp)
 						show_usage(1);
 						break;
 					}
-					ntuple_fs.flow_type =
-					            rxflow_str_to_type(argp[i]);
-					i += 1;
-					parse_generic_cmdline(argc, argp, i,
-						&sntuple_changed,
-						cmdline_ntuple,
-						ARRAY_SIZE(cmdline_ntuple));
+					parse_rxntupleopts(argc, argp, i);
 					i = argc;
 					break;
 				} else {
@@ -1017,8 +1099,7 @@ static void parse_cmdline(int argc, char **argp)
 				i++;
 				if (i >= argc)
 					show_usage(1);
-				if (parse_sopass(argp[i], sopass_wanted) < 0)
-					show_usage(1);
+				get_mac_addr(argp[i], sopass_wanted);
 				sopass_change = 1;
 				break;
 			} else if (!strcmp(argp[i], "msglvl")) {
@@ -1027,7 +1108,7 @@ static void parse_cmdline(int argc, char **argp)
 					show_usage(1);
 				if (isdigit((unsigned char)argp[i][0])) {
 					msglvl_changed = 1;
-					msglvl_unwanted = ~0;
+					msglvl_mask = ~0;
 					msglvl_wanted =
 						get_uint_range(argp[i], 0,
 							       0xffffffff);
@@ -1422,22 +1503,20 @@ static char *unparse_wolopts(int wolopts)
 	return buf;
 }
 
-static int parse_sopass(char *src, unsigned char *dest)
+static void get_mac_addr(char *src, unsigned char *dest)
 {
 	int count;
 	int i;
-	int buf[SOPASS_MAX];
+	int buf[ETH_ALEN];
 
 	count = sscanf(src, "%2x:%2x:%2x:%2x:%2x:%2x",
 		&buf[0], &buf[1], &buf[2], &buf[3], &buf[4], &buf[5]);
-	if (count != SOPASS_MAX) {
-		return -1;
-	}
+	if (count != ETH_ALEN)
+		show_usage(1);
 
 	for (i = 0; i < count; i++) {
 		dest[i] = buf[i];
 	}
-	return 0;
 }
 
 static int parse_rxfhashopts(char *optstr, u32 *data)
@@ -1512,6 +1591,66 @@ static char *unparse_rxfhashopts(u64 opts)
 	return buf;
 }
 
+static void parse_rxntupleopts(int argc, char **argp, int i)
+{
+	ntuple_fs.flow_type = rxflow_str_to_type(argp[i]);
+
+	switch (ntuple_fs.flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		parse_generic_cmdline(argc, argp, i + 1,
+				      &sntuple_changed,
+				      cmdline_ntuple_tcp_ip4,
+				      ARRAY_SIZE(cmdline_ntuple_tcp_ip4));
+		if (!ntuple_ip4src_seen)
+			ntuple_fs.m_u.tcp_ip4_spec.ip4src = 0xffffffff;
+		if (!ntuple_ip4dst_seen)
+			ntuple_fs.m_u.tcp_ip4_spec.ip4dst = 0xffffffff;
+		if (!ntuple_psrc_seen)
+			ntuple_fs.m_u.tcp_ip4_spec.psrc = 0xffff;
+		if (!ntuple_pdst_seen)
+			ntuple_fs.m_u.tcp_ip4_spec.pdst = 0xffff;
+		ntuple_fs.m_u.tcp_ip4_spec.tos = 0xff;
+		break;
+	case ETHER_FLOW:
+		parse_generic_cmdline(argc, argp, i + 1,
+				      &sntuple_changed,
+				      cmdline_ntuple_ether,
+				      ARRAY_SIZE(cmdline_ntuple_ether));
+		if (!ntuple_ether_dst_seen)
+			memset(ntuple_fs.m_u.ether_spec.h_dest, 0xff, ETH_ALEN);
+		if (!ntuple_ether_src_seen)
+			memset(ntuple_fs.m_u.ether_spec.h_source, 0xff,
+			       ETH_ALEN);
+		if (!ntuple_ether_proto_seen)
+			ntuple_fs.m_u.ether_spec.h_proto = 0xffff;
+		break;
+	default:
+		fprintf(stderr, "Unsupported flow type \"%s\"\n", argp[i]);
+		exit(106);
+		break;
+	}
+
+	if (!ntuple_vlan_tag_seen)
+		ntuple_fs.vlan_tag_mask = 0xffff;
+	if (!ntuple_user_def_seen)
+		ntuple_fs.data_mask = 0xffffffffffffffffULL;
+
+	if ((ntuple_ip4src_mask_seen && !ntuple_ip4src_seen) ||
+	    (ntuple_ip4dst_mask_seen && !ntuple_ip4dst_seen) ||
+	    (ntuple_psrc_mask_seen && !ntuple_psrc_seen) ||
+	    (ntuple_pdst_mask_seen && !ntuple_pdst_seen) ||
+	    (ntuple_ether_dst_mask_seen && !ntuple_ether_dst_seen) ||
+	    (ntuple_ether_src_mask_seen && !ntuple_ether_src_seen) ||
+	    (ntuple_ether_proto_mask_seen && !ntuple_ether_proto_seen) ||
+	    (ntuple_vlan_tag_mask_seen && !ntuple_vlan_tag_seen) ||
+	    (ntuple_user_def_mask_seen && !ntuple_user_def_seen)) {
+		fprintf(stderr, "Cannot specify mask without value\n");
+		exit(107);
+	}
+}
+
 static struct {
 	const char *name;
 	int (*func)(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
@@ -1539,6 +1678,8 @@ static struct {
         { "smsc911x", smsc911x_dump_regs },
         { "at76c50x-usb", at76c50x_usb_dump_regs },
         { "sfc", sfc_dump_regs },
+	{ "st_mac100", st_mac100_dump_regs },
+	{ "st_gmac", st_gmac_dump_regs },
 };
 
 static int dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
@@ -1732,7 +1873,8 @@ static int dump_coalesce(void)
 }
 
 static int dump_offload(int rx, int tx, int sg, int tso, int ufo, int gso,
-			int gro, int lro, int ntuple, int rxhash)
+			int gro, int lro, int rxvlan, int txvlan, int ntuple,
+			int rxhash)
 {
 	fprintf(stdout,
 		"rx-checksumming: %s\n"
@@ -1743,6 +1885,8 @@ static int dump_offload(int rx, int tx, int sg, int tso, int ufo, int gso,
 		"generic-segmentation-offload: %s\n"
 		"generic-receive-offload: %s\n"
 		"large-receive-offload: %s\n"
+		"rx-vlan-offload: %s\n"
+		"tx-vlan-offload: %s\n"
 		"ntuple-filters: %s\n"
 		"receive-hashing: %s\n",
 		rx ? "on" : "off",
@@ -1753,6 +1897,8 @@ static int dump_offload(int rx, int tx, int sg, int tso, int ufo, int gso,
 		gso ? "on" : "off",
 		gro ? "on" : "off",
 		lro ? "on" : "off",
+		rxvlan ? "on" : "off",
+		txvlan ? "on" : "off",
 		ntuple ? "on" : "off",
 		rxhash ? "on" : "off");
 
@@ -1868,6 +2014,8 @@ static int doit(void)
 		return do_grxntuple(fd, &ifr);
 	} else if (mode == MODE_FLASHDEV) {
 		return do_flash(fd, &ifr);
+	} else if (mode == MODE_PERMADDR) {
+		return do_permaddr(fd, &ifr);
 	}
 
 	return 69;
@@ -2075,7 +2223,8 @@ static int do_goffload(int fd, struct ifreq *ifr)
 {
 	struct ethtool_value eval;
 	int err, allfail = 1, rx = 0, tx = 0, sg = 0;
-	int tso = 0, ufo = 0, gso = 0, gro = 0, lro = 0, ntuple = 0, rxhash = 0;
+	int tso = 0, ufo = 0, gso = 0, gro = 0, lro = 0, rxvlan = 0, txvlan = 0,
+	    ntuple = 0, rxhash = 0;
 
 	fprintf(stdout, "Offload parameters for %s:\n", devname);
 
@@ -2146,6 +2295,8 @@ static int do_goffload(int fd, struct ifreq *ifr)
 		perror("Cannot get device flags");
 	} else {
 		lro = (eval.data & ETH_FLAG_LRO) != 0;
+		rxvlan = (eval.data & ETH_FLAG_RXVLAN) != 0;
+		txvlan = (eval.data & ETH_FLAG_TXVLAN) != 0;
 		ntuple = (eval.data & ETH_FLAG_NTUPLE) != 0;
 		rxhash = (eval.data & ETH_FLAG_RXHASH) != 0;
 		allfail = 0;
@@ -2166,7 +2317,8 @@ static int do_goffload(int fd, struct ifreq *ifr)
 		return 83;
 	}
 
-	return dump_offload(rx, tx, sg, tso, ufo, gso, gro, lro, ntuple, rxhash);
+	return dump_offload(rx, tx, sg, tso, ufo, gso, gro, lro, rxvlan, txvlan,
+			    ntuple, rxhash);
 }
 
 static int do_soffload(int fd, struct ifreq *ifr)
@@ -2243,7 +2395,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 			return 90;
 		}
 	}
-	if (off_flags_wanted || off_flags_unwanted) {
+	if (off_flags_mask) {
 		changed = 1;
 		eval.cmd = ETHTOOL_GFLAGS;
 		eval.data = 0;
@@ -2255,7 +2407,7 @@ static int do_soffload(int fd, struct ifreq *ifr)
 		}
 
 		eval.cmd = ETHTOOL_SFLAGS;
-		eval.data = ((eval.data & ~off_flags_unwanted) |
+		eval.data = ((eval.data & ~off_flags_mask) |
 			     off_flags_wanted);
 
 		err = ioctl(fd, SIOCETHTOOL, ifr);
@@ -2459,7 +2611,7 @@ static int do_sset(int fd, struct ifreq *ifr)
 			perror("Cannot get msglvl");
 		} else {
 			edata.cmd = ETHTOOL_SMSGLVL;
-			edata.data = ((edata.data & ~msglvl_unwanted) |
+			edata.data = ((edata.data & ~msglvl_mask) |
 				      msglvl_wanted);
 			ifr->ifr_data = (caddr_t)&edata;
 			err = send_ioctl(fd, ifr);
@@ -2946,6 +3098,31 @@ static int do_flash(int fd, struct ifreq *ifr)
 	err = send_ioctl(fd, ifr);
 	if (err < 0)
 		perror("Flashing failed");
+
+	return err;
+}
+
+static int do_permaddr(int fd, struct ifreq *ifr)
+{
+	int i, err;
+	struct ethtool_perm_addr *epaddr;
+
+	epaddr = malloc(sizeof(struct ethtool_perm_addr) + MAX_ADDR_LEN);
+	epaddr->cmd = ETHTOOL_GPERMADDR;
+	epaddr->size = MAX_ADDR_LEN;
+	ifr->ifr_data = (caddr_t)epaddr;
+
+	err = send_ioctl(fd, ifr);
+	if (err < 0)
+		perror("Cannot read permanent address");
+	else {
+		printf("Permanent address:");
+		for (i = 0; i < epaddr->size; i++)
+			printf("%c%02x", (i == 0) ? ' ' : ':',
+			       epaddr->data[i]);
+		printf("\n");
+	}
+	free(epaddr);
 
 	return err;
 }

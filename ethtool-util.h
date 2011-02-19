@@ -6,6 +6,12 @@
 #include <sys/types.h>
 #include <endian.h>
 
+/* ethtool.h expects these to be defined by <linux/types.h> */
+#ifndef HAVE_BE_TYPES
+typedef __uint16_t __be16;
+typedef __uint32_t __be32;
+#endif
+
 #include "ethtool-copy.h"
 
 typedef unsigned long long u64;
@@ -93,4 +99,8 @@ int at76c50x_usb_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *re
 /* Solarflare Solarstorm controllers */
 int sfc_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
+/* STMMAC embedded ethernet controller */
+int st_mac100_dump_regs(struct ethtool_drvinfo *info,
+			struct ethtool_regs *regs);
+int st_gmac_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 #endif
