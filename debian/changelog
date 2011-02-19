@@ -1,4 +1,4 @@
-ethtool (1:2.6.37-1) UNRELEASED; urgency=low
+ethtool (1:2.6.37-1) unstable; urgency=low
 
   * New upstream release
     - Includes our patch 01-fix-man-rx-hash-opts.patch
@@ -6,7 +6,7 @@ ethtool (1:2.6.37-1) UNRELEASED; urgency=low
   * Don't install the upstream changelog file; changes are now recorded
     in git history and the NEWS file instead
 
- -- Ben Hutchings <ben@decadent.org.uk>  Wed, 11 Aug 2010 01:09:05 +0100
+ -- Ben Hutchings <ben@decadent.org.uk>  Sat, 19 Feb 2011 03:07:34 +0000
 
 ethtool (1:2.6.34-3) unstable; urgency=low
 
