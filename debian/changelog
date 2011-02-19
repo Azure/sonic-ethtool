@@ -1,4 +1,4 @@
-ethtool (1:2.6.35-1) UNRELEASED; urgency=low
+ethtool (1:2.6.37-1) UNRELEASED; urgency=low
 
   * New upstream release
     - Includes our patch 01-fix-man-rx-hash-opts.patch
