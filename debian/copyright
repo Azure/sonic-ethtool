@@ -1,74 +1,79 @@
-This is the Debian GNU/Linux prepackaged version of "ethtool".
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=166
+Source: http://www.kernel.org/pub/software/network/ethtool/
+License: GPL-2
+ This program is free software; you can redistribute it
+ and/or modify it under the terms of the GNU General Public
+ License as published by the Free Software Foundation;
+ version 2 of the License.
+ .
+ This program is distributed in the hope that it will be
+ useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ PURPOSE.  See the GNU General Public License for more
+ details.
+ .
+ You should have received a copy of the GNU General Public
+ License along with this package; if not, write to the Free
+ Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ Boston, MA  02110-1301 USA
+ .
+ On Debian systems, the full text of the GNU General Public
+ License version 2 can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
 
-This package is currently maintained by
-Anibal Monsalve Salazar <anibal@debian.org>
+Files: amd8111e.c
+Copyright: 2003, Advanced Micro Devices Inc.
 
-Sources obtained from:
-http://www.kernel.org/pub/software/network/ethtool/
+Files: de2104x.c
+Copyright: 2001, Sun Microsystems (thockin@sun.com)
 
-Copyright Notices
+Files: e100.c e1000.c
+Copyright: 2002, Intel Corporation
 
-  amd8111e.c
-    Copyright (C) 2003  Advanced Micro Devices Inc.
+Files: ethtool-copy.h
+Copyright: 1998, David S. Miller (davem@redhat.com)
+           2001, Jeff Garzik <jgarzik@pobox.com>
+           2001, Sun Microsystems (thockin@sun.com)
+           2002, Intel (eli.kupermann@intel.com)
+           2001, Sun Microsystems (thockin@sun.com)
+           2002, Intel (scott.feldman@intel.com)
 
-  de2104x.c
-    Copyright 2001 Sun Microsystems (thockin@sun.com)
+Files: ethtool.8
+Copyright: 1999, David S. Miller
+           2001, Sun Microsystems
 
-  e100.c
-  e1000.c
-    Copyright (c) 2002 Intel Corporation
+Files: ethtool.c
+Copyright: 1998, David S. Miller (davem@dm.cobaltmicro.com)
+           2001, Sun Microsystems
+           2001, Jeff Garzik <jgarzik@mandrakesoft.com>
+           2002, Intel
 
-  ethtool-copy.h
-    Copyright (C) 1998 David S. Miller (davem@redhat.com)
-    Copyright 2001 Jeff Garzik <jgarzik@pobox.com>
-    Portions Copyright 2001 Sun Microsystems (thockin@sun.com)
-    Portions Copyright 2002 Intel (eli.kupermann@intel.com,
-    Portions Copyright 2001 Sun Microsystems (thockin@sun.com)
-    Portions Copyright 2002 Intel (scott.feldman@intel.com)
+Files: fec_8xx.c
+Copyright: 2004, Intracom S.A.
 
-  ethtool.8:
-    Copyright 1999 by David S. Miller.  All Rights Reserved.
+Files: ibm_emac.c
+Copyright: 2004, 2005 Zultys Technologies
 
-  ethtool.8:
-    Portions Copyright 2001 Sun Microsystems
+Files: igb.c
+Copyright: 2007, Intel Corporation
 
-  ethtool.c
-    Copyright (C) 1998 David S. Miller (davem@dm.cobaltmicro.com)
-    Portions Copyright 2001 Sun Microsystems
-    Copyright 2001 Jeff Garzik <jgarzik@mandrakesoft.com>
-    Portions Copyright 2002 Intel
+Files: ixgb.c
+Copyright: 2006, Intel Corporation
 
-  fec_8xx.c
-    Copyright (C) 2004 Intracom S.A.
+Files: ixgbe.c
+Copyright: 2007, Intel Corporation
 
-  ibm_emac.c
-    Copyright (c) 2004, 2005 Zultys Technologies
+Files: marvell.c
+Copyright: 2004, 2006
 
-  igb.c
-    Copyright (c) 2007 Intel Corporation
+Files: natsemi.c
+Copyright: 2001, Sun Microsystems (thockin@sun.com)
 
-  ixgb.c
-    Copyright (c) 2006 Intel Corporation
+Files: pcnet32.c
+Copyright: 2004, IBM Corporation (jklewis@us.ibm.com)
 
-  ixgbe.c
-    Copyright (c) 2007 Intel Corporation
+Files: realtek.c
+Copyright: 2001, Sun Microsystems (thockin@sun.com)
 
-  marvell.c
-    Copyright (C) 2004, 2006
-
-  natsemi.c
-    Copyright 2001 Sun Microsystems (thockin@sun.com)
-
-  pcnet32.c
-    Copyright 2004 IBM Corporation (jklewis@us.ibm.com)
-
-  realtek.c
-    Copyright 2001 Sun Microsystems (thockin@sun.com)
-
-  vioc.c
-    Copyright 2006 Fabric7 Systems, Inc
-
-ethtool is licensed under the GNU General Public License version 2.
-
-On Debian GNU/Linux systems, the complete text of the GNU General Public
-License version 2 can be found in `/usr/share/common-licenses/GPL-2'.
+Files: vioc.c
+Copyright: 2006, Fabric7 Systems, Inc
