@@ -36,8 +36,9 @@ sbin_PROGRAMS = ethtool$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/ethtool-config.h.in \
-	$(srcdir)/ethtool.spec.in $(top_srcdir)/configure AUTHORS \
-	COPYING ChangeLog INSTALL NEWS depcomp install-sh missing
+	$(srcdir)/ethtool.8.in $(srcdir)/ethtool.spec.in \
+	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
+	depcomp install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -46,7 +47,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = ethtool-config.h
-CONFIG_CLEAN_FILES = ethtool.spec
+CONFIG_CLEAN_FILES = ethtool.spec ethtool.8
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"
 PROGRAMS = $(sbin_PROGRAMS)
@@ -259,6 +260,8 @@ $(srcdir)/ethtool-config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 distclean-hdr:
 	-rm -f ethtool-config.h stamp-h1
 ethtool.spec: $(top_builddir)/config.status $(srcdir)/ethtool.spec.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+ethtool.8: $(top_builddir)/config.status $(srcdir)/ethtool.8.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)

@@ -115,6 +115,7 @@ static int do_permaddr(int fd, struct ifreq *ifr);
 static int send_ioctl(int fd, struct ifreq *ifr);
 
 static enum {
+	MODE_VERSION = -2,
 	MODE_HELP = -1,
 	MODE_GSET=0,
 	MODE_SSET,
@@ -224,13 +225,13 @@ static struct option {
 		"		[ offset N ]\n"
 		"		[ length N ]\n"
 		"		[ value N ]\n" },
-    { "-r", "--negotiate", MODE_NWAY_RST, "Restart N-WAY negotation" },
+    { "-r", "--negotiate", MODE_NWAY_RST, "Restart N-WAY negotiation" },
     { "-p", "--identify", MODE_PHYS_ID, "Show visible port identification (e.g. blinking)",
                 "               [ TIME-IN-SECONDS ]\n" },
     { "-t", "--test", MODE_TEST, "Execute adapter self test",
                 "               [ online | offline ]\n" },
     { "-S", "--statistics", MODE_GSTATS, "Show adapter statistics" },
-    { "-n", "--show-nfc", MODE_GNFC, "Show Rx network flow classification"
+    { "-n", "--show-nfc", MODE_GNFC, "Show Rx network flow classification "
 		"options",
 		"		[ rx-flow-hash tcp4|udp4|ah4|sctp4|"
 		"tcp6|udp6|ah6|sctp6 ]\n" },
@@ -264,36 +265,42 @@ static struct option {
     { "-P", "--show-permaddr", MODE_PERMADDR,
 		"Show permanent hardware address" },
     { "-h", "--help", MODE_HELP, "Show this help" },
+    { NULL, "--version", MODE_VERSION, "Show version number" },
     {}
 };
 
 
-static void show_usage(int badarg) __attribute__((noreturn));
+static void exit_bad_args(void) __attribute__((noreturn));
 
-static void show_usage(int badarg)
+static void exit_bad_args(void)
+{
+	fprintf(stderr,
+		"ethtool: bad command line argument(s)\n"
+		"For more information run ethtool -h\n");
+	exit(1);
+}
+
+static void show_usage(void)
 {
 	int i;
-	if (badarg != 0) {
-		fprintf(stderr,
-			"ethtool: bad command line argument(s)\n"
-			"For more information run ethtool -h\n"
-		);
-	}
-	else {
-		/* ethtool -h */
-		fprintf(stdout, PACKAGE " version " VERSION "\n");
-		fprintf(stdout,
+
+	/* ethtool -h */
+	fprintf(stdout, PACKAGE " version " VERSION "\n");
+	fprintf(stdout,
 		"Usage:\n"
-		"ethtool DEVNAME\tDisplay standard information about device\n");
-		for (i = 0; args[i].srt; i++) {
-			fprintf(stdout, "        ethtool %s|%s %s\t%s\n%s",
-				args[i].srt, args[i].lng,
-				strstr(args[i].srt, "-h") ? "\t" : "DEVNAME",
-				args[i].help,
-				args[i].opthelp ? args[i].opthelp : "");
-		}
+		"        ethtool DEVNAME\t"
+		"Display standard information about device\n");
+	for (i = 0; args[i].lng; i++) {
+		fputs("        ethtool ", stdout);
+		if (args[i].srt)
+			fprintf(stdout, "%s|", args[i].srt);
+		fprintf(stdout, "%s %s\t%s\n",
+			args[i].lng,
+			args[i].Mode < 0 ? "\t" : "DEVNAME",
+			args[i].help);
+		if (args[i].opthelp)
+			fputs(args[i].opthelp, stdout);
 	}
-	exit(badarg);
 }
 
 static char *devname = NULL;
@@ -612,11 +619,11 @@ get_int_range(char *str, int base, long long min, long long max)
 	char *endp;
 
 	if (!str)
-		show_usage(1);
+		exit_bad_args();
 	errno = 0;
 	v = strtoll(str, &endp, base);
 	if (errno || *endp || v < min || v > max)
-		show_usage(1);
+		exit_bad_args();
 	return v;
 }
 
@@ -627,11 +634,11 @@ get_uint_range(char *str, int base, unsigned long long max)
 	char *endp;
 
 	if (!str)
-		show_usage(1);
+		exit_bad_args();
 	errno = 0;
 	v = strtoull(str, &endp, base);
 	if ( errno || *endp || v > max)
-		show_usage(1);
+		exit_bad_args();
 	return v;
 }
 
@@ -664,7 +671,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 					*(int *)info[idx].seen_val = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				switch (info[idx].type) {
 				case CMDL_BOOL: {
 					int *p = info[idx].wanted_val;
@@ -673,7 +680,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 					else if (!strcmp(argp[i], "off"))
 						*p = 0;
 					else
-						show_usage(1);
+						exit_bad_args();
 					break;
 				}
 				case CMDL_S32: {
@@ -712,7 +719,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 					u32 *p = info[idx].wanted_val;
 					struct in_addr in;
 					if (!inet_aton(argp[i], &in))
-						show_usage(1);
+						exit_bad_args();
 					*p = in.s_addr;
 					break;
 				}
@@ -728,7 +735,7 @@ static void parse_generic_cmdline(int argc, char **argp,
 						p = info[idx].wanted_val;
 						*p |= info[idx].flag_val;
 					} else if (strcmp(argp[i], "off")) {
-						show_usage(1);
+						exit_bad_args();
 					}
 					break;
 				}
@@ -738,13 +745,13 @@ static void parse_generic_cmdline(int argc, char **argp,
 					break;
 				}
 				default:
-					show_usage(1);
+					exit_bad_args();
 				}
 				break;
 			}
 		}
 		if( !found)
-			show_usage(1);
+			exit_bad_args();
 	}
 }
 
@@ -801,17 +808,25 @@ static void parse_cmdline(int argc, char **argp)
 	for (i = 1; i < argc; i++) {
 		switch (i) {
 		case 1:
-			for (k = 0; args[k].srt; k++)
-				if (!strcmp(argp[i], args[k].srt) ||
+			for (k = 0; args[k].lng; k++)
+				if ((args[k].srt &&
+				     !strcmp(argp[i], args[k].srt)) ||
 				    !strcmp(argp[i], args[k].lng)) {
 					mode = args[k].Mode;
 					break;
 				}
-			if (mode == MODE_HELP ||
-			    (!args[k].srt && argp[i][0] == '-'))
-				show_usage(0);
-			else
+			if (mode == MODE_HELP) {
+				show_usage();
+				exit(0);
+			} else if (mode == MODE_VERSION) {
+				fprintf(stdout,
+					PACKAGE " version " VERSION "\n");
+				exit(0);
+			} else if (!args[k].lng && argp[i][0] == '-') {
+				exit_bad_args();
+			} else {
 				devname = argp[i];
+			}
 			break;
 		case 2:
 			if ((mode == MODE_SSET) ||
@@ -850,7 +865,7 @@ static void parse_cmdline(int argc, char **argp)
 				} else if (!strcmp(argp[i], "offline")) {
 					test_type = OFFLINE;
 				} else {
-					show_usage(1);
+					exit_bad_args();
 				}
 				break;
 			} else if (mode == MODE_PHYS_ID) {
@@ -923,14 +938,14 @@ static void parse_cmdline(int argc, char **argp)
 				if (!strcmp(argp[i], "flow-type")) {
 					i += 1;
 					if (i >= argc) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					parse_rxntupleopts(argc, argp, i);
 					i = argc;
 					break;
 				} else {
-					show_usage(1);
+					exit_bad_args();
 				}
 				break;
 			}
@@ -938,54 +953,54 @@ static void parse_cmdline(int argc, char **argp)
 				if (!strcmp(argp[i], "rx-flow-hash")) {
 					i += 1;
 					if (i >= argc) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					rx_fhash_get =
 						rxflow_str_to_type(argp[i]);
 					if (!rx_fhash_get)
-						show_usage(1);
+						exit_bad_args();
 				} else
-					show_usage(1);
+					exit_bad_args();
 				break;
 			}
 			if (mode == MODE_FLASHDEV) {
 				flash_region = strtol(argp[i], NULL, 0);
 				if ((flash_region < 0))
-					show_usage(1);
+					exit_bad_args();
 				break;
 			}
 			if (mode == MODE_SNFC) {
 				if (!strcmp(argp[i], "rx-flow-hash")) {
 					i += 1;
 					if (i >= argc) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					rx_fhash_set =
 						rxflow_str_to_type(argp[i]);
 					if (!rx_fhash_set) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					i += 1;
 					if (i >= argc) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					if (parse_rxfhashopts(argp[i],
 						&rx_fhash_val) < 0)
-						show_usage(1);
+						exit_bad_args();
 					else
 						rx_fhash_changed = 1;
 				} else
-					show_usage(1);
+					exit_bad_args();
 				break;
 			}
 			if (mode == MODE_SRXFHINDIR) {
 				if (!strcmp(argp[i], "equal")) {
 					if (argc != i + 2) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					i += 1;
@@ -996,42 +1011,42 @@ static void parse_cmdline(int argc, char **argp)
 				} else if (!strcmp(argp[i], "weight")) {
 					i += 1;
 					if (i >= argc) {
-						show_usage(1);
+						exit_bad_args();
 						break;
 					}
 					rxfhindir_weight = argp + i;
 					i = argc;
 				} else {
-					show_usage(1);
+					exit_bad_args();
 				}
 				break;
 			}
 			if (mode != MODE_SSET)
-				show_usage(1);
+				exit_bad_args();
 			if (!strcmp(argp[i], "speed")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				speed_wanted = get_int(argp[i],10);
 				break;
 			} else if (!strcmp(argp[i], "duplex")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (!strcmp(argp[i], "half"))
 					duplex_wanted = DUPLEX_HALF;
 				else if (!strcmp(argp[i], "full"))
 					duplex_wanted = DUPLEX_FULL;
 				else
-					show_usage(1);
+					exit_bad_args();
 				break;
 			} else if (!strcmp(argp[i], "port")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (!strcmp(argp[i], "tp"))
 					port_wanted = PORT_TP;
 				else if (!strcmp(argp[i], "aui"))
@@ -1043,12 +1058,12 @@ static void parse_cmdline(int argc, char **argp)
 				else if (!strcmp(argp[i], "fibre"))
 					port_wanted = PORT_FIBRE;
 				else
-					show_usage(1);
+					exit_bad_args();
 				break;
 			} else if (!strcmp(argp[i], "autoneg")) {
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (!strcmp(argp[i], "on")) {
 					gset_changed = 1;
 					autoneg_wanted = AUTONEG_ENABLE;
@@ -1056,56 +1071,56 @@ static void parse_cmdline(int argc, char **argp)
 					gset_changed = 1;
 					autoneg_wanted = AUTONEG_DISABLE;
 				} else {
-					show_usage(1);
+					exit_bad_args();
 				}
 				break;
 			} else if (!strcmp(argp[i], "advertise")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				advertising_wanted = get_int(argp[i], 16);
 				break;
 			} else if (!strcmp(argp[i], "phyad")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				phyad_wanted = get_int(argp[i], 0);
 				break;
 			} else if (!strcmp(argp[i], "xcvr")) {
 				gset_changed = 1;
 				i += 1;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (!strcmp(argp[i], "internal"))
 					xcvr_wanted = XCVR_INTERNAL;
 				else if (!strcmp(argp[i], "external"))
 					xcvr_wanted = XCVR_EXTERNAL;
 				else
-					show_usage(1);
+					exit_bad_args();
 				break;
 			} else if (!strcmp(argp[i], "wol")) {
 				gwol_changed = 1;
 				i++;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (parse_wolopts(argp[i], &wol_wanted) < 0)
-					show_usage(1);
+					exit_bad_args();
 				wol_change = 1;
 				break;
 			} else if (!strcmp(argp[i], "sopass")) {
 				gwol_changed = 1;
 				i++;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				get_mac_addr(argp[i], sopass_wanted);
 				sopass_change = 1;
 				break;
 			} else if (!strcmp(argp[i], "msglvl")) {
 				i++;
 				if (i >= argc)
-					show_usage(1);
+					exit_bad_args();
 				if (isdigit((unsigned char)argp[i][0])) {
 					msglvl_changed = 1;
 					msglvl_mask = ~0;
@@ -1122,11 +1137,11 @@ static void parse_cmdline(int argc, char **argp)
 				}
 				break;
 			}
-			show_usage(1);
+			exit_bad_args();
 		}
 	}
 
-	if ((autoneg_wanted == AUTONEG_ENABLE) && (advertising_wanted < 0)) {
+	if (advertising_wanted < 0) {
 		if (speed_wanted == SPEED_10 && duplex_wanted == DUPLEX_HALF)
 			advertising_wanted = ADVERTISED_10baseT_Half;
 		else if (speed_wanted == SPEED_10 &&
@@ -1159,9 +1174,9 @@ static void parse_cmdline(int argc, char **argp)
 	}
 
 	if (devname == NULL)
-		show_usage(1);
+		exit_bad_args();
 	if (strlen(devname) >= IFNAMSIZ)
-		show_usage(1);
+		exit_bad_args();
 }
 
 static void dump_supported(struct ethtool_cmd *ep)
@@ -1512,7 +1527,7 @@ static void get_mac_addr(char *src, unsigned char *dest)
 	count = sscanf(src, "%2x:%2x:%2x:%2x:%2x:%2x",
 		&buf[0], &buf[1], &buf[2], &buf[3], &buf[4], &buf[5]);
 	if (count != ETH_ALEN)
-		show_usage(1);
+		exit_bad_args();
 
 	for (i = 0; i < count; i++) {
 		dest[i] = buf[i];
@@ -2528,19 +2543,36 @@ static int do_sset(int fd, struct ifreq *ifr)
 				ecmd.phy_address = phyad_wanted;
 			if (xcvr_wanted != -1)
 				ecmd.transceiver = xcvr_wanted;
-			if (advertising_wanted != -1) {
-				if (advertising_wanted == 0)
-					ecmd.advertising = ecmd.supported &
-						(ADVERTISED_10baseT_Half |
-						 ADVERTISED_10baseT_Full |
-						 ADVERTISED_100baseT_Half |
-						 ADVERTISED_100baseT_Full |
-						 ADVERTISED_1000baseT_Half |
-						 ADVERTISED_1000baseT_Full |
-						 ADVERTISED_2500baseX_Full |
-						 ADVERTISED_10000baseT_Full);
-				else
-					ecmd.advertising = advertising_wanted;
+			/* XXX If the user specified speed or duplex
+			 * then we should mask the advertised modes
+			 * accordingly.  For now, warn that we aren't
+			 * doing that.
+			 */
+			if ((speed_wanted != -1 || duplex_wanted != -1) &&
+			    ecmd.autoneg && advertising_wanted == 0) {
+				fprintf(stderr, "Cannot advertise");
+				if (speed_wanted >= 0)
+					fprintf(stderr, " speed %d",
+						speed_wanted);
+				if (duplex_wanted >= 0)
+					fprintf(stderr, " duplex %s",
+						duplex_wanted ? 
+						"full" : "half");
+				fprintf(stderr,	"\n");
+			}
+			if (autoneg_wanted == AUTONEG_ENABLE &&
+			    advertising_wanted == 0) {
+				ecmd.advertising = ecmd.supported &
+					(ADVERTISED_10baseT_Half |
+					 ADVERTISED_10baseT_Full |
+					 ADVERTISED_100baseT_Half |
+					 ADVERTISED_100baseT_Full |
+					 ADVERTISED_1000baseT_Half |
+					 ADVERTISED_1000baseT_Full |
+					 ADVERTISED_2500baseX_Full |
+					 ADVERTISED_10000baseT_Full);
+			} else if (advertising_wanted > 0) {
+				ecmd.advertising = advertising_wanted;
 			}
 
 			/* Try to perform the update. */
@@ -3009,7 +3041,7 @@ static int do_srxfhindir(int fd, struct ifreq *ifr)
 	int err;
 
 	if (!rxfhindir_equal && !rxfhindir_weight)
-		show_usage(1);
+		exit_bad_args();
 
 	indir_head.cmd = ETHTOOL_GRXFHINDIR;
 	indir_head.size = 0;
@@ -3077,7 +3109,7 @@ static int do_flash(int fd, struct ifreq *ifr)
 
 	if (flash < 0) {
 		fprintf(stdout, "Missing filename argument\n");
-		show_usage(1);
+		exit_bad_args();
 		return 98;
 	}
 
@@ -3143,7 +3175,7 @@ static int do_srxntuple(int fd, struct ifreq *ifr)
 		if (err < 0)
 			perror("Cannot add new RX n-tuple filter");
 	} else {
-		show_usage(1);
+		exit_bad_args();
 	}
 
 	return 0;

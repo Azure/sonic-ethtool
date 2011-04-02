@@ -1,6 +1,7 @@
 .\" -*- nroff -*-
 .\" Copyright 1999 by David S. Miller.  All Rights Reserved.
 .\" Portions Copyright 2001 Sun Microsystems
+.\" Portions Copyright 2007, 2009 Free Software Foundation, Inc.
 .\" This file may be copied under the terms of the GNU Public License.
 .\" 
 .\"	.An - list of n alternative values as in "flav vanilla|strawberry"
@@ -33,6 +34,12 @@
 [\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP|\\fB\\$4\\fP|\\fB\\$5\\fP]
 ..
 .\"
+.\"	.BN - value with a numeric input as in "[value N]"
+.\"
+.de BN
+[\\fB\\$1\\fP\ \\fIN\\fP]
+..
+.\"
 .\"	\(*MA - mac address
 .\"
 .ds MA \fIxx\fP\fB:\fP\fIyy\fP\fB:\fP\fIzz\fP\fB:\fP\fIaa\fP\fB:\fP\fIbb\fP\fB:\fP\fIcc\fP
@@ -48,14 +55,52 @@
 .\"	\(*HO - hash options
 .\"
 .ds HO \fBm\fP|\fBv\fP|\fBt\fP|\fBs\fP|\fBd\fP|\fBf\fP|\fBn\fP|\fBr\fP...
-.TH ETHTOOL 8 "July 2007" "Ethtool version 6"
+.\" Start URL.
+.de UR
+.  ds m1 \\$1\"
+.  nh
+.  if \\n(mH \{\
+.    \" Start diversion in a new environment.
+.    do ev URL-div
+.    do di URL-div
+.  \}
+..
+.\" End URL.
+.de UE
+.  ie \\n(mH \{\
+.    br
+.    di
+.    ev
+.
+.    \" Has there been one or more input lines for the link text?
+.    ie \\n(dn \{\
+.      do HTML-NS "<a href=""\\*(m1"">"
+.      \" Yes, strip off final newline of diversion and emit it.
+.      do chop URL-div
+.      do URL-div
+\c
+.      do HTML-NS </a>
+.    \}
+.    el \
+.      do HTML-NS "<a href=""\\*(m1"">\\*(m1</a>"
+\&\\$*\"
+.  \}
+.  el \
+\\*(la\\*(m1\\*(ra\\$*\"
+.
+.  hy \\n(HY
+..
+
+.TH ETHTOOL 8 "January 2011" "Ethtool version @VERSION@"
 .SH NAME
-ethtool \- Display or change ethernet card settings
+ethtool \- query or control network driver and hardware settings
 .SH SYNOPSIS
 .B ethtool
 .I ethX
 
 .B ethtool \-h|\-\-help
+
+.B ethtool \-\-version
 
 .B ethtool \-a|\-\-show\-pause
 .I ethX
@@ -73,60 +118,36 @@ ethtool \- Display or change ethernet card settings
 .I ethX
 .B2 adaptive-rx on off
 .B2 adaptive-tx on off
-.RB [ rx-usecs
-.IR N ]
-.RB [ rx-frames
-.IR N ]
-.RB [ rx-usecs-irq
-.IR N ]
-.RB [ rx-frames-irq
-.IR N ]
-.RB [ tx-usecs
-.IR N ]
-.RB [ tx-frames
-.IR N ]
-.RB [ tx-usecs-irq
-.IR N ]
-.RB [ tx-frames-irq
-.IR N ]
-.RB [ stats-block-usecs
-.IR N ]
-.RB [ pkt-rate-low
-.IR N ]
-.RB [ rx-usecs-low
-.IR N ]
-.RB [ rx-frames-low
-.IR N ]
-.RB [ tx-usecs-low
-.IR N ]
-.RB [ tx-frames-low
-.IR N ]
-.RB [ pkt-rate-high
-.IR N ]
-.RB [ rx-usecs-high
-.IR N ]
-.RB [ rx-frames-high
-.IR N ]
-.RB [ tx-usecs-high
-.IR N ]
-.RB [ tx-frames-high
-.IR N ]
-.RB [ sample-interval
-.IR N ]
+.BN rx-usecs
+.BN rx-frames
+.BN rx-usecs-irq
+.BN rx-frames-irq
+.BN tx-usecs
+.BN tx-frames
+.BN tx-usecs-irq
+.BN tx-frames-irq
+.BN stats-block-usecs
+.BN pkt-rate-low
+.BN rx-usecs-low
+.BN rx-frames-low
+.BN tx-usecs-low
+.BN tx-frames-low
+.BN pkt-rate-high
+.BN rx-usecs-high
+.BN rx-frames-high
+.BN tx-usecs-high
+.BN tx-frames-high
+.BN sample-interval
 
 .B ethtool \-g|\-\-show\-ring
 .I ethX
 
 .B ethtool \-G|\-\-set\-ring
 .I ethX
-.RB [ rx
-.IR N ]
-.RB [ rx-mini
-.IR N ]
-.RB [ rx-jumbo
-.IR N ]
-.RB [ tx
-.IR N ]
+.BN rx
+.BN rx-mini
+.BN rx-jumbo
+.BN tx
 
 .B ethtool \-i|\-\-driver
 .I ethX
@@ -141,21 +162,15 @@ ethtool \- Display or change ethernet card settings
 .B ethtool \-e|\-\-eeprom\-dump
 .I ethX
 .B2 raw on off
-.RB [ offset
-.IR N ]
-.RB [ length
-.IR N ]
+.BN offset
+.BN length
 
 .B ethtool \-E|\-\-change\-eeprom
 .I ethX
-.RB [ magic
-.IR N ]
-.RB [ offset
-.IR N ]
-.RB [ length
-.IR N ]
-.RB [ value
-.IR N ]
+.BN magic
+.BN offset
+.BN length
+.BN value
 
 .B ethtool \-k|\-\-show\-offload
 .I ethX
@@ -197,10 +212,8 @@ ethtool \- Display or change ethernet card settings
 .B2 duplex half full
 .B4 port tp aui bnc mii fibre
 .B2 autoneg on off
-.RB [ advertise
-.IR N ]
-.RB [ phyad
-.IR N ]
+.BN advertise
+.BN phyad
 .B2 xcvr internal external
 .RB [ wol \ \*(WO]
 .RB [ sopass \ \*(MA]
@@ -285,10 +298,11 @@ ethtool \- Display or change ethernet card settings
 
 .SH DESCRIPTION
 .BI ethtool
-is used for querying settings of an ethernet device and changing them.
+is used to query and control network device driver and hardware
+settings, particularly for wired Ethernet devices.
 
 .I ethX
-is the name of the ethernet device on which ethtool should operate.
+is the name of the network device on which ethtool should operate.
 
 .SH OPTIONS
 .B ethtool
@@ -298,11 +312,14 @@ settings of the specified device.
 .B \-h \-\-help
 Shows a short help message.
 .TP
+.B \-\-version
+Shows the ethtool version number.
+.TP
 .B \-a \-\-show\-pause
-Queries the specified ethernet device for pause parameter information.
+Queries the specified Ethernet device for pause parameter information.
 .TP
 .B \-A \-\-pause
-Changes the pause parameters of the specified ethernet device.
+Changes the pause parameters of the specified Ethernet device.
 .TP
 .A2 autoneg on off
 Specifies whether pause autonegotiation should be enabled.
@@ -314,16 +331,16 @@ Specifies whether RX pause should be enabled.
 Specifies whether TX pause should be enabled.
 .TP
 .B \-c \-\-show\-coalesce
-Queries the specified ethernet device for coalescing information.
+Queries the specified network device for coalescing information.
 .TP
 .B \-C \-\-coalesce
-Changes the coalescing settings of the specified ethernet device.
+Changes the coalescing settings of the specified network device.
 .TP
 .B \-g \-\-show\-ring
-Queries the specified ethernet device for rx/tx ring parameter information.
+Queries the specified network device for rx/tx ring parameter information.
 .TP
 .B \-G \-\-set\-ring
-Changes the rx/tx ring parameters of the specified ethernet device.
+Changes the rx/tx ring parameters of the specified network device.
 .TP
 .BI rx \ N
 Changes the number of ring entries for the Rx ring.
@@ -338,10 +355,10 @@ Changes the number of ring entries for the Rx Jumbo ring.
 Changes the number of ring entries for the Tx ring.
 .TP
 .B \-i \-\-driver
-Queries the specified ethernet device for associated driver information.
+Queries the specified network device for associated driver information.
 .TP
 .B \-d \-\-register\-dump
-Retrieves and prints a register dump for the specified ethernet device.
+Retrieves and prints a register dump for the specified network device.
 The register format for some devices is known and decoded others
 are printed in hex.
 When 
@@ -354,13 +371,13 @@ than reading from the device.
 
 .TP
 .B \-e \-\-eeprom\-dump
-Retrieves and prints an EEPROM dump for the specified ethernet device.
+Retrieves and prints an EEPROM dump for the specified network device.
 When raw is enabled, then it dumps the raw EEPROM data to stdout. The
 length and offset parameters allow dumping certain portions of the EEPROM.
 Default is to dump the entire EEPROM.
 .TP
 .B \-E \-\-change\-eeprom
-If value is specified, changes EEPROM byte for the specified ethernet device.
+If value is specified, changes EEPROM byte for the specified network device.
 offset and value specify which byte and it's new value. If value is not
 specified, stdin is read and written to the EEPROM. The length and offset
 parameters allow writing to certain portions of the EEPROM.
@@ -368,10 +385,10 @@ Because of the persistent nature of writing to the EEPROM, a device-specific
 magic key must be specified to prevent the accidental writing to the EEPROM.
 .TP
 .B \-k \-\-show\-offload
-Queries the specified ethernet device for offload information.
+Queries the specified network device for offload information.
 .TP
 .B \-K \-\-offload
-Changes the offload parameters of the specified ethernet device.
+Changes the offload parameters of the specified network device.
 .TP
 .A2 rx on off
 Specifies whether RX checksumming should be enabled.
@@ -409,24 +426,24 @@ Specifies whether receive hashing offload should be enabled
 .B \-p \-\-identify
 Initiates adapter-specific action intended to enable an operator to
 easily identify the adapter by sight.  Typically this involves
-blinking one or more LEDs on the specific ethernet port.
+blinking one or more LEDs on the specific network port.
 .TP
 .B N
 Length of time to perform phys-id, in seconds.
 .TP
 .B \-P \-\-show-permaddr
-Queries the specified ethernet device for permanent hardware address.
+Queries the specified network device for permanent hardware address.
 .TP
 .B \-r \-\-negotiate
-Restarts auto-negotiation on the specified ethernet device, if
+Restarts auto-negotiation on the specified Ethernet device, if
 auto-negotiation is enabled.
 .TP
 .B \-S \-\-statistics
-Queries the specified ethernet device for NIC- and driver-specific
+Queries the specified network device for NIC- and driver-specific
 statistics.
 .TP
 .B \-t \-\-test
-Executes adapter selftest on the specified ethernet device. Possible test modes are:
+Executes adapter selftest on the specified network device. Possible test modes are:
 .TP
 .A1 offline online
 defines test type: 
@@ -436,7 +453,7 @@ defines test type:
 means to perform limited set of tests do not interrupting normal adapter operation.
 .TP
 .B \-s \-\-change
-Allows changing some or all settings of the specified ethernet device.
+Allows changing some or all settings of the specified network device.
 All following options only apply if
 .B \-s
 was specified.
@@ -454,12 +471,12 @@ Selects device port.
 .TP
 .A2 autoneg on off
 Specifies whether autonegotiation should be enabled. Autonegotiation 
-is enabled by deafult, but in some network devices may have trouble
+is enabled by default, but in some network devices may have trouble
 with it, so you can disable it if really necessary. 
 .TP
 .BI advertise \ N
 Sets the speed and duplex advertised by autonegotiation.  The argument is
-a hexidecimal value using one or a combination of the following values:
+a hexadecimal value using one or a combination of the following values:
 .RS
 .PD 0
 .TP 3
@@ -497,7 +514,7 @@ this option is a string of characters specifying which options to enable.
 .PD 0
 .TP 3
 .B p
-Wake on phy activity
+Wake on PHY activity
 .TP 3
 .B u
 Wake on unicast messages
@@ -512,10 +529,10 @@ Wake on broadcast messages
 Wake on ARP
 .TP 3
 .B g
-Wake on MagicPacket(tm)
+Wake on MagicPacket\[tm]
 .TP 3
 .B s
-Enable SecureOn(tm) password for MagicPacket(tm)
+Enable SecureOn\[tm] password for MagicPacket\[tm]
 .TP 3
 .B d
 Disable (wake on nothing).  This option clears all previous options.
@@ -523,8 +540,8 @@ Disable (wake on nothing).  This option clears all previous options.
 .RE
 .TP
 .B sopass \*(MA\c
-Sets the SecureOn(tm) password.  The argument to this option must be 6
-bytes in ethernet MAC hex format (\*(MA).
+Sets the SecureOn\[tm] password.  The argument to this option must be 6
+bytes in Ethernet MAC hex format (\*(MA).
 .PP
 .BI msglvl \ N
 .br
@@ -762,7 +779,7 @@ Specifies the Rx queue to send packets to, or some other action.
 .PD
 .RE
 .SH BUGS
-Not supported (in part or whole) on all ethernet drivers.
+Not supported (in part or whole) on all network drivers.
 .SH AUTHOR
 .B ethtool
 was written by David Miller.
@@ -777,6 +794,6 @@ Scott Feldman,
 Andi Kleen.
 .SH AVAILABILITY
 .B ethtool
-is available over the Web on the SourceForge site at
-http://sourceforge.net/projects/gkernel/
-
+is available from
+.UR http://www.kernel.org/pub/software/network/ethtool/
+.UE

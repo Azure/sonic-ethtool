@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(ethtool, 2.6.37, [Ben Hutchings <bhutchings@solarflare.com>])
+AC_INIT(ethtool, 2.6.38, [Ben Hutchings <bhutchings@solarflare.com>])
 AC_PREREQ(2.52)
 AC_CONFIG_SRCDIR([ethtool.c])
 AM_INIT_AUTOMAKE([gnu])
@@ -29,5 +29,5 @@ dnl Checks for library functions.
 AC_HEADER_STDC
 AC_CHECK_FUNCS(socket strtol)
 
-AC_CONFIG_FILES([Makefile ethtool.spec])
+AC_CONFIG_FILES([Makefile ethtool.spec ethtool.8])
 AC_OUTPUT
