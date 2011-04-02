@@ -1,4 +1,4 @@
-ethtool (1:2.6.38-1) UNRELEASED; urgency=low
+ethtool (1:2.6.38-1) unstable; urgency=low
 
   * New upstream release
     - Don't silently ignore speed/duplex when autoneg is on (Closes: #457971)
@@ -6,7 +6,7 @@ ethtool (1:2.6.38-1) UNRELEASED; urgency=low
   * Convert copyright information to DEP5 format
   * Add some missing copyright information
 
- -- Ben Hutchings <ben@decadent.org.uk>  Sat, 19 Feb 2011 03:24:27 +0000
+ -- Ben Hutchings <ben@decadent.org.uk>  Sat, 02 Apr 2011 17:13:01 +0100
 
 ethtool (1:2.6.37-1) unstable; urgency=low
 
