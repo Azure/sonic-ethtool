@@ -1,5 +1,7 @@
-ethtool (1:2.6.37-2) UNRELEASED; urgency=low
+ethtool (1:2.6.38-1) UNRELEASED; urgency=low
 
+  * New upstream release
+    - Don't silently ignore speed/duplex when autoneg is on (Closes: #457971)
   * Update upstream homepage and download URLs
   * Convert copyright information to DEP5 format
   * Add some missing copyright information
