@@ -31,6 +31,7 @@ Protocol offload (--offload):
 	offload-ufo on|off
 	offload-gso on|off
 	offload-lro on|off
+	(etc.)
 
 Hardware tuning (--coalesce, --ring):
 	hardware-irq-coalesce-adaptive-rx on|off
@@ -51,4 +52,4 @@ iface eth0 inet dhcp
 	ethernet-autoneg off
 	ethernet-wol s 46:65:62:69:61:6e
 
- -- Ben Hutchings <ben@decadent.org.uk>, Sat, 21 Feb 2009 03:48:28 +0000
+ -- Ben Hutchings <ben@decadent.org.uk>, Sat,  4 Jun 2011 20:37:08 +0100
