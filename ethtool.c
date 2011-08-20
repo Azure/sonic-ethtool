@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <errno.h>
 #include <sys/utsname.h>
 #include <limits.h>
@@ -96,6 +97,8 @@ static int do_srxclsrule(int fd, struct ifreq *ifr);
 static int do_grxclsrule(int fd, struct ifreq *ifr);
 static int do_flash(int fd, struct ifreq *ifr);
 static int do_permaddr(int fd, struct ifreq *ifr);
+static int do_getfwdump(int fd, struct ifreq *ifr);
+static int do_setfwdump(int fd, struct ifreq *ifr);
 
 static int send_ioctl(int fd, struct ifreq *ifr);
 
@@ -128,6 +131,8 @@ static enum {
 	MODE_GCLSRULE,
 	MODE_FLASHDEV,
 	MODE_PERMADDR,
+	MODE_SET_DUMP,
+	MODE_GET_DUMP,
 } mode = MODE_GSET;
 
 static struct option {
@@ -255,6 +260,12 @@ static struct option {
 		"		[ rule %d ]\n"},
     { "-P", "--show-permaddr", MODE_PERMADDR,
 		"Show permanent hardware address" },
+    { "-w", "--get-dump", MODE_GET_DUMP,
+		"Get dump flag, data",
+		"		[ data FILENAME ]\n" },
+    { "-W", "--set-dump", MODE_SET_DUMP,
+		"Set dump flag of the device",
+		"		N\n"},
     { "-h", "--help", MODE_HELP, "Show this help" },
     { NULL, "--version", MODE_VERSION, "Show version number" },
     {}
@@ -365,13 +376,14 @@ static int gregs_dump_hex = 0;
 static char *gregs_dump_file = NULL;
 static int geeprom_changed = 0;
 static int geeprom_dump_raw = 0;
-static s32 geeprom_offset = 0;
-static s32 geeprom_length = -1;
+static u32 geeprom_offset = 0;
+static u32 geeprom_length = -1;
 static int seeprom_changed = 0;
-static s32 seeprom_magic = 0;
-static s32 seeprom_length = -1;
-static s32 seeprom_offset = 0;
-static s32 seeprom_value = EOF;
+static u32 seeprom_magic = 0;
+static u32 seeprom_length = -1;
+static u32 seeprom_offset = 0;
+static u8 seeprom_value = 0;
+static int seeprom_value_seen = 0;
 static int rx_fhash_get = 0;
 static int rx_fhash_set = 0;
 static u32 rx_fhash_val = 0;
@@ -385,6 +397,8 @@ static int flash_region = -1;
 static int msglvl_changed;
 static u32 msglvl_wanted = 0;
 static u32 msglvl_mask = 0;
+static u32 dump_flag;
+static char *dump_file = NULL;
 
 static int rx_class_rule_get = -1;
 static int rx_class_rule_del = -1;
@@ -400,6 +414,7 @@ typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
 	CMDL_S32,
+	CMDL_U8,
 	CMDL_U16,
 	CMDL_U32,
 	CMDL_U64,
@@ -433,16 +448,17 @@ static struct cmdline_info cmdline_gregs[] = {
 };
 
 static struct cmdline_info cmdline_geeprom[] = {
-	{ "offset", CMDL_S32, &geeprom_offset, NULL },
-	{ "length", CMDL_S32, &geeprom_length, NULL },
+	{ "offset", CMDL_U32, &geeprom_offset, NULL },
+	{ "length", CMDL_U32, &geeprom_length, NULL },
 	{ "raw", CMDL_BOOL, &geeprom_dump_raw, NULL },
 };
 
 static struct cmdline_info cmdline_seeprom[] = {
-	{ "magic", CMDL_S32, &seeprom_magic, NULL },
-	{ "offset", CMDL_S32, &seeprom_offset, NULL },
-	{ "length", CMDL_S32, &seeprom_length, NULL },
-	{ "value", CMDL_S32, &seeprom_value, NULL },
+	{ "magic", CMDL_U32, &seeprom_magic, NULL },
+	{ "offset", CMDL_U32, &seeprom_offset, NULL },
+	{ "length", CMDL_U32, &seeprom_length, NULL },
+	{ "value", CMDL_U8, &seeprom_value, NULL,
+	  0, &seeprom_value_seen },
 };
 
 static struct cmdline_info cmdline_offload[] = {
@@ -614,6 +630,11 @@ static void parse_generic_cmdline(int argc, char **argp,
 							   0x7fffffff);
 					break;
 				}
+				case CMDL_U8: {
+					u8 *p = info[idx].wanted_val;
+					*p = get_uint_range(argp[i], 0, 0xff);
+					break;
+				}
 				case CMDL_U16: {
 					u16 *p = info[idx].wanted_val;
 					*p = get_uint_range(argp[i], 0, 0xffff);
@@ -777,7 +798,9 @@ static void parse_cmdline(int argc, char **argp)
 			    (mode == MODE_GCLSRULE) ||
 			    (mode == MODE_PHYS_ID) ||
 			    (mode == MODE_FLASHDEV) ||
-			    (mode == MODE_PERMADDR)) {
+			    (mode == MODE_PERMADDR) ||
+			    (mode == MODE_SET_DUMP) ||
+			    (mode == MODE_GET_DUMP)) {
 				devname = argp[i];
 				break;
 			}
@@ -798,6 +821,9 @@ static void parse_cmdline(int argc, char **argp)
 			} else if (mode == MODE_FLASHDEV) {
 				flash_file = argp[i];
 				flash = 1;
+				break;
+			} else if (mode == MODE_SET_DUMP) {
+				dump_flag = get_u32(argp[i], 0);
 				break;
 			}
 			/* fallthrough */
@@ -974,6 +1000,21 @@ static void parse_cmdline(int argc, char **argp)
 				}
 				break;
 			}
+			if (mode == MODE_GET_DUMP) {
+				if (argc != i + 2) {
+					exit_bad_args();
+					break;
+				}
+				if (!strcmp(argp[i++], "data"))
+					dump_flag = ETHTOOL_GET_DUMP_DATA;
+				else {
+					exit_bad_args();
+					break;
+				}
+				dump_file = argp[i];
+				i = argc;
+				break;
+			}
 			if (mode != MODE_SSET)
 				exit_bad_args();
 			if (!strcmp(argp[i], "speed")) {
@@ -1132,10 +1173,11 @@ static void parse_cmdline(int argc, char **argp)
 		exit_bad_args();
 }
 
+static void dump_link_caps(const char *prefix, const char *an_prefix, u32 mask);
+
 static void dump_supported(struct ethtool_cmd *ep)
 {
-	u_int32_t mask = ep->supported;
-	int did1;
+	u32 mask = ep->supported;
 
 	fprintf(stdout, "	Supported ports: [ ");
 	if (mask & SUPPORTED_TP)
@@ -1150,64 +1192,25 @@ static void dump_supported(struct ethtool_cmd *ep)
 		fprintf(stdout, "FIBRE ");
 	fprintf(stdout, "]\n");
 
-	fprintf(stdout, "	Supported link modes:   ");
-	did1 = 0;
-	if (mask & SUPPORTED_10baseT_Half) {
-		did1++; fprintf(stdout, "10baseT/Half ");
-	}
-	if (mask & SUPPORTED_10baseT_Full) {
-		did1++; fprintf(stdout, "10baseT/Full ");
-	}
-	if (did1 && (mask & (SUPPORTED_100baseT_Half|SUPPORTED_100baseT_Full))) {
-		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
-	}
-	if (mask & SUPPORTED_100baseT_Half) {
-		did1++; fprintf(stdout, "100baseT/Half ");
-	}
-	if (mask & SUPPORTED_100baseT_Full) {
-		did1++; fprintf(stdout, "100baseT/Full ");
-	}
-	if (did1 && (mask & (SUPPORTED_1000baseT_Half|SUPPORTED_1000baseT_Full))) {
-		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
-	}
-	if (mask & SUPPORTED_1000baseT_Half) {
-		did1++; fprintf(stdout, "1000baseT/Half ");
-	}
-	if (mask & SUPPORTED_1000baseT_Full) {
-		did1++; fprintf(stdout, "1000baseT/Full ");
-	}
-	if (did1 && (mask & SUPPORTED_2500baseX_Full)) {
-		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
-	}
-	if (mask & SUPPORTED_2500baseX_Full) {
-		did1++; fprintf(stdout, "2500baseX/Full ");
-	}
-	if (did1 && (mask & SUPPORTED_10000baseT_Full)) {
-		fprintf(stdout, "\n");
-		fprintf(stdout, "	                        ");
-	}
-	if (mask & SUPPORTED_10000baseT_Full) {
-		did1++; fprintf(stdout, "10000baseT/Full ");
-	}
-	fprintf(stdout, "\n");
-
-	fprintf(stdout, "	Supports auto-negotiation: ");
-	if (mask & SUPPORTED_Autoneg)
-		fprintf(stdout, "Yes\n");
-	else
-		fprintf(stdout, "No\n");
+	dump_link_caps("Supported", "Supports", mask);
 }
 
-static void dump_advertised(struct ethtool_cmd *ep,
-			    const char *prefix, u_int32_t mask)
+/* Print link capability flags (supported, advertised or lp_advertised).
+ * Assumes that the corresponding SUPPORTED and ADVERTISED flags are equal.
+ */
+static void
+dump_link_caps(const char *prefix, const char *an_prefix, u32 mask)
 {
-	int indent = strlen(prefix) + 14;
+	int indent;
 	int did1;
 
-	fprintf(stdout, "	%s link modes:  ", prefix);
+	/* Indent just like the separate functions used to */
+	indent = strlen(prefix) + 14;
+	if (indent < 24)
+		indent = 24;
+
+	fprintf(stdout, "	%s link modes:%*s", prefix,
+		indent - (int)strlen(prefix) - 12, "");
 	did1 = 0;
 	if (mask & ADVERTISED_10baseT_Half) {
 		did1++; fprintf(stdout, "10baseT/Half ");
@@ -1249,6 +1252,20 @@ static void dump_advertised(struct ethtool_cmd *ep,
 	if (mask & ADVERTISED_10000baseT_Full) {
 		did1++; fprintf(stdout, "10000baseT/Full ");
 	}
+	if (did1 && (mask & ADVERTISED_20000baseMLD2_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	%*s", indent, "");
+	}
+	if (mask & ADVERTISED_20000baseMLD2_Full) {
+		did1++; fprintf(stdout, "20000baseMLD2/Full ");
+	}
+	if (did1 && (mask & ADVERTISED_20000baseKR2_Full)) {
+		fprintf(stdout, "\n");
+		fprintf(stdout, "	%*s", indent, "");
+	}
+	if (mask & ADVERTISED_20000baseKR2_Full) {
+		did1++; fprintf(stdout, "20000baseKR2/Full ");
+	}
 	if (did1 == 0)
 		 fprintf(stdout, "Not reported");
 	fprintf(stdout, "\n");
@@ -1266,7 +1283,7 @@ static void dump_advertised(struct ethtool_cmd *ep,
 			fprintf(stdout, "No\n");
 	}
 
-	fprintf(stdout, "	%s auto-negotiation: ", prefix);
+	fprintf(stdout, "	%s auto-negotiation: ", an_prefix);
 	if (mask & ADVERTISED_Autoneg)
 		fprintf(stdout, "Yes\n");
 	else
@@ -1278,10 +1295,10 @@ static int dump_ecmd(struct ethtool_cmd *ep)
 	u32 speed;
 
 	dump_supported(ep);
-	dump_advertised(ep, "Advertised", ep->advertising);
+	dump_link_caps("Advertised", "Advertised", ep->advertising);
 	if (ep->lp_advertising)
-		dump_advertised(ep, "Link partner advertised",
-				ep->lp_advertising);
+		dump_link_caps("Link partner advertised",
+			       "Link partner advertised", ep->lp_advertising);
 
 	fprintf(stdout, "	Speed: ");
 	speed = ethtool_cmd_speed(ep);
@@ -1936,6 +1953,10 @@ static int doit(void)
 		return do_flash(fd, &ifr);
 	} else if (mode == MODE_PERMADDR) {
 		return do_permaddr(fd, &ifr);
+	} else if (mode == MODE_GET_DUMP) {
+		return do_getfwdump(fd, &ifr);
+	} else if (mode == MODE_SET_DUMP) {
+		return do_setfwdump(fd, &ifr);
 	}
 
 	return 69;
@@ -2475,7 +2496,9 @@ static int do_sset(int fd, struct ifreq *ifr)
 					 ADVERTISED_1000baseT_Half |
 					 ADVERTISED_1000baseT_Full |
 					 ADVERTISED_2500baseX_Full |
-					 ADVERTISED_10000baseT_Full);
+					 ADVERTISED_10000baseT_Full |
+					 ADVERTISED_20000baseMLD2_Full |
+					 ADVERTISED_20000baseKR2_Full);
 			} else if (advertising_wanted > 0) {
 				ecmd.advertising = advertising_wanted;
 			}
@@ -2626,7 +2649,7 @@ static int do_geeprom(int fd, struct ifreq *ifr)
 		return 74;
 	}
 
-	if (geeprom_length <= 0)
+	if (geeprom_length == -1)
 		geeprom_length = drvinfo.eedump_len;
 
 	if (drvinfo.eedump_len < geeprom_offset + geeprom_length)
@@ -2667,10 +2690,10 @@ static int do_seeprom(int fd, struct ifreq *ifr)
 		return 74;
 	}
 
-	if (seeprom_value != EOF)
+	if (seeprom_value_seen)
 		seeprom_length = 1;
 
-	if (seeprom_length <= 0)
+	if (seeprom_length == -1)
 		seeprom_length = drvinfo.eedump_len;
 
 	if (drvinfo.eedump_len < seeprom_offset + seeprom_length)
@@ -2689,7 +2712,7 @@ static int do_seeprom(int fd, struct ifreq *ifr)
 	eeprom->data[0] = seeprom_value;
 
 	/* Multi-byte write: read input from stdin */
-	if (seeprom_value == EOF)
+	if (!seeprom_value_seen)
 		eeprom->len = fread(eeprom->data, 1, eeprom->len, stdin);
 
 	ifr->ifr_data = (caddr_t)eeprom;
@@ -3240,6 +3263,87 @@ static int do_grxclsrule(int fd, struct ifreq *ifr)
 		fprintf(stderr, "RX classification rule retrieval failed\n");
 
 	return err ? 1 : 0;
+}
+
+static int do_writefwdump(struct ethtool_dump *dump)
+{
+	int err = 0;
+	FILE *f;
+	size_t bytes;
+
+	f = fopen(dump_file, "wb+");
+
+	if (!f) {
+		fprintf(stderr, "Can't open file %s: %s\n",
+			dump_file, strerror(errno));
+		return 1;
+	}
+	bytes = fwrite(dump->data, 1, dump->len, f);
+	if (bytes != dump->len) {
+		fprintf(stderr, "Can not write all of dump data\n");
+		err = 1;
+	}
+	if (fclose(f)) {
+		fprintf(stderr, "Can't close file %s: %s\n",
+			dump_file, strerror(errno));
+		err = 1;
+	}
+	return err;
+}
+
+static int do_getfwdump(int fd, struct ifreq *ifr)
+{
+	int err;
+	struct ethtool_dump edata;
+	struct ethtool_dump *data;
+
+	edata.cmd = ETHTOOL_GET_DUMP_FLAG;
+
+	ifr->ifr_data = (caddr_t) &edata;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Can not get dump level\n");
+		return 1;
+	}
+	if (dump_flag != ETHTOOL_GET_DUMP_DATA) {
+		fprintf(stdout, "flag: %u, version: %u, length: %u\n",
+			edata.flag, edata.version, edata.len);
+		return 0;
+	}
+	data = calloc(1, offsetof(struct ethtool_dump, data) + edata.len);
+	if (!data) {
+		perror("Can not allocate enough memory\n");
+		return 1;
+	}
+	data->cmd = ETHTOOL_GET_DUMP_DATA;
+	data->len = edata.len;
+	ifr->ifr_data = (caddr_t) data;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Can not get dump data\n");
+		err = 1;
+		goto free;
+	}
+	err = do_writefwdump(data);
+free:
+	free(data);
+	return err;
+}
+
+static int do_setfwdump(int fd, struct ifreq *ifr)
+{
+	int err;
+	struct ethtool_dump dump;
+
+	dump.cmd = ETHTOOL_SET_DUMP;
+	dump.flag = dump_flag;
+	ifr->ifr_data = (caddr_t)&dump;
+	err = send_ioctl(fd, ifr);
+	if (err < 0) {
+		perror("Can not set dump level\n");
+		return 1;
+	}
+	return 0;
 }
 
 static int send_ioctl(int fd, struct ifreq *ifr)

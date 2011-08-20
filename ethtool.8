@@ -109,7 +109,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "January 2011" "Ethtool version 2.6.39"
+.TH ETHTOOL 8 "January 2011" "Ethtool version 3.0"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -254,6 +254,15 @@ ethtool \- query or control network driver and hardware settings
 .I ethX
 .RB [ rx\-flow\-hash \ \*(FL \  \*(HO]
 .HP
+.B ethtool \-w|\-\-get\-dump
+.I ethX
+.RB [ data
+.IR filename ]
+.HP
+.B ethtool\ \-W|\-\-set\-dump
+.I ethX
+.BI \ N
+.HP
 .B ethtool \-x|\-\-show\-rxfh\-indir
 .I ethX
 .HP
@@ -287,6 +296,7 @@ ethtool \- query or control network driver and hardware settings
 .BM src\-port
 .BM dst\-port
 .BM spi
+.BM l4data
 .BM vlan\-etype
 .BM vlan
 .BM user\-def
@@ -490,6 +500,8 @@ lB	l	lB.
 0x020	1000 Full
 0x8000	2500 Full	(not supported by IEEE standards)
 0x1000	10000 Full
+0x20000	20000MLD2 Full	(not supported by IEEE standards)
+0x40000	20000KR2 Full	(not supported by IEEE standards)
 .TE
 .TP
 .BI phyad \ N
@@ -595,6 +607,17 @@ other options are ignored.
 T}
 .TE
 .TP
+.B \-w \-\-get\-dump
+Retrieves and prints firmware dump for the specified network device.
+By default, it prints out the dump flag, version and length of the dump data.
+When
+.I data
+is indicated, then ethtool fetches the dump data and directs it to a
+.I file.
+.TP
+.B \-W \-\-set\-dump
+Sets the dump flag for the device.
+.TP
 .B \-x \-\-show\-rxfh\-indir
 Retrieves the receive flow hash indirection table.
 .TP
@@ -697,6 +720,10 @@ Valid for flow-types ip4, tcp4, udp4, and sctp4.
 Specify the value of the security parameter index field (applicable to
 AH/ESP packets)in the incoming packet to match along with an optional
 mask.  Valid for flow-types ip4, ah4, and esp4.
+.TP
+.BI l4data \ N \\fR\ [\\fPm \ N \\fR]\\fP
+Specify the value of the first 4 Bytes of Layer 4 in the incoming packet to
+match along with an optional mask.  Valid for ip4 flow-type.
 .TP
 .BI vlan\-etype \ N \\fR\ [\\fPm \ N \\fR]\\fP
 Includes the VLAN tag Ethertype and an optional mask.
