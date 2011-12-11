@@ -40,19 +40,20 @@ Copyright: 1998, David S. Miller (davem@redhat.com)
            2002, Intel (scott.feldman@intel.com)
 License: GPL-2
 
-Files: ethtool-util.h
+Files: internal.h
 Copyright: 2001, Sun Microsystems (thockin@sun.com)
            2002, Intel (scott.feldman@intel.com)
 License: GPL-2
 
-Files: ethtool.8
+Files: ethtool.8.in
 Copyright: 1999, David S. Miller
            2001, Sun Microsystems
+           2007, 2009, Free Software Foundation, Inc.
 License: GPL-2
 
 Files: ethtool.c
 Copyright: 1998, David S. Miller (davem@dm.cobaltmicro.com)
-           2001, Sun Microsystems
+           2001, 2008, Sun Microsystems
            2001, Jeff Garzik <jgarzik@mandrakesoft.com>
            2002, Intel
            2009, 2010, Solarflare Communications
@@ -94,12 +95,20 @@ Files: realtek.c
 Copyright: 2001, Sun Microsystems (thockin@sun.com)
 License: GPL-2
 
+Files: rxclass.c
+Copyright: 2008, Sun Microsystems
+License: GPL-2
+
 Files: sfc.c
 Copyright: 2010, Solarflare Communications Inc.
 License: GPL-2
 
 Files: stmmac.c
 Copyright: 2007-2009, STMicroelectronics Ltd
+License: GPL-2
+
+Files: test-cmdline.c, test-common.c
+Copyright: 2011, Solarflare Communications Inc.
 License: GPL-2
 
 Files: vioc.c
