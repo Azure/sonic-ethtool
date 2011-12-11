@@ -10,7 +10,7 @@ build-stamp:
 	dh_testdir
 	./autogen.sh
 	./configure --sbindir=/sbin --mandir=/usr/share/man
-	$(MAKE) all CC=$(CC) CFLAGS="$(CFLAGS)"
+	$(MAKE)
 	touch $@
 
 clean:
