@@ -26,3 +26,6 @@ autom4te.cache
 .deps
 
 .pc
+debian/ethtool.debhelper.log
+debian/ethtool.substvars
+debian/files
