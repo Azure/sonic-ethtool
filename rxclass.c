@@ -10,8 +10,7 @@
 
 #include <linux/sockios.h>
 #include <arpa/inet.h>
-#include "ethtool-util.h"
-#include "ethtool-bitops.h"
+#include "internal.h"
 
 static void invert_flow_mask(struct ethtool_rx_flow_spec *fsp)
 {
@@ -204,7 +203,7 @@ static void rxclass_print_rule(struct ethtool_rx_flow_spec *fsp)
 	}
 }
 
-static int rxclass_get_count(int fd, struct ifreq *ifr, __u32 *count)
+static int rxclass_get_count(struct cmd_context *ctx, __u32 *count)
 {
 	struct ethtool_rxnfc nfccmd;
 	int err;
@@ -212,8 +211,7 @@ static int rxclass_get_count(int fd, struct ifreq *ifr, __u32 *count)
 	/* request count and store */
 	nfccmd.cmd = ETHTOOL_GRXCLSRLCNT;
 	nfccmd.rule_cnt = 0;
-	ifr->ifr_data = (caddr_t)&nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(ctx, &nfccmd);
 	*count = nfccmd.rule_cnt;
 	if (err < 0)
 		perror("rxclass: Cannot get RX class rule count");
@@ -221,7 +219,7 @@ static int rxclass_get_count(int fd, struct ifreq *ifr, __u32 *count)
 	return err;
 }
 
-int rxclass_rule_get(int fd, struct ifreq *ifr, __u32 loc)
+int rxclass_rule_get(struct cmd_context *ctx, __u32 loc)
 {
 	struct ethtool_rxnfc nfccmd;
 	int err;
@@ -230,8 +228,7 @@ int rxclass_rule_get(int fd, struct ifreq *ifr, __u32 loc)
 	nfccmd.cmd = ETHTOOL_GRXCLSRULE;
 	memset(&nfccmd.fs, 0, sizeof(struct ethtool_rx_flow_spec));
 	nfccmd.fs.location = loc;
-	ifr->ifr_data = (caddr_t)&nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(ctx, &nfccmd);
 	if (err < 0) {
 		perror("rxclass: Cannot get RX class rule");
 		return err;
@@ -242,7 +239,7 @@ int rxclass_rule_get(int fd, struct ifreq *ifr, __u32 loc)
 	return err;
 }
 
-int rxclass_rule_getall(int fd, struct ifreq *ifr)
+int rxclass_rule_getall(struct cmd_context *ctx)
 {
 	struct ethtool_rxnfc *nfccmd;
 	__u32 *rule_locs;
@@ -250,7 +247,7 @@ int rxclass_rule_getall(int fd, struct ifreq *ifr)
 	__u32 count;
 
 	/* determine rule count */
-	err = rxclass_get_count(fd, ifr, &count);
+	err = rxclass_get_count(ctx, &count);
 	if (err < 0)
 		return err;
 
@@ -267,8 +264,7 @@ int rxclass_rule_getall(int fd, struct ifreq *ifr)
 	/* request location list */
 	nfccmd->cmd = ETHTOOL_GRXCLSRLALL;
 	nfccmd->rule_cnt = count;
-	ifr->ifr_data = (caddr_t)nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(ctx, nfccmd);
 	if (err < 0) {
 		perror("rxclass: Cannot get RX class rules");
 		free(nfccmd);
@@ -278,7 +274,7 @@ int rxclass_rule_getall(int fd, struct ifreq *ifr)
 	/* write locations to bitmap */
 	rule_locs = nfccmd->rule_locs;
 	for (i = 0; i < count; i++) {
-		err = rxclass_rule_get(fd, ifr, rule_locs[i]);
+		err = rxclass_rule_get(ctx, rule_locs[i]);
 		if (err < 0)
 			break;
 	}
@@ -303,30 +299,28 @@ struct rmgr_ctrl {
 	__u32			size;
 };
 
-static struct rmgr_ctrl rmgr;
-static int rmgr_init_done = 0;
-
-static int rmgr_ins(__u32 loc)
+static int rmgr_ins(struct rmgr_ctrl *rmgr, __u32 loc)
 {
 	/* verify location is in rule manager range */
-	if (loc >= rmgr.size) {
+	if (loc >= rmgr->size) {
 		fprintf(stderr, "rmgr: Location out of range\n");
 		return -1;
 	}
 
 	/* set bit for the rule */
-	set_bit(loc, rmgr.slot);
+	set_bit(loc, rmgr->slot);
 
 	return 0;
 }
 
-static int rmgr_find_empty_slot(struct ethtool_rx_flow_spec *fsp)
+static int rmgr_find_empty_slot(struct rmgr_ctrl *rmgr,
+				struct ethtool_rx_flow_spec *fsp)
 {
 	__u32 loc;
 	__u32 slot_num;
 
 	/* start at the end of the list since it is lowest priority */
-	loc = rmgr.size - 1;
+	loc = rmgr->size - 1;
 
 	/* locate the first slot a rule can be placed in */
 	slot_num = loc / BITS_PER_LONG;
@@ -337,10 +331,10 @@ static int rmgr_find_empty_slot(struct ethtool_rx_flow_spec *fsp)
 	 * moving 1 + loc % BITS_PER_LONG we align ourselves to the last bit
 	 * in the previous word.
 	 *
-	 * If loc rolls over it should be greater than or equal to rmgr.size
+	 * If loc rolls over it should be greater than or equal to rmgr->size
 	 * and as such we know we have reached the end of the list.
 	 */
-	if (!~(rmgr.slot[slot_num] | (~1UL << rmgr.size % BITS_PER_LONG))) {
+	if (!~(rmgr->slot[slot_num] | (~1UL << rmgr->size % BITS_PER_LONG))) {
 		loc -= 1 + (loc % BITS_PER_LONG);
 		slot_num--;
 	}
@@ -349,7 +343,7 @@ static int rmgr_find_empty_slot(struct ethtool_rx_flow_spec *fsp)
 	 * Now that we are aligned with the last bit in each long we can just
 	 * go though and eliminate all the longs with no free bits
 	 */
-	while (loc < rmgr.size && !~(rmgr.slot[slot_num])) {
+	while (loc < rmgr->size && !~(rmgr->slot[slot_num])) {
 		loc -= BITS_PER_LONG;
 		slot_num--;
 	}
@@ -358,13 +352,13 @@ static int rmgr_find_empty_slot(struct ethtool_rx_flow_spec *fsp)
 	 * If we still are inside the range, test individual bits as one is
 	 * likely available for our use.
 	 */
-	while (loc < rmgr.size && test_bit(loc, rmgr.slot))
+	while (loc < rmgr->size && test_bit(loc, rmgr->slot))
 		loc--;
 
 	/* location found, insert rule */
-	if (loc < rmgr.size) {
+	if (loc < rmgr->size) {
 		fsp->location = loc;
-		return rmgr_ins(loc);
+		return rmgr_ins(rmgr, loc);
 	}
 
 	/* No space to add this rule */
@@ -373,25 +367,22 @@ static int rmgr_find_empty_slot(struct ethtool_rx_flow_spec *fsp)
 	return -1;
 }
 
-static int rmgr_init(int fd, struct ifreq *ifr)
+static int rmgr_init(struct cmd_context *ctx, struct rmgr_ctrl *rmgr)
 {
 	struct ethtool_rxnfc *nfccmd;
 	int err, i;
 	__u32 *rule_locs;
 
-	if (rmgr_init_done)
-		return 0;
-
 	/* clear rule manager settings */
-	memset(&rmgr, 0, sizeof(struct rmgr_ctrl));
+	memset(rmgr, 0, sizeof(*rmgr));
 
-	/* request count and store in rmgr.n_rules */
-	err = rxclass_get_count(fd, ifr, &rmgr.n_rules);
+	/* request count and store in rmgr->n_rules */
+	err = rxclass_get_count(ctx, &rmgr->n_rules);
 	if (err < 0)
 		return err;
 
 	/* alloc memory for request of location list */
-	nfccmd = calloc(1, sizeof(*nfccmd) + (rmgr.n_rules * sizeof(__u32)));
+	nfccmd = calloc(1, sizeof(*nfccmd) + (rmgr->n_rules * sizeof(__u32)));
 	if (!nfccmd) {
 		perror("rmgr: Cannot allocate memory for"
 		       " RX class rule locations");
@@ -400,9 +391,8 @@ static int rmgr_init(int fd, struct ifreq *ifr)
 
 	/* request location list */
 	nfccmd->cmd = ETHTOOL_GRXCLSRLALL;
-	nfccmd->rule_cnt = rmgr.n_rules;
-	ifr->ifr_data = (caddr_t)nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	nfccmd->rule_cnt = rmgr->n_rules;
+	err = send_ioctl(ctx, nfccmd);
 	if (err < 0) {
 		perror("rmgr: Cannot get RX class rules");
 		free(nfccmd);
@@ -410,66 +400,61 @@ static int rmgr_init(int fd, struct ifreq *ifr)
 	}
 
 	/* make certain the table size is valid */
-	rmgr.size = nfccmd->data;
-	if (rmgr.size == 0 || rmgr.size < rmgr.n_rules) {
+	rmgr->size = nfccmd->data;
+	if (rmgr->size == 0 || rmgr->size < rmgr->n_rules) {
 		perror("rmgr: Invalid RX class rules table size");
 		return -1;
 	}
 
 	/* initialize bitmap for storage of valid locations */
-	rmgr.slot = calloc(1, BITS_TO_LONGS(rmgr.size) * sizeof(long));
-	if (!rmgr.slot) {
+	rmgr->slot = calloc(1, BITS_TO_LONGS(rmgr->size) * sizeof(long));
+	if (!rmgr->slot) {
 		perror("rmgr: Cannot allocate memory for RX class rules");
 		return -1;
 	}
 
 	/* write locations to bitmap */
 	rule_locs = nfccmd->rule_locs;
-	for (i = 0; i < rmgr.n_rules; i++) {
-		err = rmgr_ins(rule_locs[i]);
+	for (i = 0; i < rmgr->n_rules; i++) {
+		err = rmgr_ins(rmgr, rule_locs[i]);
 		if (err < 0)
 			break;
 	}
 
-	/* free memory and set flag to avoid reinit */
 	free(nfccmd);
-	rmgr_init_done = 1;
 
 	return err;
 }
 
-static void rmgr_cleanup(void)
+static void rmgr_cleanup(struct rmgr_ctrl *rmgr)
 {
-	if (!rmgr_init_done)
-		return;
-
-	rmgr_init_done = 0;
-
-	free(rmgr.slot);
-	rmgr.slot = NULL;
-	rmgr.size = 0;
+	free(rmgr->slot);
+	rmgr->slot = NULL;
+	rmgr->size = 0;
 }
 
-static int rmgr_set_location(int fd, struct ifreq *ifr,
+static int rmgr_set_location(struct cmd_context *ctx,
 			     struct ethtool_rx_flow_spec *fsp)
 {
+	struct rmgr_ctrl rmgr;
 	int err;
 
 	/* init table of available rules */
-	err = rmgr_init(fd, ifr);
+	err = rmgr_init(ctx, &rmgr);
 	if (err < 0)
-		return err;
+		goto out;
 
 	/* verify rule location */
-	err = rmgr_find_empty_slot(fsp);
+	err = rmgr_find_empty_slot(&rmgr, fsp);
 
+out:
 	/* cleanup table and free resources */
-	rmgr_cleanup();
+	rmgr_cleanup(&rmgr);
 
 	return err;
 }
 
-int rxclass_rule_ins(int fd, struct ifreq *ifr,
+int rxclass_rule_ins(struct cmd_context *ctx,
 		     struct ethtool_rx_flow_spec *fsp)
 {
 	struct ethtool_rxnfc nfccmd;
@@ -481,7 +466,7 @@ int rxclass_rule_ins(int fd, struct ifreq *ifr,
 	 * and allocate a free rule for our use
 	 */
 	if (loc == RX_CLS_LOC_UNSPEC) {
-		err = rmgr_set_location(fd, ifr, fsp);
+		err = rmgr_set_location(ctx, fsp);
 		if (err < 0)
 			return err;
 	}
@@ -489,8 +474,7 @@ int rxclass_rule_ins(int fd, struct ifreq *ifr,
 	/* notify netdev of new rule */
 	nfccmd.cmd = ETHTOOL_SRXCLSRLINS;
 	nfccmd.fs = *fsp;
-	ifr->ifr_data = (caddr_t)&nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(ctx, &nfccmd);
 	if (err < 0)
 		perror("rmgr: Cannot insert RX class rule");
 	else if (loc == RX_CLS_LOC_UNSPEC)
@@ -499,7 +483,7 @@ int rxclass_rule_ins(int fd, struct ifreq *ifr,
 	return 0;
 }
 
-int rxclass_rule_del(int fd, struct ifreq *ifr, __u32 loc)
+int rxclass_rule_del(struct cmd_context *ctx, __u32 loc)
 {
 	struct ethtool_rxnfc nfccmd;
 	int err;
@@ -507,8 +491,7 @@ int rxclass_rule_del(int fd, struct ifreq *ifr, __u32 loc)
 	/* notify netdev of rule removal */
 	nfccmd.cmd = ETHTOOL_SRXCLSRLDEL;
 	nfccmd.fs.location = loc;
-	ifr->ifr_data = (caddr_t)&nfccmd;
-	err = ioctl(fd, SIOCETHTOOL, ifr);
+	err = send_ioctl(ctx, &nfccmd);
 	if (err < 0)
 		perror("rmgr: Cannot delete RX class rule");
 
@@ -550,7 +533,7 @@ struct rule_opts {
 	int		moffset;
 };
 
-static struct rule_opts rule_nfc_tcp_ip4[] = {
+static const struct rule_opts rule_nfc_tcp_ip4[] = {
 	{ "src-ip", OPT_IP4, NFC_FLAG_SADDR,
 	  offsetof(struct ethtool_rx_flow_spec, h_u.tcp_ip4_spec.ip4src),
 	  offsetof(struct ethtool_rx_flow_spec, m_u.tcp_ip4_spec.ip4src) },
@@ -581,7 +564,7 @@ static struct rule_opts rule_nfc_tcp_ip4[] = {
 	  offsetof(struct ethtool_rx_flow_spec, m_ext.data) },
 };
 
-static struct rule_opts rule_nfc_esp_ip4[] = {
+static const struct rule_opts rule_nfc_esp_ip4[] = {
 	{ "src-ip", OPT_IP4, NFC_FLAG_SADDR,
 	  offsetof(struct ethtool_rx_flow_spec, h_u.esp_ip4_spec.ip4src),
 	  offsetof(struct ethtool_rx_flow_spec, m_u.esp_ip4_spec.ip4src) },
@@ -609,7 +592,7 @@ static struct rule_opts rule_nfc_esp_ip4[] = {
 	  offsetof(struct ethtool_rx_flow_spec, m_ext.data) },
 };
 
-static struct rule_opts rule_nfc_usr_ip4[] = {
+static const struct rule_opts rule_nfc_usr_ip4[] = {
 	{ "src-ip", OPT_IP4, NFC_FLAG_SADDR,
 	  offsetof(struct ethtool_rx_flow_spec, h_u.usr_ip4_spec.ip4src),
 	  offsetof(struct ethtool_rx_flow_spec, m_u.usr_ip4_spec.ip4src) },
@@ -649,7 +632,7 @@ static struct rule_opts rule_nfc_usr_ip4[] = {
 	  offsetof(struct ethtool_rx_flow_spec, m_ext.data) },
 };
 
-static struct rule_opts rule_nfc_ether[] = {
+static const struct rule_opts rule_nfc_ether[] = {
 	{ "src", OPT_MAC, NFC_FLAG_SADDR,
 	  offsetof(struct ethtool_rx_flow_spec, h_u.ether_spec.h_source),
 	  offsetof(struct ethtool_rx_flow_spec, m_u.ether_spec.h_source) },
@@ -957,7 +940,7 @@ static int rxclass_get_mask(char *str, unsigned char *p,
 	return 0;
 }
 
-int rxclass_parse_ruleopts(char **argp, int argc,
+int rxclass_parse_ruleopts(struct cmd_context *ctx,
 			   struct ethtool_rx_flow_spec *fsp)
 {
 	const struct rule_opts *options;
@@ -965,6 +948,8 @@ int rxclass_parse_ruleopts(char **argp, int argc,
 	int i = 0, n_opts, err;
 	u32 flags = 0;
 	int flow_type;
+	int argc = ctx->argc;
+	char **argp = ctx->argp;
 
 	if (argc < 1)
 		goto syntax_err;

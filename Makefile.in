@@ -33,12 +33,14 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 sbin_PROGRAMS = ethtool$(EXEEXT)
+TESTS = test-cmdline$(EXEEXT)
+check_PROGRAMS = test-cmdline$(EXEEXT) test-one-cmdline$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/ethtool-config.h.in \
 	$(srcdir)/ethtool.8.in $(srcdir)/ethtool.spec.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
-	depcomp install-sh missing
+	compile depcomp install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -60,6 +62,38 @@ am_ethtool_OBJECTS = ethtool.$(OBJEXT) amd8111e.$(OBJEXT) \
 	sfc.$(OBJEXT) stmmac.$(OBJEXT) rxclass.$(OBJEXT)
 ethtool_OBJECTS = $(am_ethtool_OBJECTS)
 ethtool_LDADD = $(LDADD)
+am_test_cmdline_OBJECTS = test_cmdline-test-cmdline.$(OBJEXT) \
+	test_cmdline-test-common.$(OBJEXT)
+test_cmdline_OBJECTS = $(am_test_cmdline_OBJECTS)
+test_cmdline_LDADD = $(LDADD)
+test_cmdline_LINK = $(CCLD) $(test_cmdline_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+am__objects_1 = test_one_cmdline-ethtool.$(OBJEXT) \
+	test_one_cmdline-amd8111e.$(OBJEXT) \
+	test_one_cmdline-de2104x.$(OBJEXT) \
+	test_one_cmdline-e100.$(OBJEXT) \
+	test_one_cmdline-e1000.$(OBJEXT) \
+	test_one_cmdline-igb.$(OBJEXT) \
+	test_one_cmdline-fec_8xx.$(OBJEXT) \
+	test_one_cmdline-ibm_emac.$(OBJEXT) \
+	test_one_cmdline-ixgb.$(OBJEXT) \
+	test_one_cmdline-ixgbe.$(OBJEXT) \
+	test_one_cmdline-natsemi.$(OBJEXT) \
+	test_one_cmdline-pcnet32.$(OBJEXT) \
+	test_one_cmdline-realtek.$(OBJEXT) \
+	test_one_cmdline-tg3.$(OBJEXT) \
+	test_one_cmdline-marvell.$(OBJEXT) \
+	test_one_cmdline-vioc.$(OBJEXT) \
+	test_one_cmdline-smsc911x.$(OBJEXT) \
+	test_one_cmdline-at76c50x-usb.$(OBJEXT) \
+	test_one_cmdline-sfc.$(OBJEXT) \
+	test_one_cmdline-stmmac.$(OBJEXT) \
+	test_one_cmdline-rxclass.$(OBJEXT)
+am_test_one_cmdline_OBJECTS = $(am__objects_1)
+test_one_cmdline_OBJECTS = $(am_test_one_cmdline_OBJECTS)
+test_one_cmdline_LDADD = $(LDADD)
+test_one_cmdline_LINK = $(CCLD) $(test_one_cmdline_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -68,8 +102,10 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(ethtool_SOURCES)
-DIST_SOURCES = $(ethtool_SOURCES)
+SOURCES = $(ethtool_SOURCES) $(test_cmdline_SOURCES) \
+	$(test_one_cmdline_SOURCES)
+DIST_SOURCES = $(ethtool_SOURCES) $(test_cmdline_SOURCES) \
+	$(test_one_cmdline_SOURCES)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -96,6 +132,8 @@ NROFF = nroff
 MANS = $(man_MANS)
 ETAGS = etags
 CTAGS = ctags
+am__tty_colors = \
+red=; grn=; lgn=; blu=; std=
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -197,13 +235,17 @@ top_srcdir = @top_srcdir@
 AM_CFLAGS = -Wall
 man_MANS = ethtool.8
 EXTRA_DIST = LICENSE ethtool.8 ethtool.spec.in aclocal.m4 ChangeLog autogen.sh
-ethtool_SOURCES = ethtool.c ethtool-bitops.h ethtool-copy.h ethtool-util.h \
+ethtool_SOURCES = ethtool.c ethtool-copy.h internal.h \
 		  amd8111e.c de2104x.c e100.c e1000.c igb.c	\
 		  fec_8xx.c ibm_emac.c ixgb.c ixgbe.c natsemi.c	\
 		  pcnet32.c realtek.c tg3.c marvell.c vioc.c	\
 		  smsc911x.c at76c50x-usb.c sfc.c stmmac.c	\
 		  rxclass.c
 
+test_cmdline_SOURCES = test-cmdline.c test-common.c
+test_cmdline_CFLAGS = -DTEST_ETHTOOL
+test_one_cmdline_SOURCES = $(ethtool_SOURCES)
+test_one_cmdline_CFLAGS = -DTEST_ETHTOOL
 all: ethtool-config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -264,6 +306,9 @@ ethtool.spec: $(top_builddir)/config.status $(srcdir)/ethtool.spec.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 ethtool.8: $(top_builddir)/config.status $(srcdir)/ethtool.8.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
+
+clean-checkPROGRAMS:
+	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(sbindir)" || $(MKDIR_P) "$(DESTDIR)$(sbindir)"
@@ -304,6 +349,12 @@ clean-sbinPROGRAMS:
 ethtool$(EXEEXT): $(ethtool_OBJECTS) $(ethtool_DEPENDENCIES) 
 	@rm -f ethtool$(EXEEXT)
 	$(LINK) $(ethtool_OBJECTS) $(ethtool_LDADD) $(LIBS)
+test-cmdline$(EXEEXT): $(test_cmdline_OBJECTS) $(test_cmdline_DEPENDENCIES) 
+	@rm -f test-cmdline$(EXEEXT)
+	$(test_cmdline_LINK) $(test_cmdline_OBJECTS) $(test_cmdline_LDADD) $(LIBS)
+test-one-cmdline$(EXEEXT): $(test_one_cmdline_OBJECTS) $(test_one_cmdline_DEPENDENCIES) 
+	@rm -f test-one-cmdline$(EXEEXT)
+	$(test_one_cmdline_LINK) $(test_one_cmdline_OBJECTS) $(test_one_cmdline_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -330,6 +381,29 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/smsc911x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stmmac.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_cmdline-test-cmdline.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_cmdline-test-common.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-amd8111e.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-at76c50x-usb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-de2104x.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-e100.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-e1000.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-ethtool.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-fec_8xx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-ibm_emac.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-igb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-ixgb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-ixgbe.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-marvell.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-natsemi.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-pcnet32.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-realtek.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-rxclass.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-sfc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-smsc911x.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-stmmac.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-tg3.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_one_cmdline-vioc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tg3.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vioc.Po@am__quote@
 
@@ -346,6 +420,328 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+test_cmdline-test-cmdline.o: test-cmdline.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -MT test_cmdline-test-cmdline.o -MD -MP -MF $(DEPDIR)/test_cmdline-test-cmdline.Tpo -c -o test_cmdline-test-cmdline.o `test -f 'test-cmdline.c' || echo '$(srcdir)/'`test-cmdline.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_cmdline-test-cmdline.Tpo $(DEPDIR)/test_cmdline-test-cmdline.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test-cmdline.c' object='test_cmdline-test-cmdline.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -c -o test_cmdline-test-cmdline.o `test -f 'test-cmdline.c' || echo '$(srcdir)/'`test-cmdline.c
+
+test_cmdline-test-cmdline.obj: test-cmdline.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -MT test_cmdline-test-cmdline.obj -MD -MP -MF $(DEPDIR)/test_cmdline-test-cmdline.Tpo -c -o test_cmdline-test-cmdline.obj `if test -f 'test-cmdline.c'; then $(CYGPATH_W) 'test-cmdline.c'; else $(CYGPATH_W) '$(srcdir)/test-cmdline.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_cmdline-test-cmdline.Tpo $(DEPDIR)/test_cmdline-test-cmdline.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test-cmdline.c' object='test_cmdline-test-cmdline.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -c -o test_cmdline-test-cmdline.obj `if test -f 'test-cmdline.c'; then $(CYGPATH_W) 'test-cmdline.c'; else $(CYGPATH_W) '$(srcdir)/test-cmdline.c'; fi`
+
+test_cmdline-test-common.o: test-common.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -MT test_cmdline-test-common.o -MD -MP -MF $(DEPDIR)/test_cmdline-test-common.Tpo -c -o test_cmdline-test-common.o `test -f 'test-common.c' || echo '$(srcdir)/'`test-common.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_cmdline-test-common.Tpo $(DEPDIR)/test_cmdline-test-common.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test-common.c' object='test_cmdline-test-common.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -c -o test_cmdline-test-common.o `test -f 'test-common.c' || echo '$(srcdir)/'`test-common.c
+
+test_cmdline-test-common.obj: test-common.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -MT test_cmdline-test-common.obj -MD -MP -MF $(DEPDIR)/test_cmdline-test-common.Tpo -c -o test_cmdline-test-common.obj `if test -f 'test-common.c'; then $(CYGPATH_W) 'test-common.c'; else $(CYGPATH_W) '$(srcdir)/test-common.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_cmdline-test-common.Tpo $(DEPDIR)/test_cmdline-test-common.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='test-common.c' object='test_cmdline-test-common.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_cmdline_CFLAGS) $(CFLAGS) -c -o test_cmdline-test-common.obj `if test -f 'test-common.c'; then $(CYGPATH_W) 'test-common.c'; else $(CYGPATH_W) '$(srcdir)/test-common.c'; fi`
+
+test_one_cmdline-ethtool.o: ethtool.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ethtool.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-ethtool.Tpo -c -o test_one_cmdline-ethtool.o `test -f 'ethtool.c' || echo '$(srcdir)/'`ethtool.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ethtool.Tpo $(DEPDIR)/test_one_cmdline-ethtool.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ethtool.c' object='test_one_cmdline-ethtool.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ethtool.o `test -f 'ethtool.c' || echo '$(srcdir)/'`ethtool.c
+
+test_one_cmdline-ethtool.obj: ethtool.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ethtool.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-ethtool.Tpo -c -o test_one_cmdline-ethtool.obj `if test -f 'ethtool.c'; then $(CYGPATH_W) 'ethtool.c'; else $(CYGPATH_W) '$(srcdir)/ethtool.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ethtool.Tpo $(DEPDIR)/test_one_cmdline-ethtool.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ethtool.c' object='test_one_cmdline-ethtool.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ethtool.obj `if test -f 'ethtool.c'; then $(CYGPATH_W) 'ethtool.c'; else $(CYGPATH_W) '$(srcdir)/ethtool.c'; fi`
+
+test_one_cmdline-amd8111e.o: amd8111e.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-amd8111e.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-amd8111e.Tpo -c -o test_one_cmdline-amd8111e.o `test -f 'amd8111e.c' || echo '$(srcdir)/'`amd8111e.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-amd8111e.Tpo $(DEPDIR)/test_one_cmdline-amd8111e.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='amd8111e.c' object='test_one_cmdline-amd8111e.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-amd8111e.o `test -f 'amd8111e.c' || echo '$(srcdir)/'`amd8111e.c
+
+test_one_cmdline-amd8111e.obj: amd8111e.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-amd8111e.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-amd8111e.Tpo -c -o test_one_cmdline-amd8111e.obj `if test -f 'amd8111e.c'; then $(CYGPATH_W) 'amd8111e.c'; else $(CYGPATH_W) '$(srcdir)/amd8111e.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-amd8111e.Tpo $(DEPDIR)/test_one_cmdline-amd8111e.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='amd8111e.c' object='test_one_cmdline-amd8111e.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-amd8111e.obj `if test -f 'amd8111e.c'; then $(CYGPATH_W) 'amd8111e.c'; else $(CYGPATH_W) '$(srcdir)/amd8111e.c'; fi`
+
+test_one_cmdline-de2104x.o: de2104x.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-de2104x.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-de2104x.Tpo -c -o test_one_cmdline-de2104x.o `test -f 'de2104x.c' || echo '$(srcdir)/'`de2104x.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-de2104x.Tpo $(DEPDIR)/test_one_cmdline-de2104x.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='de2104x.c' object='test_one_cmdline-de2104x.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-de2104x.o `test -f 'de2104x.c' || echo '$(srcdir)/'`de2104x.c
+
+test_one_cmdline-de2104x.obj: de2104x.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-de2104x.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-de2104x.Tpo -c -o test_one_cmdline-de2104x.obj `if test -f 'de2104x.c'; then $(CYGPATH_W) 'de2104x.c'; else $(CYGPATH_W) '$(srcdir)/de2104x.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-de2104x.Tpo $(DEPDIR)/test_one_cmdline-de2104x.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='de2104x.c' object='test_one_cmdline-de2104x.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-de2104x.obj `if test -f 'de2104x.c'; then $(CYGPATH_W) 'de2104x.c'; else $(CYGPATH_W) '$(srcdir)/de2104x.c'; fi`
+
+test_one_cmdline-e100.o: e100.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-e100.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-e100.Tpo -c -o test_one_cmdline-e100.o `test -f 'e100.c' || echo '$(srcdir)/'`e100.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-e100.Tpo $(DEPDIR)/test_one_cmdline-e100.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='e100.c' object='test_one_cmdline-e100.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-e100.o `test -f 'e100.c' || echo '$(srcdir)/'`e100.c
+
+test_one_cmdline-e100.obj: e100.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-e100.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-e100.Tpo -c -o test_one_cmdline-e100.obj `if test -f 'e100.c'; then $(CYGPATH_W) 'e100.c'; else $(CYGPATH_W) '$(srcdir)/e100.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-e100.Tpo $(DEPDIR)/test_one_cmdline-e100.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='e100.c' object='test_one_cmdline-e100.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-e100.obj `if test -f 'e100.c'; then $(CYGPATH_W) 'e100.c'; else $(CYGPATH_W) '$(srcdir)/e100.c'; fi`
+
+test_one_cmdline-e1000.o: e1000.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-e1000.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-e1000.Tpo -c -o test_one_cmdline-e1000.o `test -f 'e1000.c' || echo '$(srcdir)/'`e1000.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-e1000.Tpo $(DEPDIR)/test_one_cmdline-e1000.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='e1000.c' object='test_one_cmdline-e1000.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-e1000.o `test -f 'e1000.c' || echo '$(srcdir)/'`e1000.c
+
+test_one_cmdline-e1000.obj: e1000.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-e1000.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-e1000.Tpo -c -o test_one_cmdline-e1000.obj `if test -f 'e1000.c'; then $(CYGPATH_W) 'e1000.c'; else $(CYGPATH_W) '$(srcdir)/e1000.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-e1000.Tpo $(DEPDIR)/test_one_cmdline-e1000.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='e1000.c' object='test_one_cmdline-e1000.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-e1000.obj `if test -f 'e1000.c'; then $(CYGPATH_W) 'e1000.c'; else $(CYGPATH_W) '$(srcdir)/e1000.c'; fi`
+
+test_one_cmdline-igb.o: igb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-igb.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-igb.Tpo -c -o test_one_cmdline-igb.o `test -f 'igb.c' || echo '$(srcdir)/'`igb.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-igb.Tpo $(DEPDIR)/test_one_cmdline-igb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='igb.c' object='test_one_cmdline-igb.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-igb.o `test -f 'igb.c' || echo '$(srcdir)/'`igb.c
+
+test_one_cmdline-igb.obj: igb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-igb.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-igb.Tpo -c -o test_one_cmdline-igb.obj `if test -f 'igb.c'; then $(CYGPATH_W) 'igb.c'; else $(CYGPATH_W) '$(srcdir)/igb.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-igb.Tpo $(DEPDIR)/test_one_cmdline-igb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='igb.c' object='test_one_cmdline-igb.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-igb.obj `if test -f 'igb.c'; then $(CYGPATH_W) 'igb.c'; else $(CYGPATH_W) '$(srcdir)/igb.c'; fi`
+
+test_one_cmdline-fec_8xx.o: fec_8xx.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-fec_8xx.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-fec_8xx.Tpo -c -o test_one_cmdline-fec_8xx.o `test -f 'fec_8xx.c' || echo '$(srcdir)/'`fec_8xx.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-fec_8xx.Tpo $(DEPDIR)/test_one_cmdline-fec_8xx.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='fec_8xx.c' object='test_one_cmdline-fec_8xx.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-fec_8xx.o `test -f 'fec_8xx.c' || echo '$(srcdir)/'`fec_8xx.c
+
+test_one_cmdline-fec_8xx.obj: fec_8xx.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-fec_8xx.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-fec_8xx.Tpo -c -o test_one_cmdline-fec_8xx.obj `if test -f 'fec_8xx.c'; then $(CYGPATH_W) 'fec_8xx.c'; else $(CYGPATH_W) '$(srcdir)/fec_8xx.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-fec_8xx.Tpo $(DEPDIR)/test_one_cmdline-fec_8xx.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='fec_8xx.c' object='test_one_cmdline-fec_8xx.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-fec_8xx.obj `if test -f 'fec_8xx.c'; then $(CYGPATH_W) 'fec_8xx.c'; else $(CYGPATH_W) '$(srcdir)/fec_8xx.c'; fi`
+
+test_one_cmdline-ibm_emac.o: ibm_emac.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ibm_emac.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-ibm_emac.Tpo -c -o test_one_cmdline-ibm_emac.o `test -f 'ibm_emac.c' || echo '$(srcdir)/'`ibm_emac.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ibm_emac.Tpo $(DEPDIR)/test_one_cmdline-ibm_emac.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ibm_emac.c' object='test_one_cmdline-ibm_emac.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ibm_emac.o `test -f 'ibm_emac.c' || echo '$(srcdir)/'`ibm_emac.c
+
+test_one_cmdline-ibm_emac.obj: ibm_emac.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ibm_emac.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-ibm_emac.Tpo -c -o test_one_cmdline-ibm_emac.obj `if test -f 'ibm_emac.c'; then $(CYGPATH_W) 'ibm_emac.c'; else $(CYGPATH_W) '$(srcdir)/ibm_emac.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ibm_emac.Tpo $(DEPDIR)/test_one_cmdline-ibm_emac.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ibm_emac.c' object='test_one_cmdline-ibm_emac.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ibm_emac.obj `if test -f 'ibm_emac.c'; then $(CYGPATH_W) 'ibm_emac.c'; else $(CYGPATH_W) '$(srcdir)/ibm_emac.c'; fi`
+
+test_one_cmdline-ixgb.o: ixgb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ixgb.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-ixgb.Tpo -c -o test_one_cmdline-ixgb.o `test -f 'ixgb.c' || echo '$(srcdir)/'`ixgb.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ixgb.Tpo $(DEPDIR)/test_one_cmdline-ixgb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ixgb.c' object='test_one_cmdline-ixgb.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ixgb.o `test -f 'ixgb.c' || echo '$(srcdir)/'`ixgb.c
+
+test_one_cmdline-ixgb.obj: ixgb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ixgb.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-ixgb.Tpo -c -o test_one_cmdline-ixgb.obj `if test -f 'ixgb.c'; then $(CYGPATH_W) 'ixgb.c'; else $(CYGPATH_W) '$(srcdir)/ixgb.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ixgb.Tpo $(DEPDIR)/test_one_cmdline-ixgb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ixgb.c' object='test_one_cmdline-ixgb.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ixgb.obj `if test -f 'ixgb.c'; then $(CYGPATH_W) 'ixgb.c'; else $(CYGPATH_W) '$(srcdir)/ixgb.c'; fi`
+
+test_one_cmdline-ixgbe.o: ixgbe.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ixgbe.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-ixgbe.Tpo -c -o test_one_cmdline-ixgbe.o `test -f 'ixgbe.c' || echo '$(srcdir)/'`ixgbe.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ixgbe.Tpo $(DEPDIR)/test_one_cmdline-ixgbe.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ixgbe.c' object='test_one_cmdline-ixgbe.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ixgbe.o `test -f 'ixgbe.c' || echo '$(srcdir)/'`ixgbe.c
+
+test_one_cmdline-ixgbe.obj: ixgbe.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-ixgbe.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-ixgbe.Tpo -c -o test_one_cmdline-ixgbe.obj `if test -f 'ixgbe.c'; then $(CYGPATH_W) 'ixgbe.c'; else $(CYGPATH_W) '$(srcdir)/ixgbe.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-ixgbe.Tpo $(DEPDIR)/test_one_cmdline-ixgbe.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ixgbe.c' object='test_one_cmdline-ixgbe.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-ixgbe.obj `if test -f 'ixgbe.c'; then $(CYGPATH_W) 'ixgbe.c'; else $(CYGPATH_W) '$(srcdir)/ixgbe.c'; fi`
+
+test_one_cmdline-natsemi.o: natsemi.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-natsemi.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-natsemi.Tpo -c -o test_one_cmdline-natsemi.o `test -f 'natsemi.c' || echo '$(srcdir)/'`natsemi.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-natsemi.Tpo $(DEPDIR)/test_one_cmdline-natsemi.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='natsemi.c' object='test_one_cmdline-natsemi.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-natsemi.o `test -f 'natsemi.c' || echo '$(srcdir)/'`natsemi.c
+
+test_one_cmdline-natsemi.obj: natsemi.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-natsemi.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-natsemi.Tpo -c -o test_one_cmdline-natsemi.obj `if test -f 'natsemi.c'; then $(CYGPATH_W) 'natsemi.c'; else $(CYGPATH_W) '$(srcdir)/natsemi.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-natsemi.Tpo $(DEPDIR)/test_one_cmdline-natsemi.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='natsemi.c' object='test_one_cmdline-natsemi.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-natsemi.obj `if test -f 'natsemi.c'; then $(CYGPATH_W) 'natsemi.c'; else $(CYGPATH_W) '$(srcdir)/natsemi.c'; fi`
+
+test_one_cmdline-pcnet32.o: pcnet32.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-pcnet32.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-pcnet32.Tpo -c -o test_one_cmdline-pcnet32.o `test -f 'pcnet32.c' || echo '$(srcdir)/'`pcnet32.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-pcnet32.Tpo $(DEPDIR)/test_one_cmdline-pcnet32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='pcnet32.c' object='test_one_cmdline-pcnet32.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-pcnet32.o `test -f 'pcnet32.c' || echo '$(srcdir)/'`pcnet32.c
+
+test_one_cmdline-pcnet32.obj: pcnet32.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-pcnet32.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-pcnet32.Tpo -c -o test_one_cmdline-pcnet32.obj `if test -f 'pcnet32.c'; then $(CYGPATH_W) 'pcnet32.c'; else $(CYGPATH_W) '$(srcdir)/pcnet32.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-pcnet32.Tpo $(DEPDIR)/test_one_cmdline-pcnet32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='pcnet32.c' object='test_one_cmdline-pcnet32.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-pcnet32.obj `if test -f 'pcnet32.c'; then $(CYGPATH_W) 'pcnet32.c'; else $(CYGPATH_W) '$(srcdir)/pcnet32.c'; fi`
+
+test_one_cmdline-realtek.o: realtek.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-realtek.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-realtek.Tpo -c -o test_one_cmdline-realtek.o `test -f 'realtek.c' || echo '$(srcdir)/'`realtek.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-realtek.Tpo $(DEPDIR)/test_one_cmdline-realtek.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='realtek.c' object='test_one_cmdline-realtek.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-realtek.o `test -f 'realtek.c' || echo '$(srcdir)/'`realtek.c
+
+test_one_cmdline-realtek.obj: realtek.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-realtek.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-realtek.Tpo -c -o test_one_cmdline-realtek.obj `if test -f 'realtek.c'; then $(CYGPATH_W) 'realtek.c'; else $(CYGPATH_W) '$(srcdir)/realtek.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-realtek.Tpo $(DEPDIR)/test_one_cmdline-realtek.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='realtek.c' object='test_one_cmdline-realtek.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-realtek.obj `if test -f 'realtek.c'; then $(CYGPATH_W) 'realtek.c'; else $(CYGPATH_W) '$(srcdir)/realtek.c'; fi`
+
+test_one_cmdline-tg3.o: tg3.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-tg3.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-tg3.Tpo -c -o test_one_cmdline-tg3.o `test -f 'tg3.c' || echo '$(srcdir)/'`tg3.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-tg3.Tpo $(DEPDIR)/test_one_cmdline-tg3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tg3.c' object='test_one_cmdline-tg3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-tg3.o `test -f 'tg3.c' || echo '$(srcdir)/'`tg3.c
+
+test_one_cmdline-tg3.obj: tg3.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-tg3.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-tg3.Tpo -c -o test_one_cmdline-tg3.obj `if test -f 'tg3.c'; then $(CYGPATH_W) 'tg3.c'; else $(CYGPATH_W) '$(srcdir)/tg3.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-tg3.Tpo $(DEPDIR)/test_one_cmdline-tg3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tg3.c' object='test_one_cmdline-tg3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-tg3.obj `if test -f 'tg3.c'; then $(CYGPATH_W) 'tg3.c'; else $(CYGPATH_W) '$(srcdir)/tg3.c'; fi`
+
+test_one_cmdline-marvell.o: marvell.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-marvell.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-marvell.Tpo -c -o test_one_cmdline-marvell.o `test -f 'marvell.c' || echo '$(srcdir)/'`marvell.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-marvell.Tpo $(DEPDIR)/test_one_cmdline-marvell.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='marvell.c' object='test_one_cmdline-marvell.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-marvell.o `test -f 'marvell.c' || echo '$(srcdir)/'`marvell.c
+
+test_one_cmdline-marvell.obj: marvell.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-marvell.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-marvell.Tpo -c -o test_one_cmdline-marvell.obj `if test -f 'marvell.c'; then $(CYGPATH_W) 'marvell.c'; else $(CYGPATH_W) '$(srcdir)/marvell.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-marvell.Tpo $(DEPDIR)/test_one_cmdline-marvell.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='marvell.c' object='test_one_cmdline-marvell.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-marvell.obj `if test -f 'marvell.c'; then $(CYGPATH_W) 'marvell.c'; else $(CYGPATH_W) '$(srcdir)/marvell.c'; fi`
+
+test_one_cmdline-vioc.o: vioc.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-vioc.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-vioc.Tpo -c -o test_one_cmdline-vioc.o `test -f 'vioc.c' || echo '$(srcdir)/'`vioc.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-vioc.Tpo $(DEPDIR)/test_one_cmdline-vioc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='vioc.c' object='test_one_cmdline-vioc.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-vioc.o `test -f 'vioc.c' || echo '$(srcdir)/'`vioc.c
+
+test_one_cmdline-vioc.obj: vioc.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-vioc.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-vioc.Tpo -c -o test_one_cmdline-vioc.obj `if test -f 'vioc.c'; then $(CYGPATH_W) 'vioc.c'; else $(CYGPATH_W) '$(srcdir)/vioc.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-vioc.Tpo $(DEPDIR)/test_one_cmdline-vioc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='vioc.c' object='test_one_cmdline-vioc.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-vioc.obj `if test -f 'vioc.c'; then $(CYGPATH_W) 'vioc.c'; else $(CYGPATH_W) '$(srcdir)/vioc.c'; fi`
+
+test_one_cmdline-smsc911x.o: smsc911x.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-smsc911x.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-smsc911x.Tpo -c -o test_one_cmdline-smsc911x.o `test -f 'smsc911x.c' || echo '$(srcdir)/'`smsc911x.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-smsc911x.Tpo $(DEPDIR)/test_one_cmdline-smsc911x.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='smsc911x.c' object='test_one_cmdline-smsc911x.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-smsc911x.o `test -f 'smsc911x.c' || echo '$(srcdir)/'`smsc911x.c
+
+test_one_cmdline-smsc911x.obj: smsc911x.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-smsc911x.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-smsc911x.Tpo -c -o test_one_cmdline-smsc911x.obj `if test -f 'smsc911x.c'; then $(CYGPATH_W) 'smsc911x.c'; else $(CYGPATH_W) '$(srcdir)/smsc911x.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-smsc911x.Tpo $(DEPDIR)/test_one_cmdline-smsc911x.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='smsc911x.c' object='test_one_cmdline-smsc911x.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-smsc911x.obj `if test -f 'smsc911x.c'; then $(CYGPATH_W) 'smsc911x.c'; else $(CYGPATH_W) '$(srcdir)/smsc911x.c'; fi`
+
+test_one_cmdline-at76c50x-usb.o: at76c50x-usb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-at76c50x-usb.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-at76c50x-usb.Tpo -c -o test_one_cmdline-at76c50x-usb.o `test -f 'at76c50x-usb.c' || echo '$(srcdir)/'`at76c50x-usb.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-at76c50x-usb.Tpo $(DEPDIR)/test_one_cmdline-at76c50x-usb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at76c50x-usb.c' object='test_one_cmdline-at76c50x-usb.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-at76c50x-usb.o `test -f 'at76c50x-usb.c' || echo '$(srcdir)/'`at76c50x-usb.c
+
+test_one_cmdline-at76c50x-usb.obj: at76c50x-usb.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-at76c50x-usb.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-at76c50x-usb.Tpo -c -o test_one_cmdline-at76c50x-usb.obj `if test -f 'at76c50x-usb.c'; then $(CYGPATH_W) 'at76c50x-usb.c'; else $(CYGPATH_W) '$(srcdir)/at76c50x-usb.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-at76c50x-usb.Tpo $(DEPDIR)/test_one_cmdline-at76c50x-usb.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='at76c50x-usb.c' object='test_one_cmdline-at76c50x-usb.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-at76c50x-usb.obj `if test -f 'at76c50x-usb.c'; then $(CYGPATH_W) 'at76c50x-usb.c'; else $(CYGPATH_W) '$(srcdir)/at76c50x-usb.c'; fi`
+
+test_one_cmdline-sfc.o: sfc.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-sfc.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-sfc.Tpo -c -o test_one_cmdline-sfc.o `test -f 'sfc.c' || echo '$(srcdir)/'`sfc.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-sfc.Tpo $(DEPDIR)/test_one_cmdline-sfc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sfc.c' object='test_one_cmdline-sfc.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-sfc.o `test -f 'sfc.c' || echo '$(srcdir)/'`sfc.c
+
+test_one_cmdline-sfc.obj: sfc.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-sfc.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-sfc.Tpo -c -o test_one_cmdline-sfc.obj `if test -f 'sfc.c'; then $(CYGPATH_W) 'sfc.c'; else $(CYGPATH_W) '$(srcdir)/sfc.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-sfc.Tpo $(DEPDIR)/test_one_cmdline-sfc.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sfc.c' object='test_one_cmdline-sfc.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-sfc.obj `if test -f 'sfc.c'; then $(CYGPATH_W) 'sfc.c'; else $(CYGPATH_W) '$(srcdir)/sfc.c'; fi`
+
+test_one_cmdline-stmmac.o: stmmac.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-stmmac.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-stmmac.Tpo -c -o test_one_cmdline-stmmac.o `test -f 'stmmac.c' || echo '$(srcdir)/'`stmmac.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-stmmac.Tpo $(DEPDIR)/test_one_cmdline-stmmac.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stmmac.c' object='test_one_cmdline-stmmac.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-stmmac.o `test -f 'stmmac.c' || echo '$(srcdir)/'`stmmac.c
+
+test_one_cmdline-stmmac.obj: stmmac.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-stmmac.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-stmmac.Tpo -c -o test_one_cmdline-stmmac.obj `if test -f 'stmmac.c'; then $(CYGPATH_W) 'stmmac.c'; else $(CYGPATH_W) '$(srcdir)/stmmac.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-stmmac.Tpo $(DEPDIR)/test_one_cmdline-stmmac.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stmmac.c' object='test_one_cmdline-stmmac.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-stmmac.obj `if test -f 'stmmac.c'; then $(CYGPATH_W) 'stmmac.c'; else $(CYGPATH_W) '$(srcdir)/stmmac.c'; fi`
+
+test_one_cmdline-rxclass.o: rxclass.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-rxclass.o -MD -MP -MF $(DEPDIR)/test_one_cmdline-rxclass.Tpo -c -o test_one_cmdline-rxclass.o `test -f 'rxclass.c' || echo '$(srcdir)/'`rxclass.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-rxclass.Tpo $(DEPDIR)/test_one_cmdline-rxclass.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='rxclass.c' object='test_one_cmdline-rxclass.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-rxclass.o `test -f 'rxclass.c' || echo '$(srcdir)/'`rxclass.c
+
+test_one_cmdline-rxclass.obj: rxclass.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -MT test_one_cmdline-rxclass.obj -MD -MP -MF $(DEPDIR)/test_one_cmdline-rxclass.Tpo -c -o test_one_cmdline-rxclass.obj `if test -f 'rxclass.c'; then $(CYGPATH_W) 'rxclass.c'; else $(CYGPATH_W) '$(srcdir)/rxclass.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/test_one_cmdline-rxclass.Tpo $(DEPDIR)/test_one_cmdline-rxclass.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='rxclass.c' object='test_one_cmdline-rxclass.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_one_cmdline_CFLAGS) $(CFLAGS) -c -o test_one_cmdline-rxclass.obj `if test -f 'rxclass.c'; then $(CYGPATH_W) 'rxclass.c'; else $(CYGPATH_W) '$(srcdir)/rxclass.c'; fi`
 install-man8: $(man_MANS)
 	@$(NORMAL_INSTALL)
 	test -z "$(man8dir)" || $(MKDIR_P) "$(DESTDIR)$(man8dir)"
@@ -436,6 +832,98 @@ GTAGS:
 
 distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
+
+check-TESTS: $(TESTS)
+	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
+	srcdir=$(srcdir); export srcdir; \
+	list=' $(TESTS) '; \
+	$(am__tty_colors); \
+	if test -n "$$list"; then \
+	  for tst in $$list; do \
+	    if test -f ./$$tst; then dir=./; \
+	    elif test -f $$tst; then dir=; \
+	    else dir="$(srcdir)/"; fi; \
+	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *[\ \	]$$tst[\ \	]*) \
+		xpass=`expr $$xpass + 1`; \
+		failed=`expr $$failed + 1`; \
+		col=$$red; res=XPASS; \
+	      ;; \
+	      *) \
+		col=$$grn; res=PASS; \
+	      ;; \
+	      esac; \
+	    elif test $$? -ne 77; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *[\ \	]$$tst[\ \	]*) \
+		xfail=`expr $$xfail + 1`; \
+		col=$$lgn; res=XFAIL; \
+	      ;; \
+	      *) \
+		failed=`expr $$failed + 1`; \
+		col=$$red; res=FAIL; \
+	      ;; \
+	      esac; \
+	    else \
+	      skip=`expr $$skip + 1`; \
+	      col=$$blu; res=SKIP; \
+	    fi; \
+	    echo "$${col}$$res$${std}: $$tst"; \
+	  done; \
+	  if test "$$all" -eq 1; then \
+	    tests="test"; \
+	    All=""; \
+	  else \
+	    tests="tests"; \
+	    All="All "; \
+	  fi; \
+	  if test "$$failed" -eq 0; then \
+	    if test "$$xfail" -eq 0; then \
+	      banner="$$All$$all $$tests passed"; \
+	    else \
+	      if test "$$xfail" -eq 1; then failures=failure; else failures=failures; fi; \
+	      banner="$$All$$all $$tests behaved as expected ($$xfail expected $$failures)"; \
+	    fi; \
+	  else \
+	    if test "$$xpass" -eq 0; then \
+	      banner="$$failed of $$all $$tests failed"; \
+	    else \
+	      if test "$$xpass" -eq 1; then passes=pass; else passes=passes; fi; \
+	      banner="$$failed of $$all $$tests did not behave as expected ($$xpass unexpected $$passes)"; \
+	    fi; \
+	  fi; \
+	  dashes="$$banner"; \
+	  skipped=""; \
+	  if test "$$skip" -ne 0; then \
+	    if test "$$skip" -eq 1; then \
+	      skipped="($$skip test was not run)"; \
+	    else \
+	      skipped="($$skip tests were not run)"; \
+	    fi; \
+	    test `echo "$$skipped" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$skipped"; \
+	  fi; \
+	  report=""; \
+	  if test "$$failed" -ne 0 && test -n "$(PACKAGE_BUGREPORT)"; then \
+	    report="Please report to $(PACKAGE_BUGREPORT)"; \
+	    test `echo "$$report" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$report"; \
+	  fi; \
+	  dashes=`echo "$$dashes" | sed s/./=/g`; \
+	  if test "$$failed" -eq 0; then \
+	    echo "$$grn$$dashes"; \
+	  else \
+	    echo "$$red$$dashes"; \
+	  fi; \
+	  echo "$$banner"; \
+	  test -z "$$skipped" || echo "$$skipped"; \
+	  test -z "$$report" || echo "$$report"; \
+	  echo "$$dashes$$std"; \
+	  test "$$failed" -eq 0; \
+	else :; fi
 
 distdir: $(DISTFILES)
 	@list='$(MANS)'; if test -n "$$list"; then \
@@ -601,6 +1089,8 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-am
 all-am: Makefile $(PROGRAMS) $(MANS) ethtool-config.h
 installdirs:
@@ -634,7 +1124,8 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-sbinPROGRAMS mostlyclean-am
+clean-am: clean-checkPROGRAMS clean-generic clean-sbinPROGRAMS \
+	mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -706,19 +1197,20 @@ uninstall-am: uninstall-man uninstall-sbinPROGRAMS
 
 uninstall-man: uninstall-man8
 
-.MAKE: all install-am install-strip
+.MAKE: all check-am install-am install-strip
 
-.PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
-	clean-generic clean-sbinPROGRAMS ctags dist dist-all \
-	dist-bzip2 dist-gzip dist-hook dist-lzma dist-shar dist-tarZ \
-	dist-xz dist-zip distcheck distclean distclean-compile \
-	distclean-generic distclean-hdr distclean-tags distcleancheck \
-	distdir distuninstallcheck dvi dvi-am html html-am info \
-	info-am install install-am install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-man install-man8 install-pdf install-pdf-am install-ps \
-	install-ps-am install-sbinPROGRAMS install-strip installcheck \
+.PHONY: CTAGS GTAGS all all-am am--refresh check check-TESTS check-am \
+	clean clean-checkPROGRAMS clean-generic clean-sbinPROGRAMS \
+	ctags dist dist-all dist-bzip2 dist-gzip dist-hook dist-lzma \
+	dist-shar dist-tarZ dist-xz dist-zip distcheck distclean \
+	distclean-compile distclean-generic distclean-hdr \
+	distclean-tags distcleancheck distdir distuninstallcheck dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man install-man8 \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-sbinPROGRAMS install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \

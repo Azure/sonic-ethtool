@@ -1,7 +1,7 @@
 /* Portions Copyright 2001 Sun Microsystems (thockin@sun.com) */
 /* Portions Copyright 2002 Intel (scott.feldman@intel.com) */
-#ifndef ETHTOOL_UTIL_H__
-#define ETHTOOL_UTIL_H__
+#ifndef ETHTOOL_INTERNAL_H__
+#define ETHTOOL_INTERNAL_H__
 
 #ifdef HAVE_CONFIG_H
 #include "ethtool-config.h"
@@ -57,6 +57,27 @@ static inline u64 cpu_to_be64(u64 value)
 #define ntohll cpu_to_be64
 #define htonll cpu_to_be64
 
+#define BITS_PER_BYTE		8
+#define BITS_PER_LONG		(BITS_PER_BYTE * sizeof(long))
+#define DIV_ROUND_UP(n, d)	(((n) + (d) - 1) / (d))
+#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_LONG)
+
+static inline void set_bit(unsigned int nr, unsigned long *addr)
+{
+	addr[nr / BITS_PER_LONG] |= 1UL << (nr % BITS_PER_LONG);
+}
+
+static inline void clear_bit(unsigned int nr, unsigned long *addr)
+{
+	addr[nr / BITS_PER_LONG] &= ~(1UL << (nr % BITS_PER_LONG));
+}
+
+static inline int test_bit(unsigned int nr, const unsigned long *addr)
+{
+	return !!((1UL << (nr % BITS_PER_LONG)) &
+		  (((unsigned long *)addr)[nr / BITS_PER_LONG]));
+}
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
@@ -66,6 +87,21 @@ static inline u64 cpu_to_be64(u64 value)
 #endif
 
 #define	RX_CLS_LOC_UNSPEC	0xffffffffUL
+
+/* Context for sub-commands */
+struct cmd_context {
+	const char *devname;	/* net device name */
+	int fd;			/* socket suitable for ethtool ioctl */
+	struct ifreq ifr;	/* ifreq suitable for ethtool ioctl */
+	int argc;		/* number of arguments to the sub-command */
+	char **argp;		/* arguments to the sub-command */
+};
+
+#ifdef TEST_ETHTOOL
+int test_cmdline(const char *args);
+#endif
+
+int send_ioctl(struct cmd_context *ctx, void *cmd);
 
 /* National Semiconductor DP83815, DP83816 */
 int natsemi_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
@@ -132,12 +168,12 @@ int st_mac100_dump_regs(struct ethtool_drvinfo *info,
 int st_gmac_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 /* Rx flow classification */
-int rxclass_parse_ruleopts(char **optstr, int opt_cnt,
+int rxclass_parse_ruleopts(struct cmd_context *ctx,
 			   struct ethtool_rx_flow_spec *fsp);
-int rxclass_rule_getall(int fd, struct ifreq *ifr);
-int rxclass_rule_get(int fd, struct ifreq *ifr, __u32 loc);
-int rxclass_rule_ins(int fd, struct ifreq *ifr,
+int rxclass_rule_getall(struct cmd_context *ctx);
+int rxclass_rule_get(struct cmd_context *ctx, __u32 loc);
+int rxclass_rule_ins(struct cmd_context *ctx,
 		     struct ethtool_rx_flow_spec *fsp);
-int rxclass_rule_del(int fd, struct ifreq *ifr, __u32 loc);
+int rxclass_rule_del(struct cmd_context *ctx, __u32 loc);
 
-#endif /* ETHTOOL_UTIL_H__ */
+#endif /* ETHTOOL_INTERNAL_H__ */

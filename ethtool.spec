@@ -1,5 +1,5 @@
 Name		: ethtool
-Version		: 3.0
+Version		: 3.1
 Release		: 1
 Group		: Utilities
 
