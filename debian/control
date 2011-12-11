@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Anibal Monsalve Salazar <anibal@debian.org>
 Uploaders: Ben Hutchings <ben@decadent.org.uk>
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 7), autoconf, automake1.9
+Build-Depends: debhelper (>= 7.0.50~), autoconf, automake1.9
 Homepage: http://www.kernel.org/pub/software/network/ethtool/
 Vcs-Git: git://git.debian.org/kernel/ethtool.git
 Vcs-Browser: http://git.debian.org/?p=kernel/ethtool.git
