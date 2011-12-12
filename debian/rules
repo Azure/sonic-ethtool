@@ -16,7 +16,7 @@ override_dh_auto_clean:
 	if [ -d .git ]; then				\
 		git checkout HEAD $(AUTOGEN_FILES);	\
 	else						\
-		rm $(AUTOGEN_FILES);			\
+		rm -f $(AUTOGEN_FILES);			\
 	fi
 
 override_dh_auto_install:
