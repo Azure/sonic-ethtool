@@ -68,10 +68,7 @@ static void rxclass_print_nfc_rule(struct ethtool_rx_flow_spec *fsp)
 	unsigned char	*smac, *smacm, *dmac, *dmacm;
 	__u32		flow_type;
 
-	if (fsp->location != RX_CLS_LOC_UNSPEC)
-		fprintf(stdout,	"Filter: %d\n", fsp->location);
-	else
-		fprintf(stdout,	"Filter: Unspecified\n");
+	fprintf(stdout,	"Filter: %d\n", fsp->location);
 
 	flow_type = fsp->flow_type & ~FLOW_EXT;
 
@@ -203,16 +200,17 @@ static void rxclass_print_rule(struct ethtool_rx_flow_spec *fsp)
 	}
 }
 
-static int rxclass_get_count(struct cmd_context *ctx, __u32 *count)
+static int rxclass_get_dev_info(struct cmd_context *ctx, __u32 *count,
+				int *driver_select)
 {
 	struct ethtool_rxnfc nfccmd;
 	int err;
 
-	/* request count and store */
 	nfccmd.cmd = ETHTOOL_GRXCLSRLCNT;
-	nfccmd.rule_cnt = 0;
 	err = send_ioctl(ctx, &nfccmd);
 	*count = nfccmd.rule_cnt;
+	if (driver_select)
+		*driver_select = !!(nfccmd.data & RX_CLS_LOC_SPECIAL);
 	if (err < 0)
 		perror("rxclass: Cannot get RX class rule count");
 
@@ -247,7 +245,7 @@ int rxclass_rule_getall(struct cmd_context *ctx)
 	__u32 count;
 
 	/* determine rule count */
-	err = rxclass_get_count(ctx, &count);
+	err = rxclass_get_dev_info(ctx, &count, NULL);
 	if (err < 0)
 		return err;
 
@@ -293,6 +291,8 @@ int rxclass_rule_getall(struct cmd_context *ctx)
  */
 
 struct rmgr_ctrl {
+	/* flag for device/driver that can select locations itself */
+	int			driver_select;
 	/* slot contains a bitmap indicating which filters are valid */
 	unsigned long		*slot;
 	__u32			n_rules;
@@ -318,6 +318,10 @@ static int rmgr_find_empty_slot(struct rmgr_ctrl *rmgr,
 {
 	__u32 loc;
 	__u32 slot_num;
+
+	/* leave this to the driver if possible */
+	if (rmgr->driver_select)
+		return 0;
 
 	/* start at the end of the list since it is lowest priority */
 	loc = rmgr->size - 1;
@@ -376,10 +380,14 @@ static int rmgr_init(struct cmd_context *ctx, struct rmgr_ctrl *rmgr)
 	/* clear rule manager settings */
 	memset(rmgr, 0, sizeof(*rmgr));
 
-	/* request count and store in rmgr->n_rules */
-	err = rxclass_get_count(ctx, &rmgr->n_rules);
+	/* request device/driver information */
+	err = rxclass_get_dev_info(ctx, &rmgr->n_rules, &rmgr->driver_select);
 	if (err < 0)
 		return err;
+
+	/* do not get the table if the device/driver can select locations */
+	if (rmgr->driver_select)
+		return 0;
 
 	/* alloc memory for request of location list */
 	nfccmd = calloc(1, sizeof(*nfccmd) + (rmgr->n_rules * sizeof(__u32)));
@@ -462,10 +470,10 @@ int rxclass_rule_ins(struct cmd_context *ctx,
 	int err;
 
 	/*
-	 * if location is unspecified pull rules from device
-	 * and allocate a free rule for our use
+	 * if location is unspecified and driver cannot select locations, pull
+	 * rules from device and allocate a free rule for our use
 	 */
-	if (loc == RX_CLS_LOC_UNSPEC) {
+	if (loc & RX_CLS_LOC_SPECIAL) {
 		err = rmgr_set_location(ctx, fsp);
 		if (err < 0)
 			return err;
@@ -477,8 +485,8 @@ int rxclass_rule_ins(struct cmd_context *ctx,
 	err = send_ioctl(ctx, &nfccmd);
 	if (err < 0)
 		perror("rmgr: Cannot insert RX class rule");
-	else if (loc == RX_CLS_LOC_UNSPEC)
-		printf("Added rule with ID %d\n", fsp->location);
+	else if (loc & RX_CLS_LOC_SPECIAL)
+		printf("Added rule with ID %d\n", nfccmd.fs.location);
 
 	return 0;
 }
@@ -998,7 +1006,7 @@ int rxclass_parse_ruleopts(struct cmd_context *ctx,
 
 	memset(p, 0, sizeof(*fsp));
 	fsp->flow_type = flow_type;
-	fsp->location = RX_CLS_LOC_UNSPEC;
+	fsp->location = RX_CLS_LOC_ANY;
 
 	for (i = 1; i < argc;) {
 		const struct rule_opts *opt;
