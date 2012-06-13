@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#define TEST_NO_WRAPPERS
 #include "internal.h"
 
 static struct test_case {
@@ -85,14 +86,7 @@ static struct test_case {
 	{ 1, "--set-ring devname rx" },
 	{ 1, "-G devname foo 1" },
 	{ 1, "-G" },
-	{ 0, "-k devname" },
-	{ 0, "--show-offload devname" },
 	{ 1, "-k" },
-	{ 0, "-K devname rx on tx off sg on tso off ufo on gso off gro on" },
-	{ 0, "--offload devname lro off rxvlan on txvlan off ntuple on rxhash off" },
-	{ 1, "-K devname rx foo" },
-	{ 1, "--offload devname rx" },
-	{ 1, "-K devname foo on" },
 	{ 1, "-K" },
 	{ 0, "-i devname" },
 	{ 0, "--driver devname" },
@@ -130,12 +124,15 @@ static struct test_case {
 	{ 0, "-S devname" },
 	{ 0, "--statistics devname" },
 	{ 1, "-S" },
-	/* Argument parsing for -n is specialised */
+	/* Argument parsing for -n/-u is specialised */
 	{ 0, "-n devname rx-flow-hash tcp4" },
+	{ 0, "-u devname rx-flow-hash sctp4" },
 	{ 0, "--show-nfc devname rx-flow-hash udp6" },
+	{ 0, "--show-ntuple devname rx-flow-hash esp6" },
 	{ 1, "-n devname rx-flow-hash foo" },
+	{ 1, "-u devname rx-flow-hash foo" },
 	{ 1, "--show-nfc devname rx-flow-hash" },
-	{ 1, "-n devname foo" },
+	{ 1, "--show-ntuple devname rx-flow-hash" },
 	{ 1, "-n" },
 	/* Argument parsing for -f is specialised */
 	{ 1, "-f devname" },
@@ -143,14 +140,35 @@ static struct test_case {
 	{ 0, "-f devname filename 1" },
 	{ 1, "-f devname filename 1 foo" },
 	{ 1, "-f" },
-	/* Argument parsing for -N is specialised */
+	/* Argument parsing for -N/-U is specialised */
 	{ 0, "-N devname rx-flow-hash tcp4 mvtsdfn" },
-	{ 0, "--config-nfc devname rx-flow-hash tcp4 r" },
-	{ 1, "-N devname rx-flow-hash tcp4" },
+	{ 0, "--config-ntuple devname rx-flow-hash tcp4 r" },
+	{ 1, "-U devname rx-flow-hash tcp4" },
 	{ 1, "--config-nfc devname rx-flow-hash foo" },
 	{ 1, "-N devname rx-flow-hash" },
-	{ 1, "--config-nfc devname foo" },
+	{ 1, "--config-ntuple devname foo" },
+	{ 0, "-U devname delete 1" },
+	{ 1, "--config-nfc devname delete foo" },
+	{ 1, "-N devname delete" },
+	{ 0, "--config-ntuple devname flow-type ether src 01:23:45:67:89:ab m cd:ef:01:23:45:67 dst 89:ab:cd:ef:01:23 m 45:67:89:ab:cd:ef proto 0x0123 m 0x4567 vlan 0x89ab m 0xcdef action 0" },
+	{ 0, "-U devname flow-type ether src 01:23:45:67:89:ab src-mask cd:ef:01:23:45:67 dst 89:ab:cd:ef:01:23 dst-mask 45:67:89:ab:cd:ef proto 0x0123 proto-mask 0x4567 vlan 0x89ab vlan-mask 0xcdef action 1" },
+	{ 1, "--config-nfc devname flow-type ether src 01:23:45:67:89: action 3" },
+	{ 1, "-N devname flow-type ether src 01:23:45:67:89 action 4" },
+	{ 0, "--config-ntuple devname flow-type ip4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 l4proto 0x23 m 0x45 l4data 0xfedcba98 m 76543210 vlan 0x89ab m 0xcdef action 6" },
+	{ 0, "-U devname flow-type ip4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 l4proto 0x23 l4proto-mask 0x45 l4data 0xfedcba98 l4data-mask 76543210 vlan 0x89ab vlan-mask 0xcdef action 7" },
+	{ 0, "--config-nfc devname flow-type tcp4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 src-port 23456 m 7890 dst-port 12345 m 6789 vlan 0x89ab m 0xcdef action 8" },
+	{ 0, "-N devname flow-type tcp4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 src-port 23456 src-port-mask 7890 dst-port 12345 dst-port-mask 6789 vlan 0x89ab vlan-mask 0xcdef action 9" },
+	{ 0, "--config-ntuple devname flow-type ah4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 spi 2 m 3 vlan 0x89ab m 0xcdef action 10" },
+	{ 0, "-U devname flow-type ah4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 spi 2 spi-mask 3 vlan 0x89ab vlan-mask 0xcdef action 11" },
+	{ 1, "--config-nfc devname flow-type tcp4 action foo" },
+	{ 1, "-N devname flow-type foo" },
+	{ 1, "--config-ntuple devname flow-type" },
+	{ 1, "-U devname foo" },
 	{ 1, "-N" },
+	{ 1, "-U" },
+	{ 0, "-T devname" },
+	{ 0, "--show-time-stamping devname" },
+	{ 1, "-T" },
 	{ 0, "-x devname" },
 	{ 0, "--show-rxfh-indir devname" },
 	{ 1, "-x" },
@@ -163,25 +181,6 @@ static struct test_case {
 	{ 0, "--set-rxfh-indir devname weight 1 2 3 4" },
 	{ 1, "-X devname foo" },
 	{ 1, "-X" },
-	/* Argument parsing for -U is specialised */
-	{ 0, "-U devname delete 1" },
-	{ 1, "--config-ntuple devname delete foo" },
-	{ 1, "-U devname delete" },
-	{ 0, "--config-ntuple devname flow-type ether src 01:23:45:67:89:ab m cd:ef:01:23:45:67 dst 89:ab:cd:ef:01:23 m 45:67:89:ab:cd:ef proto 0x0123 m 0x4567 vlan 0x89ab m 0xcdef action 0" },
-	{ 0, "-U devname flow-type ether src 01:23:45:67:89:ab src-mask cd:ef:01:23:45:67 dst 89:ab:cd:ef:01:23 dst-mask 45:67:89:ab:cd:ef proto 0x0123 proto-mask 0x4567 vlan 0x89ab vlan-mask 0xcdef action 1" },
-	{ 1, "--config-ntuple devname flow-type ether src 01:23:45:67:89: action 3" },
-	{ 1, "-U devname flow-type ether src 01:23:45:67:89 action 4" },
-	{ 0, "--config-ntuple devname flow-type ip4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 l4proto 0x23 m 0x45 l4data 0xfedcba98 m 76543210 vlan 0x89ab m 0xcdef action 6" },
-	{ 0, "-U devname flow-type ip4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 l4proto 0x23 l4proto-mask 0x45 l4data 0xfedcba98 l4data-mask 76543210 vlan 0x89ab vlan-mask 0xcdef action 7" },
-	{ 0, "--config-ntuple devname flow-type tcp4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 src-port 23456 m 7890 dst-port 12345 m 6789 vlan 0x89ab m 0xcdef action 8" },
-	{ 0, "-U devname flow-type tcp4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 src-port 23456 src-port-mask 7890 dst-port 12345 dst-port-mask 6789 vlan 0x89ab vlan-mask 0xcdef action 9" },
-	{ 0, "--config-ntuple devname flow-type ah4 src-ip 0.123.45.67 m 89.0.123.45 dst-ip 67.89.0.123 m 45.67.89.0 tos 1 m 1 spi 2 m 3 vlan 0x89ab m 0xcdef action 10" },
-	{ 0, "-U devname flow-type ah4 src-ip 0.123.45.67 src-ip-mask 89.0.123.45 dst-ip 67.89.0.123 dst-ip-mask 45.67.89.0 tos 1 tos-mask 1 spi 2 spi-mask 3 vlan 0x89ab vlan-mask 0xcdef action 11" },
-	{ 1, "--config-ntuple devname flow-type tcp4 action foo" },
-	{ 1, "-U devname flow-type foo" },
-	{ 1, "--config-ntuple devname flow-type" },
-	{ 1, "-U devname foo" },
-	{ 1, "-U" },
 	{ 0, "-P devname" },
 	{ 0, "--show-permaddr devname" },
 	{ 1, "-P" },
@@ -208,6 +207,16 @@ static struct test_case {
 	{ 0, "--show-priv-flags devname" },
 	{ 1, "--show-priv-flags devname foo" },
 	{ 1, "--show-priv-flags" },
+	{ 1, "-m" },
+	{ 0, "-m devname" },
+	{ 1, "--dump-module-eeprom" },
+	{ 0, "--dump-module-eeprom devname" },
+	{ 0, "-m devname raw on" },
+	{ 0, "-m devname raw off" },
+	{ 0, "-m devname hex on" },
+	{ 0, "-m devname hex off" },
+	{ 1, "-m devname hex on raw on" },
+	{ 0, "-m devname offset 4 length 6" },
 	/* can't test --set-priv-flags yet */
 	{ 0, "-h" },
 	{ 0, "--help" },
@@ -216,6 +225,12 @@ static struct test_case {
 	{ 1, "-foo" },
 	{ 1, "-0" },
 };
+
+int send_ioctl(struct cmd_context *ctx, void *cmd)
+{
+	/* If we get this far then parsing succeeded */
+	test_exit(0);
+}
 
 int main(void)
 {
