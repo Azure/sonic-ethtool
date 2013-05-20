@@ -1,3 +1,42 @@
+Version 3.9 - April 30, 2013
+
+	* Feature: Display support for 10000BASE-KR link mode (no options)
+	* Feature: Add support for new versions of ixgbe register dump
+	  (-d dump)
+
+Version 3.8 - February 28, 2013
+
+	* Feature: Allow setting destination MAC address in L3/L4 flow spec
+	  rules (-N/-U option)
+	* Fix: Show full 64 bits of user-data (-n/-u option)
+	* Fix: Add version check for et131x regs (-d option)
+	* Doc: Improve description of -f, -t, -s, -N/-U, -W options in man page
+	* Fix: Restore 20000baseKR2 cap display (no options)
+
+Version 3.7 - December 13, 2012
+
+	* Fix: Gracefully handle failure of register pretty-printer (-d option)
+	* Feature: Add support for et131x registers (-d option)
+	* Feature: Basic optical diagnostics for SFF-8472 modules (-m option)
+
+Version 3.6 - October 5, 2012
+
+	* Feature: Allow setting MDI-X state (-s option)
+	* Fix: Preserve pause advertising bits when setting speed and
+	  duplex with autoneg on (-s option)
+	* Fix: Don't call ioctl to set EEE parameters if they are the same
+	  as the current parameters (--set-eee option)
+
+Version 3.5 - August 2, 2012
+
+	* Feature: Display support for 1000BASE-KX and 10GBASE-KX4 link modes
+	* Feature: Energy-Efficient Ethernet (EEE) configuration
+	  (--show-eee and --set-eee options)
+	* Fix: Don't trust drivers to null-terminate strings
+	* Feature: Display support for 40G link modes
+	* Package: Update RPM summary, description and URL
+	* Package: Exclude redundant documentation from RPM
+
 Version 3.4.2 - July 16, 2012
 
 	* Fix: Fix regression in RX NFC rule insertion for drivers that do

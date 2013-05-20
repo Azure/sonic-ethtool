@@ -113,7 +113,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "June 2012" "Ethtool version 3.4.2"
+.TH ETHTOOL 8 "December 2012" "Ethtool version 3.9"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -226,9 +226,10 @@ ethtool \- query or control network driver and hardware settings
 .HP
 .B ethtool \-s
 .I devname
-.BI speed \ N
+.BN speed
 .B2 duplex half full
 .B4 port tp aui bnc mii fibre
+.B3 mdix auto on off
 .B2 autoneg on off
 .BN advertise
 .BN phyad
@@ -250,7 +251,7 @@ ethtool \- query or control network driver and hardware settings
 .HP
 .B ethtool \-N|\-U|\-\-config\-nfc|\-\-config\-ntuple
 .I devname
-.BR rx\-flow\-hash \ \*(FL \: \*(HO \ |
+.BR rx\-flow\-hash \ \*(FL \ \: \*(HO \ |
 .br
 .B flow\-type \*(NC
 .RB [ src \ \*(MA\ [ m \ \*(MA]]
@@ -267,6 +268,7 @@ ethtool \- query or control network driver and hardware settings
 .BM vlan\-etype
 .BM vlan
 .BM user\-def
+.RB [ dst-mac \ \*(MA\ [ m \ \*(MA]]
 .BN action
 .BN loc
 .RB |
@@ -279,8 +281,7 @@ ethtool \- query or control network driver and hardware settings
 .IR filename ]
 .HP
 .B ethtool\ \-W|\-\-set\-dump
-.I devname
-.BI \ N
+.I devname N
 .HP
 .B ethtool \-T|\-\-show\-time\-stamping
 .I devname
@@ -297,8 +298,7 @@ ethtool \- query or control network driver and hardware settings
 .RB ...\ ]
 .HP
 .B ethtool \-f|\-\-flash
-.I devname
-.RI FILE
+.I devname file
 .RI [ N ]
 .HP
 .B ethtool \-l|\-\-show\-channels
@@ -311,7 +311,7 @@ ethtool \- query or control network driver and hardware settings
 .BN other
 .BN combined
 .HP
-.B ethtool \-m|\-\-dump\-module\-eeprom
+.B ethtool \-m|\-\-dump\-module\-eeprom|\-\-module\-info
 .I devname
 .B2 raw on off
 .B2 hex on off
@@ -325,6 +325,16 @@ ethtool \- query or control network driver and hardware settings
 .I devname flag
 .A1 on off
 .RB ...
+.HP
+.B ethtool \-\-show\-eee
+.I devname
+.HP
+.B ethtool \-\-set\-eee
+.I devname
+.B2 eee on off
+.B2 tx-lpi on off
+.BN tx-timer
+.BN advertise
 .
 .\" Adjust lines (i.e. full justification) and hyphenate.
 .ad
@@ -402,7 +412,6 @@ If
 .I file
 is specified, then use contents of previous raw register dump, rather
 than reading from the device.
-
 .TP
 .B \-e \-\-eeprom\-dump
 Retrieves and prints an EEPROM dump for the specified network device.
@@ -485,14 +494,16 @@ statistics.
 .B \-t \-\-test
 Executes adapter selftest on the specified network device. Possible test modes are:
 .TP
-.RI \*(SD
-defines test type: 
 .B offline
-(default) means to perform full set of tests possibly causing normal operation interruption during the tests,
+Perform full set of tests, possibly interrupting normal operation
+during the tests,
+.TP
 .B online
-means to perform limited set of tests do not interrupting normal adapter operation,
+Perform limited set of tests, not interrupting normal operation,
+.TP
 .B external_lb
-means to perform external-loopback test in addition to other offline tests.
+Perform full set of tests, as for \fBoffline\fR, and additionally an
+external-loopback test.
 .TP
 .B \-s \-\-change
 Allows changing some or all settings of the specified network device.
@@ -510,6 +521,14 @@ Sets full or half duplex mode.
 .TP
 .A4 port tp aui bnc mii fibre
 Selects device port.
+.TP
+.A3 mdix auto on off
+Selects MDI-X mode for port. May be used to override the automatic
+detection feature of most adapters. An argument of \fBauto\fR means
+automatic detection of MDI status, \fBon\fR forces MDI-X (crossover)
+mode, while \fBoff\fR means MDI (straight through) mode.  The driver
+should guarantee that this command takes effect immediately, and if
+necessary may reset the link to cause the change to take effect.
 .TP
 .A2 autoneg on off
 Specifies whether autonegotiation should be enabled. Autonegotiation 
@@ -656,9 +675,10 @@ ah4	IPSEC AH over IPv4
 esp4	IPSEC ESP over IPv4
 .TE
 .PP
-All fields below that include a mask option may either use "m" to
-indicate a mask, or may use the full name of the field with a "-mask"
-appended to indicate that this is the mask for a given field.
+For all fields that allow both a value and a mask to be specified, the
+mask may be specified immediately after the value using the \fBm\fR
+keyword, or separately using the field name keyword with \fB-mask\fR
+appended, e.g. \fBsrc-mask\fR.
 .PD
 .RE
 .TP
@@ -688,7 +708,7 @@ with an optional mask.  Valid for all IPv4 based flow-types.
 Specify the value of the Type of Service field in the incoming packet to
 match along with an optional mask.  Applies to all IPv4 based flow-types.
 .TP
-.BI l4proto \ N \\fR\ [\\fPl4m \ N \\fR]\\fP
+.BI l4proto \ N \\fR\ [\\fPm \ N \\fR]\\fP
 Includes the layer 4 protocol number and optional mask.  Valid only for
 flow-type ip4.
 .TP
@@ -719,6 +739,11 @@ Includes the VLAN tag and an optional mask.
 .TP
 .BI user\-def \ N \\fR\ [\\fPm \ N \\fR]\\fP
 Includes 64-bits of user-specific data and an optional mask.
+.TP
+.BR dst-mac \ \*(MA\ [ m \ \*(MA]
+Includes the destination MAC address, specified as 6 bytes in hexadecimal
+separated by colons, along with an optional mask.
+Valid for all IPv4 based flow-types.
 .TP
 .BI action \ N
 Specifies the Rx queue to send packets to, or some other action.
@@ -767,13 +792,20 @@ Sets the receive flow hash indirection table to spread flows between
 receive queues according to the given weights.  The sum of the weights
 must be non-zero and must not exceed the size of the indirection table.
 .TP
-.B \-f \-\-flash \ FILE
-Flash firmware image from the specified file to a region on the adapter.
-By default this will flash all the regions on the adapter.
+.B \-f \-\-flash
+Write a firmware image to flash or other non-volatile memory on the
+device.
 .TP
-.B N
-A number to identify flash region where the image should be flashed.
-Default region is 0 which denotes all regions in the flash.
+.I file
+Specifies the filename of the firmware image.  The firmware must first
+be installed in one of the directories where the kernel firmware
+loader or firmware agent will look, such as /lib/firmware.
+.TP
+.I N
+If the device stores multiple firmware images in separate regions of
+non-volatile memory, this parameter may be used to specify which
+region is to be written.  The default is 0, requesting that all
+regions are written.  All other values are driver-dependent.
 .PD
 .RE
 .TP
@@ -796,8 +828,10 @@ Changes the number of channels used only for other purposes e.g. link interrupts
 .BI combined \ N
 Changes the number of multi-purpose channels.
 .TP
-.B \-m \-\-dump\-module\-eeprom
-Retrieves and if possible decodes the EEPROM from plugin modules, e.g SFP+, QSFP
+.B \-m \-\-dump\-module\-eeprom \-\-module\-info
+Retrieves and if possible decodes the EEPROM from plugin modules, e.g SFP+, QSFP.
+If the driver and module support it, the optical diagnostic information is also
+read and decoded.
 .TP
 .B \-\-show\-priv\-flags
 Queries the specified network device for its private flags.  The
@@ -810,6 +844,28 @@ Sets the device's private flags as specified.
 .I flag
 .A1 on off
 Sets the state of the named private flag.
+.TP
+.B \-\-show\-eee
+Queries the specified network device for its support of Energy-Efficient
+Ethernet (according to the IEEE 802.3az specifications)
+.TP
+.B \-\-set\-eee
+Sets the device EEE behaviour.
+.TP
+.A2 eee on off
+Enables/disables the device support of EEE.
+.TP
+.A2 tx-lpi on off
+Determines whether the device should assert its Tx LPI.
+.TP
+.BI advertise \ N
+Sets the speeds for which the device should advertise EEE capabiliities.
+Values are as for
+.B \-\-change advertise
+.TP
+.BI tx-timer \ N
+Sets the amount of time the device should stay in idle mode prior to asserting
+its Tx LPI (in microseconds). This has meaning only when Tx LPI is enabled.
 .SH BUGS
 Not supported (in part or whole) on all network drivers.
 .SH AUTHOR
