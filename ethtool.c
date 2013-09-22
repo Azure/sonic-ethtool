@@ -875,6 +875,7 @@ static const struct {
 	{ "igb", igb_dump_regs },
 	{ "ixgb", ixgb_dump_regs },
 	{ "ixgbe", ixgbe_dump_regs },
+	{ "ixgbevf", ixgbevf_dump_regs },
 	{ "natsemi", natsemi_dump_regs },
 	{ "e100", e100_dump_regs },
 	{ "amd8111e", amd8111e_dump_regs },
@@ -3445,6 +3446,7 @@ static int do_gprivflags(struct cmd_context *ctx)
 	struct ethtool_gstrings *strings;
 	struct ethtool_value flags;
 	unsigned int i;
+	int max_len = 0, cur_len;
 
 	if (ctx->argc != 0)
 		exit_bad_args();
@@ -3472,9 +3474,18 @@ static int do_gprivflags(struct cmd_context *ctx)
 		return 1;
 	}
 
+	/* Find longest string and align all strings accordingly */
+	for (i = 0; i < strings->len; i++) {
+		cur_len = strlen((const char*)strings->data +
+				 i * ETH_GSTRING_LEN);
+		if (cur_len > max_len)
+			max_len = cur_len;
+	}
+
 	printf("Private flags for %s:\n", ctx->devname);
 	for (i = 0; i < strings->len; i++)
-		printf("%s: %s\n",
+		printf("%-*s: %s\n",
+		       max_len,
 		       (const char *)strings->data + i * ETH_GSTRING_LEN,
 		       (flags.data & (1U << i)) ? "on" : "off");
 
@@ -3521,6 +3532,7 @@ static int do_sprivflags(struct cmd_context *ctx)
 		cmdline[i].seen_val = &seen_flags;
 	}
 	parse_generic_cmdline(ctx, &any_changed, cmdline, strings->len);
+	free(cmdline);
 
 	flags.cmd = ETHTOOL_GPFLAGS;
 	if (send_ioctl(ctx, &flags)) {

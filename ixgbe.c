@@ -342,9 +342,10 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x00000: MSIXT       (MSI-X Table)                    0x%08X\n",
 		regs_buff[26]);
 
-	fprintf(stdout,
-		"0x02000: MSIXPBA     (MSI-X Pending Bit Array)        0x%08X\n",
-		regs_buff[27]);
+	if (mac_type == ixgbe_mac_82598EB)
+		fprintf(stdout,
+			"0x02000: MSIXPBA     (MSI-X Pending Bit Array)        0x%08X\n",
+			regs_buff[27]);
 
 	fprintf(stdout,
 		"0x11068: PBACL       (MSI-X PBA Clear)                0x%08X\n",
@@ -436,9 +437,10 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x03000: RXCTRL      (Receive Control)                0x%08X\n",
 		regs_buff[478]);
 
-	fprintf(stdout,
-		"0x03D04: DROPEN      (Drop Enable Control)            0x%08X\n",
-		regs_buff[479]);
+	if (mac_type == ixgbe_mac_82598EB)
+		fprintf(stdout,
+			"0x03D04: DROPEN      (Drop Enable Control)            0x%08X\n",
+			regs_buff[479]);
 
 	/* Receive */
 	fprintf(stdout,
@@ -539,9 +541,10 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x%05X: DCA_TXCTRL%02d (Tx DCA Control %02d)             0x%08X\n",
 		0x07200 + (4 * i), i, i, regs_buff[794 + i]);
 
-	fprintf(stdout,
-		"0x0CB00: TIPG        (Transmit IPG Control)           0x%08X\n",
-		regs_buff[810]);
+	if (mac_type == ixgbe_mac_82598EB)
+		fprintf(stdout,
+			"0x0CB00: TIPG        (Transmit IPG Control)           0x%08X\n",
+			regs_buff[810]);
 
 	for (i = 0; i < 8; i++)
 		fprintf(stdout,
@@ -598,29 +601,31 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x0CD00: PDPMCS      (Pkt Data Plan Music ctrl Stat)  0x%08X\n",
 		regs_buff[831]);
 
-	fprintf(stdout,
-		"0x050A0: RUPPBMR     (Rx User Prior to Pkt Buff Map)  0x%08X\n",
-		regs_buff[832]);
-
-	for (i = 0; i < 8; i++)
+	if (mac_type == ixgbe_mac_82598EB) {
 		fprintf(stdout,
-		"0x%05X: RT2CR%d      (Receive T2 Configure %d)         0x%08X\n",
-		0x03C20 + (4 * i), i, i, regs_buff[833 + i]);
+			"0x050A0: RUPPBMR     (Rx User Prior to Pkt Buff Map)  0x%08X\n",
+			regs_buff[832]);
 
-	for (i = 0; i < 8; i++)
-		fprintf(stdout,
-		"0x%05X: RT2SR%d      (Recieve T2 Status %d)            0x%08X\n",
-		0x03C40 + (4 * i), i, i, regs_buff[841 + i]);
+		for (i = 0; i < 8; i++)
+			fprintf(stdout,
+				"0x%05X: RT2CR%d      (Receive T2 Configure %d)         0x%08X\n",
+				0x03C20 + (4 * i), i, i, regs_buff[833 + i]);
 
-	for (i = 0; i < 8; i++)
-		fprintf(stdout,
-		"0x%05X: TDTQ2TCCR%d  (Tx Desc TQ2 TC Config %d)        0x%08X\n",
-		0x0602C + (0x40 * i), i, i, regs_buff[849 + i]);
+		for (i = 0; i < 8; i++)
+			fprintf(stdout,
+				"0x%05X: RT2SR%d      (Recieve T2 Status %d)            0x%08X\n",
+				0x03C40 + (4 * i), i, i, regs_buff[841 + i]);
 
-	for (i = 0; i < 8; i++)
-		fprintf(stdout,
-		"0x%05X: TDTQ2TCSR%d  (Tx Desc TQ2 TC Status %d)        0x%08X\n",
-		0x0622C + (0x40 * i), i, i, regs_buff[857 + i]);
+		for (i = 0; i < 8; i++)
+			fprintf(stdout,
+				"0x%05X: TDTQ2TCCR%d  (Tx Desc TQ2 TC Config %d)        0x%08X\n",
+				0x0602C + (0x40 * i), i, i, regs_buff[849 + i]);
+
+		for (i = 0; i < 8; i++)
+			fprintf(stdout,
+				"0x%05X: TDTQ2TCSR%d  (Tx Desc TQ2 TC Status %d)        0x%08X\n",
+				0x0622C + (0x40 * i), i, i, regs_buff[857 + i]);
+	}
 
 	for (i = 0; i < 8; i++)
 		fprintf(stdout,
@@ -864,41 +869,43 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		0x06034 + (0x40 * i), i, i, regs_buff[1022 + i]);
 
 	/* MAC */
-	fprintf(stdout,
-		"0x04200: PCS1GCFIG   (PCS_1G Gloabal Config 1)        0x%08X\n",
-		regs_buff[1038]);
+	if (mac_type < ixgbe_mac_X540) {
+		fprintf(stdout,
+			"0x04200: PCS1GCFIG   (PCS_1G Gloabal Config 1)        0x%08X\n",
+			regs_buff[1038]);
 
-	fprintf(stdout,
-		"0x04208: PCS1GLCTL   (PCS_1G Link Control)            0x%08X\n",
-		regs_buff[1039]);
+		fprintf(stdout,
+			"0x04208: PCS1GLCTL   (PCS_1G Link Control)            0x%08X\n",
+			regs_buff[1039]);
 
-	fprintf(stdout,
-		"0x0420C: PCS1GLSTA   (PCS_1G Link Status)             0x%08X\n",
-		regs_buff[1040]);
+		fprintf(stdout,
+			"0x0420C: PCS1GLSTA   (PCS_1G Link Status)             0x%08X\n",
+			regs_buff[1040]);
 
-	fprintf(stdout,
-		"0x04210: PCS1GDBG0   (PCS_1G Debug 0)                 0x%08X\n",
-		regs_buff[1041]);
+		fprintf(stdout,
+			"0x04210: PCS1GDBG0   (PCS_1G Debug 0)                 0x%08X\n",
+			regs_buff[1041]);
 
-	fprintf(stdout,
-		"0x04214: PCS1GDBG1   (PCS_1G Debug 1)                 0x%08X\n",
-		regs_buff[1042]);
+		fprintf(stdout,
+			"0x04214: PCS1GDBG1   (PCS_1G Debug 1)                 0x%08X\n",
+			regs_buff[1042]);
 
-	fprintf(stdout,
-		"0x04218: PCS1GANA    (PCS-1G Auto Neg. Adv.)          0x%08X\n",
-		regs_buff[1043]);
+		fprintf(stdout,
+			"0x04218: PCS1GANA    (PCS-1G Auto Neg. Adv.)          0x%08X\n",
+			regs_buff[1043]);
 
-	fprintf(stdout,
-		"0x0421C: PCS1GANLP   (PCS-1G AN LP Ability)           0x%08X\n",
-		regs_buff[1044]);
+		fprintf(stdout,
+			"0x0421C: PCS1GANLP   (PCS-1G AN LP Ability)           0x%08X\n",
+			regs_buff[1044]);
 
-	fprintf(stdout,
-		"0x04220: PCS1GANNP   (PCS_1G Auto Neg Next Page Tx)   0x%08X\n",
-		regs_buff[1045]);
+		fprintf(stdout,
+			"0x04220: PCS1GANNP   (PCS_1G Auto Neg Next Page Tx)   0x%08X\n",
+			regs_buff[1045]);
 
-	fprintf(stdout,
-		"0x04224: PCS1GANLPNP (PCS_1G Auto Neg LPs Next Page)  0x%08X\n",
-		regs_buff[1046]);
+		fprintf(stdout,
+			"0x04224: PCS1GANLPNP (PCS_1G Auto Neg LPs Next Page)  0x%08X\n",
+			regs_buff[1046]);
+	}
 
 	fprintf(stdout,
 		"0x04244: HLREG1      (Highlander Status 1)            0x%08X\n",
@@ -944,83 +951,88 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x0426C: TREG        (Test Register)                  0x%08X\n",
 		regs_buff[1058]);
 
-	fprintf(stdout,
-		"0x04288: PCSS1       (XGXS Status 1)                  0x%08X\n",
-		regs_buff[1059]);
-
-	fprintf(stdout,
-		"0x0428C: PCSS2       (XGXS Status 2)                  0x%08X\n",
-		regs_buff[1060]);
-
-	fprintf(stdout,
-		"0x04290: XPCSS       (10GBASE-X PCS Status)           0x%08X\n",
-		regs_buff[1061]);
-
-	fprintf(stdout,
-		"0x04298: SERDESC     (SERDES Interface Control)       0x%08X\n",
-		regs_buff[1062]);
-
-	fprintf(stdout,
-		"0x0429C: MACS        (FIFO Status/CNTL Report)        0x%08X\n",
-		regs_buff[1063]);
-
-	fprintf(stdout,
-		"0x042A0: AUTOC       (Auto Negotiation Control)       0x%08X\n",
-		regs_buff[1064]);
-
-	fprintf(stdout,
-		"0x042A8: AUTOC2      (Auto Negotiation Control 2)     0x%08X\n",
-		regs_buff[1066]);
-
-	fprintf(stdout,
-		"0x042AC: AUTOC3      (Auto Negotiation Control 3)     0x%08X\n",
-		regs_buff[1067]);
-
-	fprintf(stdout,
-		"0x042B0: ANLP1       (Auto Neg Lnk Part. Ctrl Word 1) 0x%08X\n",
-		regs_buff[1068]);
-
-	fprintf(stdout,
-		"0x042B0: ANLP2       (Auto Neg Lnk Part. Ctrl Word 2) 0x%08X\n",
-		regs_buff[1069]);
-
-	fprintf(stdout,
-		"0x04800: ATLASCTL    (Atlas Analog Configuration)     0x%08X\n",
-		regs_buff[1070]);
-
-	/* Diagnostic */
-	fprintf(stdout,
-		"0x02C20: RDSTATCTL   (Rx DMA Statistic Control)       0x%08X\n",
-		regs_buff[1071]);
-
-	for (i = 0; i < 8; i++)
+	if (mac_type < ixgbe_mac_X540) {
 		fprintf(stdout,
-		"0x%05X: RDSTAT%d     (Rx DMA Statistics %d)            0x%08X\n",
-		0x02C00 + (4 * i), i, i, regs_buff[1072 + i]);
+			"0x04288: PCSS1       (XGXS Status 1)                  0x%08X\n",
+			regs_buff[1059]);
 
-	fprintf(stdout,
-		"0x02F08: RDHMPN      (Rx Desc Handler Mem Page num)   0x%08X\n",
-		regs_buff[1080]);
+		fprintf(stdout,
+			"0x0428C: PCSS2       (XGXS Status 2)                  0x%08X\n",
+			regs_buff[1060]);
 
-	fprintf(stdout,
-		"0x02F10: RIC_DW0     (Rx Desc Hand. Mem Read Data 0)  0x%08X\n",
-		regs_buff[1081]);
+		fprintf(stdout,
+			"0x04290: XPCSS       (10GBASE-X PCS Status)           0x%08X\n",
+			regs_buff[1061]);
 
-	fprintf(stdout,
-		"0x02F14: RIC_DW1     (Rx Desc Hand. Mem Read Data 1)  0x%08X\n",
-		regs_buff[1082]);
+		fprintf(stdout,
+			"0x04298: SERDESC     (SERDES Interface Control)       0x%08X\n",
+			regs_buff[1062]);
 
-	fprintf(stdout,
-		"0x02F18: RIC_DW2     (Rx Desc Hand. Mem Read Data 2)  0x%08X\n",
-		regs_buff[1083]);
+		fprintf(stdout,
+			"0x0429C: MACS        (FIFO Status/CNTL Report)        0x%08X\n",
+			regs_buff[1063]);
 
-	fprintf(stdout,
-		"0x02F1C: RIC_DW3     (Rx Desc Hand. Mem Read Data 3)  0x%08X\n",
-		regs_buff[1084]);
+		fprintf(stdout,
+			"0x042A0: AUTOC       (Auto Negotiation Control)       0x%08X\n",
+			regs_buff[1064]);
 
-	fprintf(stdout,
-		"0x02F20: RDPROBE     (Rx Probe Mode Status)           0x%08X\n",
-		regs_buff[1085]);
+		fprintf(stdout,
+			"0x042A8: AUTOC2      (Auto Negotiation Control 2)     0x%08X\n",
+			regs_buff[1066]);
+
+		fprintf(stdout,
+			"0x042AC: AUTOC3      (Auto Negotiation Control 3)     0x%08X\n",
+			regs_buff[1067]);
+
+		fprintf(stdout,
+			"0x042B0: ANLP1       (Auto Neg Lnk Part. Ctrl Word 1) 0x%08X\n",
+			regs_buff[1068]);
+
+		fprintf(stdout,
+			"0x042B0: ANLP2       (Auto Neg Lnk Part. Ctrl Word 2) 0x%08X\n",
+			regs_buff[1069]);
+	}
+
+	if (mac_type == ixgbe_mac_82598EB) {
+		fprintf(stdout,
+			"0x04800: ATLASCTL    (Atlas Analog Configuration)     0x%08X\n",
+			regs_buff[1070]);
+
+		/* Diagnostic */
+		fprintf(stdout,
+			"0x02C20: RDSTATCTL   (Rx DMA Statistic Control)       0x%08X\n",
+			regs_buff[1071]);
+
+		for (i = 0; i < 8; i++)
+			fprintf(stdout,
+				"0x%05X: RDSTAT%d     (Rx DMA Statistics %d)            0x%08X\n",
+				0x02C00 + (4 * i), i, i, regs_buff[1072 + i]);
+
+		fprintf(stdout,
+			"0x02F08: RDHMPN      (Rx Desc Handler Mem Page num)   0x%08X\n",
+			regs_buff[1080]);
+
+		fprintf(stdout,
+			"0x02F10: RIC_DW0     (Rx Desc Hand. Mem Read Data 0)  0x%08X\n",
+			regs_buff[1081]);
+
+		fprintf(stdout,
+			"0x02F14: RIC_DW1     (Rx Desc Hand. Mem Read Data 1)  0x%08X\n",
+			regs_buff[1082]);
+
+		fprintf(stdout,
+			"0x02F18: RIC_DW2     (Rx Desc Hand. Mem Read Data 2)  0x%08X\n",
+			regs_buff[1083]);
+
+		fprintf(stdout,
+			"0x02F1C: RIC_DW3     (Rx Desc Hand. Mem Read Data 3)  0x%08X\n",
+			regs_buff[1084]);
+	}
+
+	if (mac_type < ixgbe_mac_X540)
+		fprintf(stdout,
+			"0x02F20: RDPROBE     (Rx Probe Mode Status)           0x%08X\n",
+			regs_buff[1085]);
 
 	fprintf(stdout,
 		"0x07C20: TDSTATCTL   (Tx DMA Statistic Control)       0x%08X\n",
@@ -1104,37 +1116,41 @@ ixgbe_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 		"0x050A4: RFVAL       (Receive Filter Validation)      0x%08X\n",
 		regs_buff[1119]);
 
-	fprintf(stdout,
-		"0x042B8: MDFTC1      (MAC DFT Control 1)              0x%08X\n",
-		regs_buff[1120]);
+	if (mac_type < ixgbe_mac_X540) {
+		fprintf(stdout,
+			"0x042B8: MDFTC1      (MAC DFT Control 1)              0x%08X\n",
+			regs_buff[1120]);
 
-	fprintf(stdout,
-		"0x042C0: MDFTC2      (MAC DFT Control 2)              0x%08X\n",
-		regs_buff[1121]);
+		fprintf(stdout,
+			"0x042C0: MDFTC2      (MAC DFT Control 2)              0x%08X\n",
+			regs_buff[1121]);
 
-	fprintf(stdout,
-		"0x042C4: MDFTFIFO1   (MAC DFT FIFO 1)                 0x%08X\n",
-		regs_buff[1122]);
+		fprintf(stdout,
+			"0x042C4: MDFTFIFO1   (MAC DFT FIFO 1)                 0x%08X\n",
+			regs_buff[1122]);
 
-	fprintf(stdout,
-		"0x042C8: MDFTFIFO2   (MAC DFT FIFO 2)                 0x%08X\n",
-		regs_buff[1123]);
+		fprintf(stdout,
+			"0x042C8: MDFTFIFO2   (MAC DFT FIFO 2)                 0x%08X\n",
+			regs_buff[1123]);
 
-	fprintf(stdout,
-		"0x042CC: MDFTS       (MAC DFT Status)                 0x%08X\n",
-		regs_buff[1124]);
+		fprintf(stdout,
+			"0x042CC: MDFTS       (MAC DFT Status)                 0x%08X\n",
+			regs_buff[1124]);
+	}
 
-	fprintf(stdout,
-		"0x1106C: PCIEECCCTL  (PCIe ECC Control)               0x%08X\n",
-		regs_buff[1125]);
+	if (mac_type == ixgbe_mac_82598EB) {
+		fprintf(stdout,
+			"0x1106C: PCIEECCCTL  (PCIe ECC Control)               0x%08X\n",
+			regs_buff[1125]);
 
-	fprintf(stdout,
-		"0x0C300: PBTXECC     (Packet Buffer Tx ECC)           0x%08X\n",
-		regs_buff[1126]);
+		fprintf(stdout,
+			"0x0C300: PBTXECC     (Packet Buffer Tx ECC)           0x%08X\n",
+			regs_buff[1126]);
 
-	fprintf(stdout,
-		"0x03300: PBRXECC     (Packet Buffer Rx ECC)           0x%08X\n",
-		regs_buff[1127]);
+		fprintf(stdout,
+			"0x03300: PBRXECC     (Packet Buffer Rx ECC)           0x%08X\n",
+			regs_buff[1127]);
+	}
 
 	return 0;
 }
