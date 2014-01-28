@@ -35,8 +35,6 @@
 #include <sys/utsname.h>
 #include <limits.h>
 #include <ctype.h>
-#include <assert.h>
-#include <sys/fcntl.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -115,6 +113,8 @@ enum {
 };
 #endif
 
+#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+
 static void exit_bad_args(void) __attribute__((noreturn));
 
 static void exit_bad_args(void)
@@ -185,32 +185,43 @@ struct off_flag_def {
 	const char *kernel_name;
 	u32 get_cmd, set_cmd;
 	u32 value;
+	/* For features exposed through ETHTOOL_GFLAGS, the oldest
+	 * kernel version for which we can trust the result.  Where
+	 * the flag was added at the same time the kernel started
+	 * supporting the feature, this is 0 (to allow for backports).
+	 * Where the feature was supported before the flag was added,
+	 * it is the version that introduced the flag.
+	 */
+	u32 min_kernel_ver;
 };
 static const struct off_flag_def off_flag_def[] = {
 	{ "rx",     "rx-checksumming",		    "rx-checksum",
-	  ETHTOOL_GRXCSUM, ETHTOOL_SRXCSUM, ETH_FLAG_RXCSUM },
+	  ETHTOOL_GRXCSUM, ETHTOOL_SRXCSUM, ETH_FLAG_RXCSUM,	0 },
 	{ "tx",     "tx-checksumming",		    "tx-checksum-*",
-	  ETHTOOL_GTXCSUM, ETHTOOL_STXCSUM, ETH_FLAG_TXCSUM },
+	  ETHTOOL_GTXCSUM, ETHTOOL_STXCSUM, ETH_FLAG_TXCSUM,	0 },
 	{ "sg",     "scatter-gather",		    "tx-scatter-gather*",
-	  ETHTOOL_GSG,	   ETHTOOL_SSG,     ETH_FLAG_SG },
+	  ETHTOOL_GSG,	   ETHTOOL_SSG,     ETH_FLAG_SG,	0 },
 	{ "tso",    "tcp-segmentation-offload",	    "tx-tcp*-segmentation",
-	  ETHTOOL_GTSO,	   ETHTOOL_STSO,    ETH_FLAG_TSO },
+	  ETHTOOL_GTSO,	   ETHTOOL_STSO,    ETH_FLAG_TSO,	0 },
 	{ "ufo",    "udp-fragmentation-offload",    "tx-udp-fragmentation",
-	  ETHTOOL_GUFO,	   ETHTOOL_SUFO,    ETH_FLAG_UFO },
+	  ETHTOOL_GUFO,	   ETHTOOL_SUFO,    ETH_FLAG_UFO,	0 },
 	{ "gso",    "generic-segmentation-offload", "tx-generic-segmentation",
-	  ETHTOOL_GGSO,	   ETHTOOL_SGSO,    ETH_FLAG_GSO },
+	  ETHTOOL_GGSO,	   ETHTOOL_SGSO,    ETH_FLAG_GSO,	0 },
 	{ "gro",    "generic-receive-offload",	    "rx-gro",
-	  ETHTOOL_GGRO,	   ETHTOOL_SGRO,    ETH_FLAG_GRO },
+	  ETHTOOL_GGRO,	   ETHTOOL_SGRO,    ETH_FLAG_GRO,	0 },
 	{ "lro",    "large-receive-offload",	    "rx-lro",
-	  0,		   0,		    ETH_FLAG_LRO },
+	  0,		   0,		    ETH_FLAG_LRO,
+	  KERNEL_VERSION(2,6,24) },
 	{ "rxvlan", "rx-vlan-offload",		    "rx-vlan-hw-parse",
-	  0,		   0,		    ETH_FLAG_RXVLAN },
+	  0,		   0,		    ETH_FLAG_RXVLAN,
+	  KERNEL_VERSION(2,6,37) },
 	{ "txvlan", "tx-vlan-offload",		    "tx-vlan-hw-insert",
-	  0,		   0,		    ETH_FLAG_TXVLAN },
+	  0,		   0,		    ETH_FLAG_TXVLAN,
+	  KERNEL_VERSION(2,6,37) },
 	{ "ntuple", "ntuple-filters",		    "rx-ntuple-filter",
-	  0,		   0,		    ETH_FLAG_NTUPLE },
+	  0,		   0,		    ETH_FLAG_NTUPLE,	0 },
 	{ "rxhash", "receive-hashing",		    "rx-hashing",
-	  0,		   0,		    ETH_FLAG_RXHASH },
+	  0,		   0,		    ETH_FLAG_RXHASH,	0 },
 };
 
 struct feature_def {
@@ -1181,15 +1192,36 @@ static void dump_one_feature(const char *indent, const char *name,
 	       : "");
 }
 
+static int linux_version_code(void)
+{
+	struct utsname utsname;
+	unsigned version, patchlevel, sublevel = 0;
+
+	if (uname(&utsname))
+		return -1;
+	if (sscanf(utsname.release, "%u.%u.%u", &version, &patchlevel, &sublevel) < 2)
+		return -1;
+	return KERNEL_VERSION(version, patchlevel, sublevel);
+}
+
 static void dump_features(const struct feature_defs *defs,
 			  const struct feature_state *state,
 			  const struct feature_state *ref_state)
 {
+	int kernel_ver = linux_version_code();
 	u32 value;
 	int indent;
 	int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
+		/* Don't show features whose state is unknown on this
+		 * kernel version
+		 */
+		if (defs->off_flag_matched[i] == 0 &&
+		    off_flag_def[i].get_cmd == 0 &&
+		    kernel_ver < off_flag_def[i].min_kernel_ver)
+			continue;
+
 		value = off_flag_def[i].value;
 
 		/* If this offload flag matches exactly one generic
@@ -1504,31 +1536,6 @@ static struct feature_defs *get_feature_defs(struct cmd_context *ctx)
 
 	free(names);
 	return defs;
-}
-
-static int get_netdev_attr(struct cmd_context *ctx, const char *name,
-		    char *buf, size_t buf_len)
-{
-#ifdef TEST_ETHTOOL
-	errno = ENOENT;
-	return -1;
-#else
-	char path[40 + IFNAMSIZ];
-	ssize_t len;
-	int fd;
-
-	len = snprintf(path, sizeof(path), "/sys/class/net/%s/%s",
-		       ctx->devname, name);
-	assert(len < sizeof(path));
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		return fd;
-	len = read(fd, buf, buf_len - 1);
-	if (len >= 0)
-		buf[len] = 0;
-	close(fd);
-	return len;
-#endif
 }
 
 static int do_gdrv(struct cmd_context *ctx)
@@ -1972,20 +1979,6 @@ get_features(struct cmd_context *ctx, const struct feature_defs *defs)
 			perror("Cannot get device generic features");
 		else
 			allfail = 0;
-	} else {
-		/* We should have got VLAN tag offload flags through
-		 * ETHTOOL_GFLAGS.  However, prior to Linux 2.6.37
-		 * they were not exposed in this way - and since VLAN
-		 * tag offload was defined and implemented by many
-		 * drivers, we shouldn't assume they are off.
-		 * Instead, since these feature flag values were
-		 * stable, read them from sysfs.
-		 */
-		char buf[20];
-		if (get_netdev_attr(ctx, "features", buf, sizeof(buf)) > 0)
-			state->off_flags |=
-				strtoul(buf, NULL, 0) &
-				(ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
 	}
 
 	if (allfail) {
@@ -3333,7 +3326,7 @@ static int do_srxntuple(struct cmd_context *ctx,
 	err = send_ioctl(ctx, &ntuplecmd);
 
 	/*
-	 * Display error only if reponse is something other than op not
+	 * Display error only if response is something other than op not
 	 * supported.  It is possible that the interface uses the network
 	 * flow classifier interface instead of N-tuple. 
 	 */ 

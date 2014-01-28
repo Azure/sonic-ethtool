@@ -1,3 +1,26 @@
+Version 3.13 - January 27, 2014
+
+	* Doc: Update GPL text to include current address of the FSF
+	* Fix: Spelling fixes
+	* Doc: Fix advertising flag values in manual page for 20G link modes,
+	  and add missing 1G, 10G and 40G link modes
+
+Version 3.12.1 - November 8, 2013
+
+	* Fix: Memory corruption when applying external calibration to
+	  SFF-8472 module diagnostics (-m option)
+	* Feature: Add Intel 82599 and x540 DCB registers to dump
+	  (-d option)
+
+Version 3.12 - November 7, 2013
+
+	* Fix: Remove alternate method to check for VLAN tag offload on Linux
+	  < 2.6.37 (-k/-K options)
+	* Fix: Hide state of VLAN tag offload and LRO if the kernel is too old
+	  for us to reliably detect them (-k option)
+	* Feature: Add register dump support for Solarflare SFC9100 family
+	  (-d option)
+
 Version 3.11 - September 12, 2013
 
 	* Feature: Update Realtek chip list for register dump to match
