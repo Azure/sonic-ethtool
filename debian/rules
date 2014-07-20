@@ -14,5 +14,9 @@ override_dh_auto_install:
 	mkdir -p debian/ethtool/etc/network/if-up.d
 	install debian/ethtool.if-up debian/ethtool/etc/network/if-up.d/ethtool
 
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -f INSTALL Makefile.in aclocal.m4 compile configure depcomp ethtool-config.h.in install-sh missing test-driver
+
 override_dh_installchangelogs:
 	dh_installchangelogs -XChangeLog
