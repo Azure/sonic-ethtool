@@ -5,9 +5,9 @@ Maintainer: Anibal Monsalve Salazar <anibal@debian.org>
 Uploaders: Ben Hutchings <ben@decadent.org.uk>
 Standards-Version: 3.9.2
 Build-Depends: debhelper (>= 9), autoconf, automake
-Homepage: http://www.kernel.org/pub/software/network/ethtool/
-Vcs-Git: git://git.debian.org/kernel/ethtool.git
-Vcs-Browser: http://git.debian.org/?p=kernel/ethtool.git
+Homepage: https://www.kernel.org/pub/software/network/ethtool/
+Vcs-Git: https://anonscm.debian.org/git/kernel/ethtool.git
+Vcs-Browser: https://anonscm.debian.org/cgit/kernel/ethtool.git
 
 Package: ethtool
 Architecture: any
