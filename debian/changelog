@@ -1,3 +1,9 @@
+ethtool (1:4.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Fri, 09 Oct 2015 03:54:03 +0100
+
 ethtool (1:3.16-1) unstable; urgency=medium
 
   * New upstream release
