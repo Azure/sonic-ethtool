@@ -23,12 +23,20 @@ License: GPL-2
  License version 2 can be found in the file
  `/usr/share/common-licenses/GPL-2'.
 
+Files: at76c50x-usb.c
+Copyright: 2009, John W. Linville
+License: GPL-2
+
 Files: de2104x.c
 Copyright: 2001, Sun Microsystems (thockin@sun.com)
 License: GPL-2
 
-Files: e100.c e1000.c
-Copyright: 2002, Intel Corporation
+Files: e100.c e1000.c igb.c ixgb.c ixgbe.c ixgbevf.c
+Copyright: 2002, 2006, 2007, 2013, Intel Corporation
+License: GPL-2
+
+Files: et131x.c
+Copyright: 2012, 2013, Mark Einon
 License: GPL-2
 
 Files: ethtool-copy.h
@@ -65,18 +73,7 @@ License: GPL-2
 
 Files: ibm_emac.c
 Copyright: 2004, 2005 Zultys Technologies
-License: GPL-2
-
-Files: igb.c
-Copyright: 2007, Intel Corporation
-License: GPL-2
-
-Files: ixgb.c
-Copyright: 2006, Intel Corporation
-License: GPL-2
-
-Files: ixgbe.c
-Copyright: 2007, Intel Corporation
+           2015, IBM Corporation
 License: GPL-2
 
 Files: marvell.c
@@ -85,6 +82,10 @@ License: GPL-2
 
 Files: natsemi.c
 Copyright: 2001, Sun Microsystems (thockin@sun.com)
+License: GPL-2
+
+Files: net_tstamp-copy.h
+Copyright: 2008, 2009, Intel Corporation
 License: GPL-2
 
 Files: pcnet32.c
@@ -99,20 +100,33 @@ Files: rxclass.c
 Copyright: 2008, Sun Microsystems
 License: GPL-2
 
-Files: sfc.c
-Copyright: 2010, Solarflare Communications Inc.
+Files: sfc.c sfpid.c test-cmdline.c test-common.c test-features.c
+Copyright: 2010-2013, Solarflare Communications Inc.
+License: GPL-2
+
+Files: sfpdiag.c
+Copyright: 2012, Aurelien Guillaume
 License: GPL-2
 
 Files: stmmac.c
 Copyright: 2007-2009, STMicroelectronics Ltd
 License: GPL-2
 
-Files: test-cmdline.c, test-common.c
-Copyright: 2011, Solarflare Communications Inc.
+Files: tg3.c
+Copyright: 2005, Jeff Garzik
+           2005, 2011, Broadcom
+License: GPL-2
+
+Files: tse.c
+Copyright: 2014, Altera Corporation
 License: GPL-2
 
 Files: vioc.c
 Copyright: 2006, Fabric7 Systems, Inc
+License: GPL-2
+
+Files: vmxnet3.c
+Copyright: 2015, VMware Inc.
 License: GPL-2
 
 Files: debian/*
