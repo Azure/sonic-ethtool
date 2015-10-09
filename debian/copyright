@@ -1,4 +1,4 @@
-Source: http://www.kernel.org/pub/software/network/ethtool/
+Source: https://www.kernel.org/pub/software/network/ethtool/
 
 Files: amd8111e.c
 Copyright: 2003, Advanced Micro Devices Inc.

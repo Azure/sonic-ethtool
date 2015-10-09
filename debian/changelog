@@ -9,6 +9,7 @@ ethtool (1:4.2-1) UNRELEASED; urgency=medium
   * debian/copyright: Update to cover all source files
   * debian/control: Change Vcs-Git, Vcs-Browser and Homepage to canonical
     HTTP-S URLs
+  * debian/copyright: Change Source to HTTP-S URL
 
  -- Ben Hutchings <ben@decadent.org.uk>  Fri, 09 Oct 2015 03:54:03 +0100
 
