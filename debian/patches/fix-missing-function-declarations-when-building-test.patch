@@ -1,0 +1,41 @@
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Fri, 9 Oct 2015 03:59:30 +0100
+Subject: [PATCH ethtool 1/2] Fix missing function declarations when building
+ tests
+Origin: https://git.kernel.org/cgit/network/ethtool/ethtool.git/commit/?id=0732e9a7b30af903793c313eef4bd93cdad51099
+
+Fix these compiler warnings by declaring test_exit() and test_main()
+regardless of whether TEST_NO_WRAPPERS is defined:
+
+test-cmdline.c: In function ‘send_ioctl’:
+test-cmdline.c:268:2: warning: implicit declaration of function ‘test_exit’ [-Wimplicit-function-declaration]
+  test_exit(0);
+  ^
+test-common.c: In function ‘test_cmdline’:
+test-common.c:361:21: warning: implicit declaration of function ‘test_main’ [-Wimplicit-function-declaration]
+  rc = rc ? rc - 1 : test_main(argc, argv);
+                     ^
+
+Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+---
+ internal.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/internal.h b/internal.h
+index 444810d..156770c 100644
+--- a/internal.h
++++ b/internal.h
+@@ -132,10 +132,11 @@ struct cmd_expect {
+ int test_ioctl(const struct cmd_expect *expect, void *cmd);
+ #define TEST_IOCTL_MISMATCH (-2)
+ 
+-#ifndef TEST_NO_WRAPPERS
+ int test_main(int argc, char **argp);
+-#define main(...) test_main(__VA_ARGS__)
+ void test_exit(int rc) __attribute__((noreturn));
++
++#ifndef TEST_NO_WRAPPERS
++#define main(...) test_main(__VA_ARGS__)
+ #undef exit
+ #define exit(rc) test_exit(rc)
+ void *test_malloc(size_t size);
