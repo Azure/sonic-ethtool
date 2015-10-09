@@ -20,6 +20,7 @@
  *	Copyright 2009, 2010 Solarflare Communications
  * MDI-X set support by Jesse Brandeburg <jesse.brandeburg@intel.com>
  *	Copyright 2012 Intel Corporation
+ * vmxnet3 support by Shrikrishna Khare <skhare@vmware.com>
  *
  * TODO:
  *   * show settings for all devices
@@ -53,7 +54,9 @@
 	 ADVERTISED_100baseT_Full |		\
 	 ADVERTISED_1000baseT_Half |		\
 	 ADVERTISED_1000baseT_Full |		\
+	 ADVERTISED_1000baseKX_Full|		\
 	 ADVERTISED_2500baseX_Full |		\
+	 ADVERTISED_10000baseT_Full |		\
 	 ADVERTISED_10000baseKX4_Full |		\
 	 ADVERTISED_10000baseKR_Full |		\
 	 ADVERTISED_10000baseR_FEC |		\
@@ -62,36 +65,23 @@
 	 ADVERTISED_40000baseKR4_Full |		\
 	 ADVERTISED_40000baseCR4_Full |		\
 	 ADVERTISED_40000baseSR4_Full |		\
-	 ADVERTISED_40000baseLR4_Full)
+	 ADVERTISED_40000baseLR4_Full |		\
+	 ADVERTISED_56000baseKR4_Full |		\
+	 ADVERTISED_56000baseCR4_Full |		\
+	 ADVERTISED_56000baseSR4_Full |		\
+	 ADVERTISED_56000baseLR4_Full)
 
 #define ALL_ADVERTISED_FLAGS			\
-	(ADVERTISED_10baseT_Half |		\
-	 ADVERTISED_10baseT_Full |		\
-	 ADVERTISED_100baseT_Half |		\
-	 ADVERTISED_100baseT_Full |		\
-	 ADVERTISED_1000baseT_Half |		\
-	 ADVERTISED_1000baseT_Full |		\
-	 ADVERTISED_Autoneg |			\
+	(ADVERTISED_Autoneg |			\
 	 ADVERTISED_TP |			\
 	 ADVERTISED_AUI |			\
 	 ADVERTISED_MII |			\
 	 ADVERTISED_FIBRE |			\
 	 ADVERTISED_BNC |			\
-	 ADVERTISED_10000baseT_Full |		\
 	 ADVERTISED_Pause |			\
 	 ADVERTISED_Asym_Pause |		\
-	 ADVERTISED_2500baseX_Full |		\
 	 ADVERTISED_Backplane |			\
-	 ADVERTISED_1000baseKX_Full |		\
-	 ADVERTISED_10000baseKX4_Full |		\
-	 ADVERTISED_10000baseKR_Full |		\
-	 ADVERTISED_10000baseR_FEC |		\
-	 ADVERTISED_20000baseMLD2_Full |	\
-	 ADVERTISED_20000baseKR2_Full |		\
-	 ADVERTISED_40000baseKR4_Full |		\
-	 ADVERTISED_40000baseCR4_Full |		\
-	 ADVERTISED_40000baseSR4_Full |		\
-	 ADVERTISED_40000baseLR4_Full)
+	 ALL_ADVERTISED_MODES)
 
 #ifndef HAVE_NETIF_MSG
 enum {
@@ -536,6 +526,10 @@ dump_link_caps(const char *prefix, const char *an_prefix, u32 mask,
 		{ 0, ADVERTISED_40000baseCR4_Full,  "40000baseCR4/Full" },
 		{ 0, ADVERTISED_40000baseSR4_Full,  "40000baseSR4/Full" },
 		{ 0, ADVERTISED_40000baseLR4_Full,  "40000baseLR4/Full" },
+		{ 0, ADVERTISED_56000baseKR4_Full,  "56000baseKR4/Full" },
+		{ 0, ADVERTISED_56000baseCR4_Full,  "56000baseCR4/Full" },
+		{ 0, ADVERTISED_56000baseSR4_Full,  "56000baseSR4/Full" },
+		{ 0, ADVERTISED_56000baseLR4_Full,  "56000baseLR4/Full" },
 	};
 	int indent;
 	int did1, new_line_pend, i;
@@ -701,6 +695,7 @@ static int dump_drvinfo(struct ethtool_drvinfo *info)
 		"driver: %.*s\n"
 		"version: %.*s\n"
 		"firmware-version: %.*s\n"
+		"expansion-rom-version: %.*s\n"
 		"bus-info: %.*s\n"
 		"supports-statistics: %s\n"
 		"supports-test: %s\n"
@@ -710,6 +705,7 @@ static int dump_drvinfo(struct ethtool_drvinfo *info)
 		(int)sizeof(info->driver), info->driver,
 		(int)sizeof(info->version), info->version,
 		(int)sizeof(info->fw_version), info->fw_version,
+		(int)sizeof(info->erom_version), info->erom_version,
 		(int)sizeof(info->bus_info), info->bus_info,
 		info->n_stats ? "yes" : "no",
 		info->testinfo_len ? "yes" : "no",
@@ -979,6 +975,7 @@ static const struct {
 	{ "st_gmac", st_gmac_dump_regs },
 	{ "et131x", et131x_dump_regs },
 	{ "altera_tse", altera_tse_dump_regs },
+	{ "vmxnet3", vmxnet3_dump_regs },
 #endif
 };
 
@@ -3126,7 +3123,7 @@ static void print_indir_table(struct cmd_context *ctx,
 		if (i % 8 == 0)
 			printf("%5u: ", i);
 		printf(" %5u", indir[i]);
-		if (i % 8 == 7)
+		if (i % 8 == 7 || i == indir_size - 1)
 			fputc('\n', stdout);
 	}
 }
