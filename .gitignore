@@ -25,6 +25,8 @@ push
 .dotest
 autom4te.cache
 .deps
+test-*.log
+test-*.trs
 
 .pc
 debian/ethtool.debhelper.log

@@ -3,6 +3,12 @@
 #ifndef ETHTOOL_INTERNAL_H__
 #define ETHTOOL_INTERNAL_H__
 
+/* Some platforms (eg. ppc64) need __SANE_USERSPACE_TYPES__ before
+ * <linux/types.h> to select 'int-ll64.h' and avoid compile warnings
+ * when printing __u64 with %llu.
+ */
+#define __SANE_USERSPACE_TYPES__
+
 #ifdef HAVE_CONFIG_H
 #include "ethtool-config.h"
 #endif
@@ -28,6 +34,12 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 typedef int32_t s32;
+
+/* ethtool.h epxects __KERNEL_DIV_ROUND_UP to be defined by <linux/kernel.h> */
+#include <linux/kernel.h>
+#ifndef __KERNEL_DIV_ROUND_UP
+#define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+#endif
 
 #include "ethtool-copy.h"
 #include "net_tstamp-copy.h"
@@ -132,10 +144,11 @@ struct cmd_expect {
 int test_ioctl(const struct cmd_expect *expect, void *cmd);
 #define TEST_IOCTL_MISMATCH (-2)
 
-#ifndef TEST_NO_WRAPPERS
 int test_main(int argc, char **argp);
-#define main(...) test_main(__VA_ARGS__)
 void test_exit(int rc) __attribute__((noreturn));
+
+#ifndef TEST_NO_WRAPPERS
+#define main(...) test_main(__VA_ARGS__)
 #undef exit
 #define exit(rc) test_exit(rc)
 void *test_malloc(size_t size);
@@ -147,7 +160,7 @@ void *test_calloc(size_t nmemb, size_t size);
 char *test_strdup(const char *s);
 #undef strdup
 #define strdup(s) test_strdup(s)
-void *test_free(void *ptr);
+void test_free(void *ptr);
 #undef free
 #define free(ptr) test_free(ptr)
 void *test_realloc(void *ptr, size_t size);

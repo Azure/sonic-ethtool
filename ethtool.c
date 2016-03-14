@@ -994,7 +994,6 @@ void dump_hex(FILE *file, const u8 *data, int len, int offset)
 }
 
 static int dump_regs(int gregs_dump_raw, int gregs_dump_hex,
-		     const char *gregs_dump_file,
 		     struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 {
 	int i;
@@ -1002,22 +1001,6 @@ static int dump_regs(int gregs_dump_raw, int gregs_dump_hex,
 	if (gregs_dump_raw) {
 		fwrite(regs->data, regs->len, 1, stdout);
 		return 0;
-	}
-
-	if (gregs_dump_file) {
-		FILE *f = fopen(gregs_dump_file, "r");
-		struct stat st;
-
-		if (!f || fstat(fileno(f), &st) < 0) {
-			fprintf(stderr, "Can't open '%s': %s\n",
-				gregs_dump_file, strerror(errno));
-			return -1;
-		}
-
-		regs = realloc(regs, sizeof(*regs) + st.st_size);
-		regs->len = st.st_size;
-		fread(regs->data, regs->len, 1, f);
-		fclose(f);
 	}
 
 	if (!gregs_dump_hex)
@@ -2708,7 +2691,31 @@ static int do_gregs(struct cmd_context *ctx)
 		free(regs);
 		return 74;
 	}
-	if (dump_regs(gregs_dump_raw, gregs_dump_hex, gregs_dump_file,
+
+	if (!gregs_dump_raw && gregs_dump_file != NULL) {
+		/* overwrite reg values from file dump */
+		FILE *f = fopen(gregs_dump_file, "r");
+		struct stat st;
+		size_t nread;
+
+		if (!f || fstat(fileno(f), &st) < 0) {
+			fprintf(stderr, "Can't open '%s': %s\n",
+				gregs_dump_file, strerror(errno));
+			free(regs);
+			return 75;
+		}
+
+		regs = realloc(regs, sizeof(*regs) + st.st_size);
+		regs->len = st.st_size;
+		nread = fread(regs->data, regs->len, 1, f);
+		fclose(f);
+		if (nread != 1) {
+			free(regs);
+			return 75;
+		}
+        }
+
+	if (dump_regs(gregs_dump_raw, gregs_dump_hex,
 		      &drvinfo, regs) < 0) {
 		fprintf(stderr, "Cannot dump registers\n");
 		free(regs);
@@ -2821,8 +2828,10 @@ static int do_seeprom(struct cmd_context *ctx)
 	if (seeprom_length == -1)
 		seeprom_length = drvinfo.eedump_len;
 
-	if (drvinfo.eedump_len < seeprom_offset + seeprom_length)
-		seeprom_length = drvinfo.eedump_len - seeprom_offset;
+	if (drvinfo.eedump_len < seeprom_offset + seeprom_length) {
+		fprintf(stderr, "offset & length out of bounds\n");
+		return 1;
+	}
 
 	eeprom = calloc(1, sizeof(*eeprom)+seeprom_length);
 	if (!eeprom) {
@@ -2837,8 +2846,18 @@ static int do_seeprom(struct cmd_context *ctx)
 	eeprom->data[0] = seeprom_value;
 
 	/* Multi-byte write: read input from stdin */
-	if (!seeprom_value_seen)
-		eeprom->len = fread(eeprom->data, 1, eeprom->len, stdin);
+	if (!seeprom_value_seen) {
+		if (fread(eeprom->data, eeprom->len, 1, stdin) != 1) {
+			fprintf(stderr, "not enough data from stdin\n");
+			free(eeprom);
+			return 75;
+		}
+		if ((fgetc(stdin) != EOF) || !feof(stdin)) {
+			fprintf(stderr, "too much data from stdin\n");
+			free(eeprom);
+			return 75;
+		}
+	}
 
 	err = send_ioctl(ctx, eeprom);
 	if (err < 0) {
@@ -2937,7 +2956,8 @@ static int do_phys_id(struct cmd_context *ctx)
 	return err;
 }
 
-static int do_gstats(struct cmd_context *ctx)
+static int do_gstats(struct cmd_context *ctx, int cmd, int stringset,
+		    const char *name)
 {
 	struct ethtool_gstrings *strings;
 	struct ethtool_stats *stats;
@@ -2947,7 +2967,7 @@ static int do_gstats(struct cmd_context *ctx)
 	if (ctx->argc != 0)
 		exit_bad_args();
 
-	strings = get_stringset(ctx, ETH_SS_STATS,
+	strings = get_stringset(ctx, stringset,
 				offsetof(struct ethtool_drvinfo, n_stats),
 				0);
 	if (!strings) {
@@ -2971,7 +2991,7 @@ static int do_gstats(struct cmd_context *ctx)
 		return 95;
 	}
 
-	stats->cmd = ETHTOOL_GSTATS;
+	stats->cmd = cmd;
 	stats->n_stats = n_stats;
 	err = send_ioctl(ctx, stats);
 	if (err < 0) {
@@ -2982,7 +3002,7 @@ static int do_gstats(struct cmd_context *ctx)
 	}
 
 	/* todo - pretty-print the strings per-driver */
-	fprintf(stdout, "NIC statistics:\n");
+	fprintf(stdout, "%s statistics:\n", name);
 	for (i = 0; i < n_stats; i++) {
 		fprintf(stdout, "     %.*s: %llu\n",
 			ETH_GSTRING_LEN,
@@ -2993,6 +3013,16 @@ static int do_gstats(struct cmd_context *ctx)
 	free(stats);
 
 	return 0;
+}
+
+static int do_gnicstats(struct cmd_context *ctx)
+{
+	return do_gstats(ctx, ETHTOOL_GSTATS, ETH_SS_STATS, "NIC");
+}
+
+static int do_gphystats(struct cmd_context *ctx)
+{
+	return do_gstats(ctx, ETHTOOL_GPHYSTATS, ETH_SS_PHY_STATS, "PHY");
 }
 
 static int do_srxntuple(struct cmd_context *ctx,
@@ -3228,13 +3258,11 @@ static int do_grxfh(struct cmd_context *ctx)
 	return 0;
 }
 
-static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_equal,
-			    char **rxfhindir_weight, u32 num_weights)
+static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_default,
+			    int rxfhindir_equal, char **rxfhindir_weight,
+			    u32 num_weights)
 {
 	u32 i;
-	/*
-	 * "*indir_size == 0" ==> reset indir to default
-	 */
 	if (rxfhindir_equal) {
 		for (i = 0; i < *indir_size; i++)
 			indir[i] = i % rxfhindir_equal;
@@ -3268,6 +3296,9 @@ static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_equal,
 			}
 			indir[i] = j;
 		}
+	} else if (rxfhindir_default) {
+		/* "*indir_size == 0" ==> reset indir to default */
+		*indir_size = 0;
 	} else {
 		*indir_size = ETH_RXFH_INDIR_NO_CHANGE;
 	}
@@ -3275,8 +3306,9 @@ static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_equal,
 	return 0;
 }
 
-static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_equal,
-			 char **rxfhindir_weight, u32 num_weights)
+static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_default,
+			 int rxfhindir_equal, char **rxfhindir_weight,
+			 u32 num_weights)
 {
 	struct ethtool_rxfh_indir indir_head;
 	struct ethtool_rxfh_indir *indir;
@@ -3301,7 +3333,8 @@ static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_equal,
 	indir->cmd = ETHTOOL_SRXFHINDIR;
 	indir->size = indir_head.size;
 
-	if (fill_indir_table(&indir->size, indir->ring_index, rxfhindir_equal,
+	if (fill_indir_table(&indir->size, indir->ring_index,
+			     rxfhindir_default, rxfhindir_equal,
 			     rxfhindir_weight, num_weights)) {
 		free(indir);
 		return 1;
@@ -3323,7 +3356,7 @@ static int do_srxfh(struct cmd_context *ctx)
 	struct ethtool_rxfh rss_head = {0};
 	struct ethtool_rxfh *rss;
 	struct ethtool_rxnfc ring_count;
-	int rxfhindir_equal = 0;
+	int rxfhindir_equal = 0, rxfhindir_default = 0;
 	char **rxfhindir_weight = NULL;
 	char *rxfhindir_key = NULL;
 	char *hkey = NULL;
@@ -3332,7 +3365,7 @@ static int do_srxfh(struct cmd_context *ctx)
 	u32 entry_size = sizeof(rss_head.rss_config[0]);
 	u32 num_weights = 0;
 
-	if (ctx->argc < 2)
+	if (ctx->argc < 1)
 		exit_bad_args();
 
 	while (arg_num < ctx->argc) {
@@ -3357,6 +3390,9 @@ static int do_srxfh(struct cmd_context *ctx)
 			if (!rxfhindir_key)
 				exit_bad_args();
 			++arg_num;
+		} else if (!strcmp(ctx->argp[arg_num], "default")) {
+			++arg_num;
+			rxfhindir_default = 1;
 		} else {
 			exit_bad_args();
 		}
@@ -3365,6 +3401,18 @@ static int do_srxfh(struct cmd_context *ctx)
 	if (rxfhindir_equal && rxfhindir_weight) {
 		fprintf(stderr,
 			"Equal and weight options are mutually exclusive\n");
+		return 1;
+	}
+
+	if (rxfhindir_equal && rxfhindir_default) {
+		fprintf(stderr,
+			"Equal and default options are mutually exclusive\n");
+		return 1;
+	}
+
+	if (rxfhindir_weight && rxfhindir_default) {
+		fprintf(stderr,
+			"Weight and default options are mutually exclusive\n");
 		return 1;
 	}
 
@@ -3378,8 +3426,8 @@ static int do_srxfh(struct cmd_context *ctx)
 	rss_head.cmd = ETHTOOL_GRSSH;
 	err = send_ioctl(ctx, &rss_head);
 	if (err < 0 && errno == EOPNOTSUPP && !rxfhindir_key) {
-		return do_srxfhindir(ctx, rxfhindir_equal, rxfhindir_weight,
-				     num_weights);
+		return do_srxfhindir(ctx, rxfhindir_default, rxfhindir_equal,
+				     rxfhindir_weight, num_weights);
 	} else if (err < 0) {
 		perror("Cannot get RX flow hash indir size and key size");
 		return 1;
@@ -3404,8 +3452,8 @@ static int do_srxfh(struct cmd_context *ctx)
 	rss->indir_size = rss_head.indir_size;
 	rss->key_size = rss_head.key_size;
 
-	if (fill_indir_table(&rss->indir_size, rss->rss_config, rxfhindir_equal,
-			     rxfhindir_weight, num_weights)) {
+	if (fill_indir_table(&rss->indir_size, rss->rss_config, rxfhindir_default,
+			     rxfhindir_equal, rxfhindir_weight, num_weights)) {
 		err = 1;
 		goto free;
 	}
@@ -4077,7 +4125,9 @@ static const struct option {
 	  "               [ TIME-IN-SECONDS ]\n" },
 	{ "-t|--test", 1, do_test, "Execute adapter self test",
 	  "               [ online | offline | external_lb ]\n" },
-	{ "-S|--statistics", 1, do_gstats, "Show adapter statistics" },
+	{ "-S|--statistics", 1, do_gnicstats, "Show adapter statistics" },
+	{ "--phy-statistics", 1, do_gphystats,
+	  "Show phy statistics" },
 	{ "-n|-u|--show-nfc|--show-ntuple", 1, do_grxclass,
 	  "Show Rx network flow classification options or rules",
 	  "		[ rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|"
