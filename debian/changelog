@@ -1,6 +1,7 @@
 ethtool (1:4.6-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * debian/control: Update policy version to 3.9.8; no changes required
 
  -- Ben Hutchings <ben@decadent.org.uk>  Thu, 30 Jun 2016 17:03:39 +0200
 
