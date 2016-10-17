@@ -113,7 +113,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "June 2016" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "October 2016" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -575,16 +575,32 @@ lB	l	lB.
 0x010	1000baseT Half	(not supported by IEEE standards)
 0x020	1000baseT Full
 0x20000	1000baseKX Full
+0x20000000000	1000baseX Full
 0x8000	2500baseX Full	(not supported by IEEE standards)
 0x1000	10000baseT Full
 0x40000	10000baseKX4 Full
 0x80000	10000baseKR Full
+0x40000000000	10000baseCR  Full
+0x80000000000	10000baseSR  Full
+0x100000000000	10000baseLR  Full
+0x200000000000	10000baseLRM Full
+0x400000000000	10000baseER  Full
 0x200000	20000baseMLD2 Full	(not supported by IEEE standards)
 0x400000	20000baseKR2 Full	(not supported by IEEE standards)
+0x80000000	25000baseCR Full
+0x100000000	25000baseKR Full
+0x200000000	25000baseSR Full
 0x800000	40000baseKR4 Full
 0x1000000	40000baseCR4 Full
 0x2000000	40000baseSR4 Full
 0x4000000	40000baseLR4 Full
+0x400000000	50000baseCR2 Full
+0x800000000	50000baseKR2 Full
+0x10000000000	50000baseSR2 Full
+0x1000000000	100000baseKR4 Full
+0x2000000000	100000baseSR4 Full
+0x4000000000	100000baseCR4 Full
+0x8000000000	100000baseLR4_ER4 Full
 .TE
 .TP
 .BI phyad \ N

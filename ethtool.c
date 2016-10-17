@@ -23,6 +23,7 @@
  * vmxnet3 support by Shrikrishna Khare <skhare@vmware.com>
  * Various features by Ben Hutchings <ben@decadent.org.uk>;
  *	Copyright 2008-2010, 2013-2016 Ben Hutchings
+ * QSFP+/QSFP28 DOM support by Vidya Sagar Ravipati <vidya@cumulusnetworks.com>
  *
  * TODO:
  *   * show settings for all devices
@@ -512,6 +513,22 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT,
 		ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT,
 		ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
+		ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+		ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+		ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
 	};
 	static const enum ethtool_link_mode_bit_indices
 		additional_advertised_flags_bits[] = {
@@ -632,6 +649,38 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "56000baseSR4/Full" },
 		{ 0, ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
 		  "56000baseLR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+		  "25000baseCR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+		  "25000baseKR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+		  "25000baseSR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+		  "50000baseCR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+		  "50000baseKR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+		  "100000baseKR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+		  "100000baseSR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+		  "100000baseCR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+		  "100000baseLR4_ER4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+		  "50000baseSR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+		  "1000baseX/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+		  "10000baseCR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+		  "10000baseSR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+		  "10000baseLR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+		  "10000baseLRM/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+		  "10000baseER/Full" },
 	};
 	int indent;
 	int did1, new_line_pend, i;
@@ -1666,8 +1715,10 @@ static struct feature_defs *get_feature_defs(struct cmd_context *ctx)
 	}
 
 	defs = malloc(sizeof(*defs) + sizeof(defs->def[0]) * n_features);
-	if (!defs)
+	if (!defs) {
+		free(names);
 		return NULL;
+	}
 
 	defs->n_features = n_features;
 	memset(defs->off_flag_matched, 0, sizeof(defs->off_flag_matched));
@@ -2184,10 +2235,13 @@ static int do_gfeatures(struct cmd_context *ctx)
 	features = get_features(ctx, defs);
 	if (!features) {
 		fprintf(stdout, "no feature info available\n");
+		free(defs);
 		return 1;
 	}
 
 	dump_features(defs, features, NULL);
+	free(features);
+	free(defs);
 	return 0;
 }
 
@@ -2201,7 +2255,7 @@ static int do_sfeatures(struct cmd_context *ctx)
 	struct cmdline_info *cmdline_features;
 	struct feature_state *old_state, *new_state;
 	struct ethtool_value eval;
-	int err;
+	int err, rc;
 	int i, j;
 
 	defs = get_feature_defs(ctx);
@@ -2215,7 +2269,8 @@ static int do_sfeatures(struct cmd_context *ctx)
 				   sizeof(efeatures->features[0]));
 		if (!efeatures) {
 			perror("Cannot parse arguments");
-			return 1;
+			rc = 1;
+			goto err;
 		}
 		efeatures->cmd = ETHTOOL_SFEATURES;
 		efeatures->size = FEATURE_BITS_TO_BLOCKS(defs->n_features);
@@ -2233,7 +2288,8 @@ static int do_sfeatures(struct cmd_context *ctx)
 				  sizeof(cmdline_features[0]));
 	if (!cmdline_features) {
 		perror("Cannot parse arguments");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 	for (i = 0; i < ARRAY_SIZE(off_flag_def); i++)
 		flag_to_cmdline_info(off_flag_def[i].short_name,
@@ -2252,12 +2308,15 @@ static int do_sfeatures(struct cmd_context *ctx)
 
 	if (!any_changed) {
 		fprintf(stdout, "no features changed\n");
-		return 0;
+		rc = 0;
+		goto err;
 	}
 
 	old_state = get_features(ctx, defs);
-	if (!old_state)
-		return 1;
+	if (!old_state) {
+		rc = 1;
+		goto err;
+	}
 
 	if (efeatures) {
 		/* For each offload that the user specified, update any
@@ -2301,7 +2360,8 @@ static int do_sfeatures(struct cmd_context *ctx)
 		err = send_ioctl(ctx, efeatures);
 		if (err < 0) {
 			perror("Cannot set device feature settings");
-			return 1;
+			rc = 1;
+			goto err;
 		}
 	} else {
 		for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
@@ -2316,7 +2376,8 @@ static int do_sfeatures(struct cmd_context *ctx)
 					fprintf(stderr,
 						"Cannot set device %s settings: %m\n",
 						off_flag_def[i].long_name);
-					return 1;
+					rc = 1;
+					goto err;
 				}
 			}
 		}
@@ -2330,15 +2391,18 @@ static int do_sfeatures(struct cmd_context *ctx)
 			err = send_ioctl(ctx, &eval);
 			if (err) {
 				perror("Cannot set device flag settings");
-				return 92;
+				rc = 92;
+				goto err;
 			}
 		}
 	}
 
 	/* Compare new state with requested state */
 	new_state = get_features(ctx, defs);
-	if (!new_state)
-		return 1;
+	if (!new_state) {
+		rc = 1;
+		goto err;
+	}
 	any_changed = new_state->off_flags != old_state->off_flags;
 	any_mismatch = (new_state->off_flags !=
 			((old_state->off_flags & ~off_flags_mask) |
@@ -2357,13 +2421,20 @@ static int do_sfeatures(struct cmd_context *ctx)
 		if (!any_changed) {
 			fprintf(stderr,
 				"Could not change any device features\n");
-			return 1;
+			rc = 1;
+			goto err;
 		}
 		printf("Actual changes:\n");
 		dump_features(defs, new_state, old_state);
 	}
 
-	return 0;
+	rc = 0;
+
+err:
+	free(defs);
+	if (efeatures)
+		free(efeatures);
+	return rc;
 }
 
 static struct ethtool_link_usettings *
@@ -3892,6 +3963,11 @@ static int do_permaddr(struct cmd_context *ctx)
 	struct ethtool_perm_addr *epaddr;
 
 	epaddr = malloc(sizeof(struct ethtool_perm_addr) + MAX_ADDR_LEN);
+	if (!epaddr) {
+		perror("Cannot allocate memory for operation");
+		return 1;
+	}
+
 	epaddr->cmd = ETHTOOL_GPERMADDR;
 	epaddr->size = MAX_ADDR_LEN;
 
@@ -4151,7 +4227,7 @@ static int do_gprivflags(struct cmd_context *ctx)
 	struct ethtool_gstrings *strings;
 	struct ethtool_value flags;
 	unsigned int i;
-	int max_len = 0, cur_len;
+	int max_len = 0, cur_len, rc;
 
 	if (ctx->argc != 0)
 		exit_bad_args();
@@ -4165,7 +4241,8 @@ static int do_gprivflags(struct cmd_context *ctx)
 	}
 	if (strings->len == 0) {
 		fprintf(stderr, "No private flags defined\n");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 	if (strings->len > 32) {
 		/* ETHTOOL_GPFLAGS can only cover 32 flags */
@@ -4176,7 +4253,8 @@ static int do_gprivflags(struct cmd_context *ctx)
 	flags.cmd = ETHTOOL_GPFLAGS;
 	if (send_ioctl(ctx, &flags)) {
 		perror("Cannot get private flags");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 
 	/* Find longest string and align all strings accordingly */
@@ -4194,7 +4272,11 @@ static int do_gprivflags(struct cmd_context *ctx)
 		       (const char *)strings->data + i * ETH_GSTRING_LEN,
 		       (flags.data & (1U << i)) ? "on" : "off");
 
-	return 0;
+	rc = 0;
+
+err:
+	free(strings);
+	return rc;
 }
 
 static int do_sprivflags(struct cmd_context *ctx)
@@ -4203,7 +4285,7 @@ static int do_sprivflags(struct cmd_context *ctx)
 	struct cmdline_info *cmdline;
 	struct ethtool_value flags;
 	u32 wanted_flags = 0, seen_flags = 0;
-	int any_changed;
+	int any_changed, rc;
 	unsigned int i;
 
 	strings = get_stringset(ctx, ETH_SS_PRIV_FLAGS,
@@ -4215,7 +4297,8 @@ static int do_sprivflags(struct cmd_context *ctx)
 	}
 	if (strings->len == 0) {
 		fprintf(stderr, "No private flags defined\n");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 	if (strings->len > 32) {
 		/* ETHTOOL_{G,S}PFLAGS can only cover 32 flags */
@@ -4226,7 +4309,8 @@ static int do_sprivflags(struct cmd_context *ctx)
 	cmdline = calloc(strings->len, sizeof(*cmdline));
 	if (!cmdline) {
 		perror("Cannot parse arguments");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 	for (i = 0; i < strings->len; i++) {
 		cmdline[i].name = ((const char *)strings->data +
@@ -4242,17 +4326,22 @@ static int do_sprivflags(struct cmd_context *ctx)
 	flags.cmd = ETHTOOL_GPFLAGS;
 	if (send_ioctl(ctx, &flags)) {
 		perror("Cannot get private flags");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 
 	flags.cmd = ETHTOOL_SPFLAGS;
 	flags.data = (flags.data & ~seen_flags) | wanted_flags;
 	if (send_ioctl(ctx, &flags)) {
 		perror("Cannot set private flags");
-		return 1;
+		rc = 1;
+		goto err;
 	}
 
-	return 0;
+	rc = 0;
+err:
+	free(strings);
+	return rc;
 }
 
 static int do_tsinfo(struct cmd_context *ctx)
@@ -4352,6 +4441,11 @@ static int do_getmodule(struct cmd_context *ctx)
 			case ETH_MODULE_SFF_8472:
 				sff8079_show_all(eeprom->data);
 				sff8472_show_all(eeprom->data);
+				break;
+			case ETH_MODULE_SFF_8436:
+			case ETH_MODULE_SFF_8636:
+				sff8636_show_all(eeprom->data,
+						 modinfo.eeprom_len);
 				break;
 #endif
 			default:
