@@ -1,6 +1,7 @@
 ethtool (1:4.8-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * debian/watch: Change to use HTTP-S URL
 
  -- Ben Hutchings <ben@decadent.org.uk>  Mon, 17 Oct 2016 03:23:48 +0100
 
