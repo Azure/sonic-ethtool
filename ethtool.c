@@ -529,6 +529,8 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+		ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
 	};
 	static const enum ethtool_link_mode_bit_indices
 		additional_advertised_flags_bits[] = {
@@ -681,6 +683,10 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "10000baseLRM/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
 		  "10000baseER/Full" },
+                { 0, ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+                  "2500baseT/Full" },
+                { 0, ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+                  "5000baseT/Full" },
 	};
 	int indent;
 	int did1, new_line_pend, i;
@@ -1136,6 +1142,7 @@ static const struct {
 	{ "et131x", et131x_dump_regs },
 	{ "altera_tse", altera_tse_dump_regs },
 	{ "vmxnet3", vmxnet3_dump_regs },
+	{ "fjes", fjes_dump_regs },
 #endif
 };
 
@@ -2971,7 +2978,8 @@ static int do_sset(struct cmd_context *ctx)
 				fprintf(stderr,	"\n");
 			}
 			if (autoneg_wanted == AUTONEG_ENABLE &&
-			    advertising_wanted == NULL) {
+			    advertising_wanted == NULL &&
+			    full_advertising_wanted == NULL) {
 				unsigned int i;
 
 				/* Auto negotiation enabled, but with
@@ -3638,6 +3646,7 @@ static int do_grxfhindir(struct cmd_context *ctx,
 
 static int do_grxfh(struct cmd_context *ctx)
 {
+	struct ethtool_gstrings *hfuncs = NULL;
 	struct ethtool_rxfh rss_head = {0};
 	struct ethtool_rxnfc ring_count;
 	struct ethtool_rxfh *rss;
@@ -3695,6 +3704,26 @@ static int do_grxfh(struct cmd_context *ctx)
 			printf("%02x:", (u8) hkey[i]);
 	}
 
+	printf("RSS hash function:\n");
+	if (!rss->hfunc) {
+		printf("    Operation not supported\n");
+		goto out;
+	}
+
+	hfuncs = get_stringset(ctx, ETH_SS_RSS_HASH_FUNCS, 0, 1);
+	if (!hfuncs) {
+		perror("Cannot get hash functions names");
+		free(rss);
+		return 1;
+	}
+
+	for (i = 0; i < hfuncs->len; i++)
+		printf("    %s: %s\n",
+		       (const char *)hfuncs->data + i * ETH_GSTRING_LEN,
+		       (rss->hfunc & (1 << i)) ? "on" : "off");
+
+out:
+	free(hfuncs);
 	free(rss);
 	return 0;
 }
@@ -3798,11 +3827,16 @@ static int do_srxfh(struct cmd_context *ctx)
 	struct ethtool_rxfh *rss;
 	struct ethtool_rxnfc ring_count;
 	int rxfhindir_equal = 0, rxfhindir_default = 0;
+	struct ethtool_gstrings *hfuncs = NULL;
 	char **rxfhindir_weight = NULL;
 	char *rxfhindir_key = NULL;
+	char *req_hfunc_name = NULL;
+	char *hfunc_name = NULL;
 	char *hkey = NULL;
 	int err = 0;
+	int i;
 	u32 arg_num = 0, indir_bytes = 0;
+	u32 req_hfunc = 0;
 	u32 entry_size = sizeof(rss_head.rss_config[0]);
 	u32 num_weights = 0;
 
@@ -3834,6 +3868,12 @@ static int do_srxfh(struct cmd_context *ctx)
 		} else if (!strcmp(ctx->argp[arg_num], "default")) {
 			++arg_num;
 			rxfhindir_default = 1;
+		} else if (!strcmp(ctx->argp[arg_num], "hfunc")) {
+			++arg_num;
+			req_hfunc_name = ctx->argp[arg_num];
+			if (!req_hfunc_name)
+				exit_bad_args();
+			++arg_num;
 		} else {
 			exit_bad_args();
 		}
@@ -3866,7 +3906,8 @@ static int do_srxfh(struct cmd_context *ctx)
 
 	rss_head.cmd = ETHTOOL_GRSSH;
 	err = send_ioctl(ctx, &rss_head);
-	if (err < 0 && errno == EOPNOTSUPP && !rxfhindir_key) {
+	if (err < 0 && errno == EOPNOTSUPP && !rxfhindir_key &&
+	    !req_hfunc_name) {
 		return do_srxfhindir(ctx, rxfhindir_default, rxfhindir_equal,
 				     rxfhindir_weight, num_weights);
 	} else if (err < 0) {
@@ -3884,14 +3925,39 @@ static int do_srxfh(struct cmd_context *ctx)
 	if (rxfhindir_equal || rxfhindir_weight)
 		indir_bytes = rss_head.indir_size * entry_size;
 
+	if (rss_head.hfunc && req_hfunc_name) {
+		hfuncs = get_stringset(ctx, ETH_SS_RSS_HASH_FUNCS, 0, 1);
+		if (!hfuncs) {
+			perror("Cannot get hash functions names");
+			return 1;
+		}
+
+		for (i = 0; i < hfuncs->len && !req_hfunc ; i++) {
+			hfunc_name = (char *)(hfuncs->data +
+					      i * ETH_GSTRING_LEN);
+			if (!strncmp(hfunc_name, req_hfunc_name,
+				     ETH_GSTRING_LEN))
+				req_hfunc = (u32)1 << i;
+		}
+
+		if (!req_hfunc) {
+			fprintf(stderr,
+				"Unknown hash function: %s\n", req_hfunc_name);
+			free(hfuncs);
+			return 1;
+		}
+	}
+
 	rss = calloc(1, sizeof(*rss) + indir_bytes + rss_head.key_size);
 	if (!rss) {
 		perror("Cannot allocate memory for RX flow hash config");
-		return 1;
+		err = 1;
+		goto free;
 	}
 	rss->cmd = ETHTOOL_SRSSH;
 	rss->indir_size = rss_head.indir_size;
 	rss->key_size = rss_head.key_size;
+	rss->hfunc = req_hfunc;
 
 	if (fill_indir_table(&rss->indir_size, rss->rss_config, rxfhindir_default,
 			     rxfhindir_equal, rxfhindir_weight, num_weights)) {
@@ -3916,6 +3982,7 @@ free:
 		free(hkey);
 
 	free(rss);
+	free(hfuncs);
 	return err;
 }
 
@@ -4520,6 +4587,146 @@ static int do_seee(struct cmd_context *ctx)
 	return 0;
 }
 
+static int do_get_phy_tunable(struct cmd_context *ctx)
+{
+	int argc = ctx->argc;
+	char **argp = ctx->argp;
+	int err, i;
+	u8 downshift_changed = 0;
+
+	if (argc < 1)
+		exit_bad_args();
+	for (i = 0; i < argc; i++) {
+		if (!strcmp(argp[i], "downshift")) {
+			downshift_changed = 1;
+			i += 1;
+			if (i < argc)
+				exit_bad_args();
+		} else  {
+			exit_bad_args();
+		}
+	}
+
+	if (downshift_changed) {
+		struct ethtool_tunable ds;
+		u8 count = 0;
+
+		ds.cmd = ETHTOOL_PHY_GTUNABLE;
+		ds.id = ETHTOOL_PHY_DOWNSHIFT;
+		ds.type_id = ETHTOOL_TUNABLE_U8;
+		ds.len = 1;
+		ds.data[0] = &count;
+		err = send_ioctl(ctx, &ds);
+		if (err < 0) {
+			perror("Cannot Get PHY downshift count");
+			return 87;
+		}
+		count = *((u8 *)&ds.data[0]);
+		if (count)
+			fprintf(stdout, "Downshift count: %d\n", count);
+		else
+			fprintf(stdout, "Downshift disabled\n");
+	}
+
+	return err;
+}
+
+static int parse_named_bool(struct cmd_context *ctx, const char *name, u8 *on)
+{
+	if (ctx->argc < 2)
+		return 0;
+
+	if (strcmp(*ctx->argp, name))
+		return 0;
+
+	if (!strcmp(*(ctx->argp + 1), "on")) {
+		*on = 1;
+	} else if (!strcmp(*(ctx->argp + 1), "off")) {
+		*on = 0;
+	} else {
+		fprintf(stderr, "Invalid boolean\n");
+		exit_bad_args();
+	}
+
+	ctx->argc -= 2;
+	ctx->argp += 2;
+
+	return 1;
+}
+
+static int parse_named_u8(struct cmd_context *ctx, const char *name, u8 *val)
+{
+	if (ctx->argc < 2)
+		return 0;
+
+	if (strcmp(*ctx->argp, name))
+		return 0;
+
+	*val = get_uint_range(*(ctx->argp + 1), 0, 0xff);
+
+	ctx->argc -= 2;
+	ctx->argp += 2;
+
+	return 1;
+}
+
+static int do_set_phy_tunable(struct cmd_context *ctx)
+{
+	int err = 0;
+	u8 ds_cnt = DOWNSHIFT_DEV_DEFAULT_COUNT;
+	u8 ds_changed = 0, ds_has_cnt = 0, ds_enable = 0;
+
+	if (ctx->argc == 0)
+		exit_bad_args();
+
+	/* Parse arguments */
+	while (ctx->argc) {
+		if (parse_named_bool(ctx, "downshift", &ds_enable)) {
+			ds_changed = 1;
+			ds_has_cnt = parse_named_u8(ctx, "count", &ds_cnt);
+		} else {
+			exit_bad_args();
+		}
+	}
+
+	/* Validate parameters */
+	if (ds_changed) {
+		if (!ds_enable && ds_has_cnt) {
+			fprintf(stderr, "'count' may not be set when downshift "
+				        "is off.\n");
+			exit_bad_args();
+		}
+
+		if (ds_enable && ds_has_cnt && ds_cnt == 0) {
+			fprintf(stderr, "'count' may not be zero.\n");
+			exit_bad_args();
+		}
+
+		if (!ds_enable)
+			ds_cnt = DOWNSHIFT_DEV_DISABLE;
+	}
+
+	/* Do it */
+	if (ds_changed) {
+		struct ethtool_tunable ds;
+		u8 count;
+
+		ds.cmd = ETHTOOL_PHY_STUNABLE;
+		ds.id = ETHTOOL_PHY_DOWNSHIFT;
+		ds.type_id = ETHTOOL_TUNABLE_U8;
+		ds.len = 1;
+		ds.data[0] = &count;
+		*((u8 *)&ds.data[0]) = ds_cnt;
+		err = send_ioctl(ctx, &ds);
+		if (err < 0) {
+			perror("Cannot Set PHY downshift count");
+			err = 87;
+		}
+	}
+
+	return err;
+}
+
 #ifndef TEST_ETHTOOL
 int send_ioctl(struct cmd_context *ctx, void *cmd)
 {
@@ -4644,11 +4851,12 @@ static const struct option {
 	{ "-T|--show-time-stamping", 1, do_tsinfo,
 	  "Show time stamping capabilities" },
 	{ "-x|--show-rxfh-indir|--show-rxfh", 1, do_grxfh,
-	  "Show Rx flow hash indirection and/or hash key" },
+	  "Show Rx flow hash indirection table and/or RSS hash key" },
 	{ "-X|--set-rxfh-indir|--rxfh", 1, do_srxfh,
-	  "Set Rx flow hash indirection and/or hash key",
-	  "		[ equal N | weight W0 W1 ... ]\n"
-	  "		[ hkey %x:%x:%x:%x:%x:.... ]\n" },
+	  "Set Rx flow hash indirection table and/or RSS hash key",
+	  "		[ equal N | weight W0 W1 ... | default ]\n"
+	  "		[ hkey %x:%x:%x:%x:%x:.... ]\n"
+	  "		[ hfunc FUNC ]\n" },
 	{ "-f|--flash", 1, do_flash,
 	  "Flash firmware image from the specified file to a region on the device",
 	  "               FILENAME [ REGION-NUMBER-TO-FLASH ]\n" },
@@ -4681,6 +4889,10 @@ static const struct option {
 	  "		[ advertise %x ]\n"
 	  "		[ tx-lpi on|off ]\n"
 	  "		[ tx-timer %d ]\n"},
+	{ "--set-phy-tunable", 1, do_set_phy_tunable, "Set PHY tunable",
+	  "		[ downshift on|off [count N] ]\n"},
+	{ "--get-phy-tunable", 1, do_get_phy_tunable, "Get PHY tunable",
+	  "		[ downshift ]\n"},
 	{ "-h|--help", 0, show_usage, "Show this help" },
 	{ "--version", 0, do_version, "Show version number" },
 	{}

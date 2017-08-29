@@ -113,7 +113,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "October 2016" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "June 2017" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -301,6 +301,8 @@ ethtool \- query or control network driver and hardware settings
 .BI weight\  W0
 .IR W1
 .RB ...\ | \ default \ ]
+.RB [ hfunc
+.IR FUNC ]
 .HP
 .B ethtool \-f|\-\-flash
 .I devname file
@@ -340,6 +342,18 @@ ethtool \- query or control network driver and hardware settings
 .B2 tx-lpi on off
 .BN tx-timer
 .BN advertise
+.HP
+.B ethtool \-\-set\-phy\-tunable
+.I devname
+.RB [
+.B downshift
+.A1 on off
+.BN count
+.RB ]
+.HP
+.B ethtool \-\-get\-phy\-tunable
+.I devname
+.RB [ downshift ]
 .
 .\" Adjust lines (i.e. full justification) and hyphenate.
 .ad
@@ -576,7 +590,9 @@ lB	l	lB.
 0x020	1000baseT Full
 0x20000	1000baseKX Full
 0x20000000000	1000baseX Full
-0x8000	2500baseX Full	(not supported by IEEE standards)
+0x800000000000  2500baseT Full
+0x8000	2500baseX Full	(not supported by IEEE standards)'
+0x1000000000000  5000baseT Full
 0x1000	10000baseT Full
 0x40000	10000baseKX4 Full
 0x80000	10000baseKR Full
@@ -817,6 +833,13 @@ lB	l.
 0 or higher	Rx queue to route the flow
 .TE
 .TP
+.BI vf \ N
+Specifies the Virtual Function the filter applies to. A value of 0 indicates
+the PF, and thus the VF index is offset by 1. Not compatible with action.
+.TP
+.BI queue \ N
+Specifies the Rx queue to send packets to. Not compatible with action.
+.TP
 .BI loc \ N
 Specify the location/ID to insert the rule. This will overwrite
 any rule present in that location and will not go through any
@@ -852,6 +875,10 @@ Configures the receive flow hash indirection table and/or RSS hash key.
 Sets RSS hash key of the specified network device. RSS hash key should be of device supported length.
 Hash key format must be in xx:yy:zz:aa:bb:cc format meaning both the nibbles of a byte should be mentioned
 even if a nibble is zero.
+.TP
+.BI hfunc
+Sets RSS hash function of the specified network device.
+List of RSS hash functions which kernel supports is shown as a part of the --show-rxfh command output.
 .TP
 .BI equal\  N
 Sets the receive flow hash indirection table to spread flows evenly
@@ -946,6 +973,34 @@ Values are as for
 .BI tx-timer \ N
 Sets the amount of time the device should stay in idle mode prior to asserting
 its Tx LPI (in microseconds). This has meaning only when Tx LPI is enabled.
+.RE
+.TP
+.B \-\-set\-phy\-tunable
+Sets the PHY tunable parameters.
+.RS 4
+.TP
+.A2 downshift on off
+Specifies whether downshift should be enabled
+.TS
+nokeep;
+lB	l.
+.BI count \ N
+Sets the PHY downshift re-tries count.
+.TE
+.PD
+.RE
+.TP
+.B \-\-get\-phy\-tunable
+Gets the PHY tunable parameters.
+.RS 4
+.TP
+.B downshift
+For operation in cabling environments that are incompatible with 1000BASE-T,
+PHY device provides an automatic link speed downshift operation.
+Link speed downshift after N failed 1000BASE-T auto-negotiation attempts.
+Downshift is useful where cable does not have the 4 pairs instance.
+
+Gets the PHY downshift count/status.
 .RE
 .SH BUGS
 Not supported (in part or whole) on all network drivers.
