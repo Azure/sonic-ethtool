@@ -1,11 +1,11 @@
-ethtool (1:4.11-1) UNRELEASED; urgency=medium
+ethtool (1:4.11-1) unstable; urgency=medium
 
   * New upstream release:
     - ethtool: Fix the "advertise" parameter logic. (Closes: #873565)
   * debian/copyright: Update to machine-readable format version 1.0
   * debian/control: Update Standards-Version to 4.0.1; no changes needed
 
- -- Ben Hutchings <ben@decadent.org.uk>  Tue, 29 Aug 2017 23:41:33 +0100
+ -- Ben Hutchings <ben@decadent.org.uk>  Tue, 29 Aug 2017 23:53:50 +0100
 
 ethtool (1:4.8-1) unstable; urgency=medium
 
