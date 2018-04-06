@@ -235,7 +235,7 @@ get_uint_range(char *str, int base, unsigned long long max)
 		exit_bad_args();
 	errno = 0;
 	v = strtoull(str, &endp, base);
-	if ( errno || *endp || v > max)
+	if (errno || *endp || v > max)
 		exit_bad_args();
 	return v;
 }
@@ -261,9 +261,8 @@ static void get_mac_addr(char *src, unsigned char *dest)
 	if (count != ETH_ALEN)
 		exit_bad_args();
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
 		dest[i] = buf[i];
-	}
 }
 
 static int parse_hex_u32_bitmap(const char *s,
@@ -408,7 +407,7 @@ static void parse_generic_cmdline(struct cmd_context *ctx,
 				break;
 			}
 		}
-		if( !found)
+		if (!found)
 			exit_bad_args();
 	}
 }
@@ -543,6 +542,9 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_Pause_BIT,
 		ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 		ETHTOOL_LINK_MODE_Backplane_BIT,
+		ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+		ETHTOOL_LINK_MODE_FEC_RS_BIT,
+		ETHTOOL_LINK_MODE_FEC_BASER_BIT,
 	};
 	unsigned int i;
 
@@ -683,13 +685,14 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "10000baseLRM/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
 		  "10000baseER/Full" },
-                { 0, ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-                  "2500baseT/Full" },
-                { 0, ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-                  "5000baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+		  "2500baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+		  "5000baseT/Full" },
 	};
 	int indent;
 	int did1, new_line_pend, i;
+	int fecreported = 0;
 
 	/* Indent just like the separate functions used to */
 	indent = strlen(prefix) + 14;
@@ -715,7 +718,7 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		}
 	}
 	if (did1 == 0)
-		 fprintf(stdout, "Not reported");
+		fprintf(stdout, "Not reported");
 	fprintf(stdout, "\n");
 
 	if (!link_mode_only) {
@@ -741,6 +744,26 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 			fprintf(stdout, "Yes\n");
 		else
 			fprintf(stdout, "No\n");
+
+		fprintf(stdout, "	%s FEC modes:", prefix);
+		if (ethtool_link_mode_test_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+					       mask)) {
+			fprintf(stdout, " None");
+			fecreported = 1;
+		}
+		if (ethtool_link_mode_test_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+					       mask)) {
+			fprintf(stdout, " BaseR");
+			fecreported = 1;
+		}
+		if (ethtool_link_mode_test_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+					       mask)) {
+			fprintf(stdout, " RS");
+			fecreported = 1;
+		}
+		if (!fecreported)
+			fprintf(stdout, " Not reported");
+		fprintf(stdout, "\n");
 	}
 }
 
@@ -887,32 +910,32 @@ static int parse_wolopts(char *optstr, u32 *data)
 	*data = 0;
 	while (*optstr) {
 		switch (*optstr) {
-			case 'p':
-				*data |= WAKE_PHY;
-				break;
-			case 'u':
-				*data |= WAKE_UCAST;
-				break;
-			case 'm':
-				*data |= WAKE_MCAST;
-				break;
-			case 'b':
-				*data |= WAKE_BCAST;
-				break;
-			case 'a':
-				*data |= WAKE_ARP;
-				break;
-			case 'g':
-				*data |= WAKE_MAGIC;
-				break;
-			case 's':
-				*data |= WAKE_MAGICSECURE;
-				break;
-			case 'd':
-				*data = 0;
-				break;
-			default:
-				return -1;
+		case 'p':
+			*data |= WAKE_PHY;
+			break;
+		case 'u':
+			*data |= WAKE_UCAST;
+			break;
+		case 'm':
+			*data |= WAKE_MCAST;
+			break;
+		case 'b':
+			*data |= WAKE_BCAST;
+			break;
+		case 'a':
+			*data |= WAKE_ARP;
+			break;
+		case 'g':
+			*data |= WAKE_MAGIC;
+			break;
+		case 's':
+			*data |= WAKE_MAGICSECURE;
+			break;
+		case 'd':
+			*data = 0;
+			break;
+		default:
+			return -1;
 		}
 		optstr++;
 	}
@@ -957,10 +980,11 @@ static int dump_wol(struct ethtool_wolinfo *wol)
 	if (wol->supported & WAKE_MAGICSECURE) {
 		int i;
 		int delim = 0;
+
 		fprintf(stdout, "        SecureOn password: ");
 		for (i = 0; i < SOPASS_MAX; i++) {
 			fprintf(stdout, "%s%02x", delim?":":"", wol->sopass[i]);
-			delim=1;
+			delim = 1;
 		}
 		fprintf(stdout, "\n");
 	}
@@ -973,32 +997,32 @@ static int parse_rxfhashopts(char *optstr, u32 *data)
 	*data = 0;
 	while (*optstr) {
 		switch (*optstr) {
-			case 'm':
-				*data |= RXH_L2DA;
-				break;
-			case 'v':
-				*data |= RXH_VLAN;
-				break;
-			case 't':
-				*data |= RXH_L3_PROTO;
-				break;
-			case 's':
-				*data |= RXH_IP_SRC;
-				break;
-			case 'd':
-				*data |= RXH_IP_DST;
-				break;
-			case 'f':
-				*data |= RXH_L4_B_0_1;
-				break;
-			case 'n':
-				*data |= RXH_L4_B_2_3;
-				break;
-			case 'r':
-				*data |= RXH_DISCARD;
-				break;
-			default:
-				return -1;
+		case 'm':
+			*data |= RXH_L2DA;
+			break;
+		case 'v':
+			*data |= RXH_VLAN;
+			break;
+		case 't':
+			*data |= RXH_L3_PROTO;
+			break;
+		case 's':
+			*data |= RXH_IP_SRC;
+			break;
+		case 'd':
+			*data |= RXH_IP_DST;
+			break;
+		case 'f':
+			*data |= RXH_L4_B_0_1;
+			break;
+		case 'n':
+			*data |= RXH_L4_B_2_3;
+			break;
+		case 'r':
+			*data |= RXH_DISCARD;
+			break;
+		default:
+			return -1;
 		}
 		optstr++;
 	}
@@ -1012,27 +1036,20 @@ static char *unparse_rxfhashopts(u64 opts)
 	memset(buf, 0, sizeof(buf));
 
 	if (opts) {
-		if (opts & RXH_L2DA) {
+		if (opts & RXH_L2DA)
 			strcat(buf, "L2DA\n");
-		}
-		if (opts & RXH_VLAN) {
+		if (opts & RXH_VLAN)
 			strcat(buf, "VLAN tag\n");
-		}
-		if (opts & RXH_L3_PROTO) {
+		if (opts & RXH_L3_PROTO)
 			strcat(buf, "L3 proto\n");
-		}
-		if (opts & RXH_IP_SRC) {
+		if (opts & RXH_IP_SRC)
 			strcat(buf, "IP SA\n");
-		}
-		if (opts & RXH_IP_DST) {
+		if (opts & RXH_IP_DST)
 			strcat(buf, "IP DA\n");
-		}
-		if (opts & RXH_L4_B_0_1) {
+		if (opts & RXH_L4_B_0_1)
 			strcat(buf, "L4 bytes 0 & 1 [TCP/UDP src port]\n");
-		}
-		if (opts & RXH_L4_B_2_3) {
+		if (opts & RXH_L4_B_2_3)
 			strcat(buf, "L4 bytes 2 & 3 [TCP/UDP dst port]\n");
-		}
 	} else {
 		sprintf(buf, "None");
 	}
@@ -1133,10 +1150,10 @@ static const struct {
 	{ "tg3", tg3_dump_regs },
 	{ "skge", skge_dump_regs },
 	{ "sky2", sky2_dump_regs },
-        { "vioc", vioc_dump_regs },
-        { "smsc911x", smsc911x_dump_regs },
-        { "at76c50x-usb", at76c50x_usb_dump_regs },
-        { "sfc", sfc_dump_regs },
+	{ "vioc", vioc_dump_regs },
+	{ "smsc911x", smsc911x_dump_regs },
+	{ "at76c50x-usb", at76c50x_usb_dump_regs },
+	{ "sfc", sfc_dump_regs },
 	{ "st_mac100", st_mac100_dump_regs },
 	{ "st_gmac", st_gmac_dump_regs },
 	{ "et131x", et131x_dump_regs },
@@ -1569,6 +1586,20 @@ static void dump_eeecmd(struct ethtool_eee *ep)
 	dump_link_caps("Link partner advertised EEE", "", link_mode, 1);
 }
 
+static void dump_fec(u32 fec)
+{
+	if (fec & ETHTOOL_FEC_NONE)
+		fprintf(stdout, " None");
+	if (fec & ETHTOOL_FEC_AUTO)
+		fprintf(stdout, " Auto");
+	if (fec & ETHTOOL_FEC_OFF)
+		fprintf(stdout, " Off");
+	if (fec & ETHTOOL_FEC_BASER)
+		fprintf(stdout, " BaseR");
+	if (fec & ETHTOOL_FEC_RS)
+		fprintf(stdout, " RS");
+}
+
 #define N_SOTS 7
 
 static char *so_timestamping_labels[N_SOTS] = {
@@ -1589,7 +1620,7 @@ static char *tx_type_labels[N_TX_TYPES] = {
 	"one-step-sync         (HWTSTAMP_TX_ONESTEP_SYNC)",
 };
 
-#define N_RX_FILTERS (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ + 1)
+#define N_RX_FILTERS (HWTSTAMP_FILTER_NTP_ALL + 1)
 
 static char *rx_filter_labels[N_RX_FILTERS] = {
 	"none                  (HWTSTAMP_FILTER_NONE)",
@@ -1607,6 +1638,7 @@ static char *rx_filter_labels[N_RX_FILTERS] = {
 	"ptpv2-event           (HWTSTAMP_FILTER_PTP_V2_EVENT)",
 	"ptpv2-sync            (HWTSTAMP_FILTER_PTP_V2_SYNC)",
 	"ptpv2-delay-req       (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ)",
+	"ntp-all               (HWTSTAMP_FILTER_NTP_ALL)",
 };
 
 static int dump_tsinfo(const struct ethtool_ts_info *info)
@@ -1994,12 +2026,12 @@ static int do_schannels(struct cmd_context *ctx)
 			&changed);
 
 	if (!changed) {
-		fprintf(stderr, "no channel parameters changed, aborting\n");
-		fprintf(stderr, "current values: tx %u rx %u other %u"
+		fprintf(stderr, "no channel parameters changed.\n");
+		fprintf(stderr, "current values: rx %u tx %u other %u"
 			" combined %u\n", echannels.rx_count,
 			echannels.tx_count, echannels.other_count,
 			echannels.combined_count);
-		return 1;
+		return 0;
 	}
 
 	echannels.cmd = ETHTOOL_SCHANNELS;
@@ -2186,6 +2218,10 @@ get_features(struct cmd_context *ctx, const struct feature_defs *defs)
 		eval.cmd = off_flag_def[i].get_cmd;
 		err = send_ioctl(ctx, &eval);
 		if (err) {
+			if (errno == EOPNOTSUPP &&
+			    off_flag_def[i].get_cmd == ETHTOOL_GUFO)
+				continue;
+
 			fprintf(stderr,
 				"Cannot get device %s settings: %m\n",
 				off_flag_def[i].long_name);
@@ -2762,7 +2798,7 @@ static int do_sset(struct cmd_context *ctx)
 			i += 1;
 			if (i >= argc)
 				exit_bad_args();
-			speed_wanted = get_int(argp[i],10);
+			speed_wanted = get_int(argp[i], 10);
 		} else if (!strcmp(argp[i], "duplex")) {
 			gset_changed = 1;
 			i += 1;
@@ -2973,7 +3009,7 @@ static int do_sset(struct cmd_context *ctx)
 						speed_wanted);
 				if (duplex_wanted >= 0)
 					fprintf(stderr, " duplex %s",
-						duplex_wanted ? 
+						duplex_wanted ?
 						"full" : "half");
 				fprintf(stderr,	"\n");
 			}
@@ -3058,14 +3094,12 @@ static int do_sset(struct cmd_context *ctx)
 			perror("Cannot get current wake-on-lan settings");
 		} else {
 			/* Change everything the user specified. */
-			if (wol_change) {
+			if (wol_change)
 				wol.wolopts = wol_wanted;
-			}
 			if (sopass_change) {
 				int i;
-				for (i = 0; i < SOPASS_MAX; i++) {
+				for (i = 0; i < SOPASS_MAX; i++)
 					wol.sopass[i] = sopass_wanted[i];
-				}
 			}
 
 			/* Try to perform the update. */
@@ -3162,7 +3196,7 @@ static int do_gregs(struct cmd_context *ctx)
 			free(regs);
 			return 75;
 		}
-        }
+	}
 
 	if (dump_regs(gregs_dump_raw, gregs_dump_hex,
 		      &drvinfo, regs) < 0) {
@@ -3321,7 +3355,7 @@ static int do_seeprom(struct cmd_context *ctx)
 static int do_test(struct cmd_context *ctx)
 {
 	enum {
-		ONLINE=0,
+		ONLINE = 0,
 		OFFLINE,
 		EXTERNAL_LB,
 	} test_type;
@@ -3332,15 +3366,14 @@ static int do_test(struct cmd_context *ctx)
 	if (ctx->argc > 1)
 		exit_bad_args();
 	if (ctx->argc == 1) {
-		if (!strcmp(ctx->argp[0], "online")) {
+		if (!strcmp(ctx->argp[0], "online"))
 			test_type = ONLINE;
-	 	} else if (!strcmp(*ctx->argp, "offline")) {
+		else if (!strcmp(*ctx->argp, "offline"))
 			test_type = OFFLINE;
-		} else if (!strcmp(*ctx->argp, "external_lb")) {
+		else if (!strcmp(*ctx->argp, "external_lb"))
 			test_type = EXTERNAL_LB;
-		} else {
+		else
 			exit_bad_args();
-		}
 	} else {
 		test_type = OFFLINE;
 	}
@@ -3371,7 +3404,7 @@ static int do_test(struct cmd_context *ctx)
 	err = send_ioctl(ctx, test);
 	if (err < 0) {
 		perror("Cannot test");
-		free (test);
+		free(test);
 		free(strings);
 		return 74;
 	}
@@ -3502,7 +3535,7 @@ static int do_srxclass(struct cmd_context *ctx)
 		err = send_ioctl(ctx, &nfccmd);
 		if (err < 0)
 			perror("Cannot change RX network flow hashing options");
-	} else if (!strcmp(ctx->argp[0], "flow-type")) {	
+	} else if (!strcmp(ctx->argp[0], "flow-type")) {
 		struct ethtool_rx_flow_spec rx_rule_fs;
 
 		ctx->argc--;
@@ -4183,8 +4216,8 @@ static int do_srxntuple(struct cmd_context *ctx,
 	/*
 	 * Display error only if response is something other than op not
 	 * supported.  It is possible that the interface uses the network
-	 * flow classifier interface instead of N-tuple. 
-	 */ 
+	 * flow classifier interface instead of N-tuple.
+	 */
 	if (err < 0) {
 		if (errno != EOPNOTSUPP)
 			perror("Cannot add new rule via N-tuple");
@@ -4326,7 +4359,7 @@ static int do_gprivflags(struct cmd_context *ctx)
 
 	/* Find longest string and align all strings accordingly */
 	for (i = 0; i < strings->len; i++) {
-		cur_len = strlen((const char*)strings->data +
+		cur_len = strlen((const char *)strings->data +
 				 i * ETH_GSTRING_LEN);
 		if (cur_len > max_len)
 			max_len = cur_len;
@@ -4576,7 +4609,6 @@ static int do_seee(struct cmd_context *ctx)
 	do_generic_set(cmdline_eee, ARRAY_SIZE(cmdline_eee), &change2);
 
 	if (change2) {
-
 		eeecmd.cmd = ETHTOOL_SEEE;
 		if (send_ioctl(ctx, &eeecmd)) {
 			perror("Cannot set EEE settings");
@@ -4629,6 +4661,97 @@ static int do_get_phy_tunable(struct cmd_context *ctx)
 	}
 
 	return err;
+}
+
+static __u32 parse_reset(char *val, __u32 bitset, char *arg, __u32 *data)
+{
+	__u32 bitval = 0;
+	int i;
+
+	/* Check for component match */
+	for (i = 0; val[i] != '\0'; i++)
+		if (arg[i] != val[i])
+			return 0;
+
+	/* Check if component has -shared specified or not */
+	if (arg[i] == '\0')
+		bitval = bitset;
+	else if (!strcmp(arg+i, "-shared"))
+		bitval = bitset << ETH_RESET_SHARED_SHIFT;
+
+	if (bitval) {
+		*data |= bitval;
+		return 1;
+	}
+	return 0;
+}
+
+static int do_reset(struct cmd_context *ctx)
+{
+	struct ethtool_value resetinfo;
+	__u32 data;
+	int argc = ctx->argc;
+	char **argp = ctx->argp;
+	int i;
+
+	if (argc == 0)
+		exit_bad_args();
+
+	data = 0;
+
+	for (i = 0; i < argc; i++) {
+		if (!strcmp(argp[i], "flags")) {
+			__u32 flags;
+
+			i++;
+			if (i >= argc)
+				exit_bad_args();
+			flags = strtoul(argp[i], NULL, 0);
+			if (flags == 0)
+				exit_bad_args();
+			else
+				data |= flags;
+		} else if (parse_reset("mgmt", ETH_RESET_MGMT,
+				      argp[i], &data)) {
+		} else if (parse_reset("irq",  ETH_RESET_IRQ,
+				    argp[i], &data)) {
+		} else if (parse_reset("dma", ETH_RESET_DMA,
+				    argp[i], &data)) {
+		} else if (parse_reset("filter", ETH_RESET_FILTER,
+				    argp[i], &data)) {
+		} else if (parse_reset("offload", ETH_RESET_OFFLOAD,
+				    argp[i], &data)) {
+		} else if (parse_reset("mac", ETH_RESET_MAC,
+				    argp[i], &data)) {
+		} else if (parse_reset("phy", ETH_RESET_PHY,
+				    argp[i], &data)) {
+		} else if (parse_reset("ram", ETH_RESET_RAM,
+				    argp[i], &data)) {
+		} else if (parse_reset("ap", ETH_RESET_AP,
+				    argp[i], &data)) {
+		} else if (!strcmp(argp[i], "dedicated")) {
+			data |= ETH_RESET_DEDICATED;
+		} else if (!strcmp(argp[i], "all")) {
+			data |= ETH_RESET_ALL;
+		} else {
+			exit_bad_args();
+		}
+	}
+
+	resetinfo.cmd = ETHTOOL_RESET;
+	resetinfo.data = data;
+	fprintf(stdout, "ETHTOOL_RESET 0x%x\n", resetinfo.data);
+
+	if (send_ioctl(ctx, &resetinfo)) {
+		perror("Cannot issue ETHTOOL_RESET");
+		return 1;
+	}
+
+	fprintf(stdout, "Components reset:     0x%x\n", data & ~resetinfo.data);
+	if (resetinfo.data)
+		fprintf(stdout, "Components not reset: 0x%x\n", resetinfo.data);
+
+	return 0;
 }
 
 static int parse_named_bool(struct cmd_context *ctx, const char *name, u8 *on)
@@ -4725,6 +4848,84 @@ static int do_set_phy_tunable(struct cmd_context *ctx)
 	}
 
 	return err;
+}
+
+static int fecmode_str_to_type(const char *str)
+{
+	int fecmode = 0;
+
+	if (!str)
+		return fecmode;
+
+	if (!strcasecmp(str, "auto"))
+		fecmode |= ETHTOOL_FEC_AUTO;
+	else if (!strcasecmp(str, "off"))
+		fecmode |= ETHTOOL_FEC_OFF;
+	else if (!strcasecmp(str, "rs"))
+		fecmode |= ETHTOOL_FEC_RS;
+	else if (!strcasecmp(str, "baser"))
+		fecmode |= ETHTOOL_FEC_BASER;
+
+	return fecmode;
+}
+
+static int do_gfec(struct cmd_context *ctx)
+{
+	struct ethtool_fecparam feccmd = { 0 };
+	int rv;
+
+	if (ctx->argc != 0)
+		exit_bad_args();
+
+	feccmd.cmd = ETHTOOL_GFECPARAM;
+	rv = send_ioctl(ctx, &feccmd);
+	if (rv != 0) {
+		perror("Cannot get FEC settings");
+		return rv;
+	}
+
+	fprintf(stdout, "FEC parameters for %s:\n", ctx->devname);
+	fprintf(stdout, "Configured FEC encodings:");
+	dump_fec(feccmd.fec);
+	fprintf(stdout, "\n");
+
+	fprintf(stdout, "Active FEC encoding:");
+	dump_fec(feccmd.active_fec);
+	fprintf(stdout, "\n");
+
+	return 0;
+}
+
+static int do_sfec(struct cmd_context *ctx)
+{
+	char *fecmode_str = NULL;
+	struct ethtool_fecparam feccmd;
+	struct cmdline_info cmdline_fec[] = {
+		{ "encoding", CMDL_STR,  &fecmode_str,  &feccmd.fec},
+	};
+	int changed;
+	int fecmode;
+	int rv;
+
+	parse_generic_cmdline(ctx, &changed, cmdline_fec,
+			      ARRAY_SIZE(cmdline_fec));
+
+	if (!fecmode_str)
+		exit_bad_args();
+
+	fecmode = fecmode_str_to_type(fecmode_str);
+	if (!fecmode)
+		exit_bad_args();
+
+	feccmd.cmd = ETHTOOL_SFECPARAM;
+	feccmd.fec = fecmode;
+	rv = send_ioctl(ctx, &feccmd);
+	if (rv != 0) {
+		perror("Cannot set FEC settings");
+		return rv;
+	}
+
+	return 0;
 }
 
 #ifndef TEST_ETHTOOL
@@ -4874,7 +5075,7 @@ static const struct option {
 	  "               [ tx N ]\n"
 	  "               [ other N ]\n"
 	  "               [ combined N ]\n" },
-	{ "--show-priv-flags" , 1, do_gprivflags, "Query private flags" },
+	{ "--show-priv-flags", 1, do_gprivflags, "Query private flags" },
 	{ "--set-priv-flags", 1, do_sprivflags, "Set private flags",
 	  "		FLAG on|off ...\n" },
 	{ "-m|--dump-module-eeprom|--module-info", 1, do_getmodule,
@@ -4893,6 +5094,31 @@ static const struct option {
 	  "		[ downshift on|off [count N] ]\n"},
 	{ "--get-phy-tunable", 1, do_get_phy_tunable, "Get PHY tunable",
 	  "		[ downshift ]\n"},
+	{ "--reset", 1, do_reset, "Reset components",
+	  "		[ flags %x ]\n"
+	  "		[ mgmt ]\n"
+	  "		[ mgmt-shared ]\n"
+	  "		[ irq ]\n"
+	  "		[ irq-shared ]\n"
+	  "		[ dma ]\n"
+	  "		[ dma-shared ]\n"
+	  "		[ filter ]\n"
+	  "		[ filter-shared ]\n"
+	  "		[ offload ]\n"
+	  "		[ offload-shared ]\n"
+	  "		[ mac ]\n"
+	  "		[ mac-shared ]\n"
+	  "		[ phy ]\n"
+	  "		[ phy-shared ]\n"
+	  "		[ ram ]\n"
+	  "		[ ram-shared ]\n"
+	  "		[ ap ]\n"
+	  "		[ ap-shared ]\n"
+	  "		[ dedicated ]\n"
+	  "		[ all ]\n"},
+	{ "--show-fec", 1, do_gfec, "Show FEC settings"},
+	{ "--set-fec", 1, do_sfec, "Set FEC settings",
+	  "		[ encoding auto|off|rs|baser ]\n"},
 	{ "-h|--help", 0, show_usage, "Show this help" },
 	{ "--version", 0, do_version, "Show version number" },
 	{}

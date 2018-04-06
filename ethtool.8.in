@@ -113,7 +113,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "June 2017" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "February 2018" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -354,6 +354,37 @@ ethtool \- query or control network driver and hardware settings
 .B ethtool \-\-get\-phy\-tunable
 .I devname
 .RB [ downshift ]
+.HP
+.B ethtool \-\-reset
+.I devname
+.BN flags
+.RB [ mgmt ]
+.RB [ mgmt-shared ]
+.RB [ irq ]
+.RB [ irq-shared ]
+.RB [ dma ]
+.RB [ dma-shared ]
+.RB [ filter ]
+.RB [ filter-shared ]
+.RB [ offload ]
+.RB [ offload-shared ]
+.RB [ mac ]
+.RB [ mac-shared ]
+.RB [ phy ]
+.RB [ phy-shared ]
+.RB [ ram ]
+.RB [ ram-shared ]
+.RB [ ap ]
+.RB [ ap-shared ]
+.RB [ dedicated ]
+.RB [ all ]
+.HP
+.B ethtool \-\-show\-fec
+.I devname
+.HP
+.B ethtool \-\-set\-fec
+.I devname
+.B4 encoding auto off rs baser
 .
 .\" Adjust lines (i.e. full justification) and hyphenate.
 .ad
@@ -590,9 +621,9 @@ lB	l	lB.
 0x020	1000baseT Full
 0x20000	1000baseKX Full
 0x20000000000	1000baseX Full
-0x800000000000  2500baseT Full
-0x8000	2500baseX Full	(not supported by IEEE standards)'
-0x1000000000000  5000baseT Full
+0x800000000000	2500baseT Full
+0x8000	2500baseX Full	(not supported by IEEE standards)
+0x1000000000000	5000baseT Full
 0x1000	10000baseT Full
 0x40000	10000baseKX4 Full
 0x80000	10000baseKR Full
@@ -613,6 +644,10 @@ lB	l	lB.
 0x400000000	50000baseCR2 Full
 0x800000000	50000baseKR2 Full
 0x10000000000	50000baseSR2 Full
+0x8000000	56000baseKR4 Full
+0x10000000	56000baseCR4 Full
+0x20000000	56000baseSR4 Full
+0x40000000	56000baseLR4 Full
 0x1000000000	100000baseKR4 Full
 0x2000000000	100000baseSR4 Full
 0x4000000000	100000baseCR4 Full
@@ -1002,6 +1037,70 @@ Downshift is useful where cable does not have the 4 pairs instance.
 
 Gets the PHY downshift count/status.
 .RE
+.TP
+.B \-\-reset
+Reset hardware components specified by flags and components listed below
+.RS 4
+.TP
+.BI flags \ N
+Resets the components based on direct flags mask
+.TP
+.B mgmt
+Management processor
+.TP
+.B irq
+Interrupt requester
+.TP
+.B dma
+DMA engine
+.TP
+.B filter
+Filtering/flow direction
+.TP
+.B offload
+Protocol offload
+.TP
+.B mac
+Media access controller
+.TP
+.B phy
+Transceiver/PHY
+.TP
+.B ram
+RAM shared between multiple components
+.B ap
+Application Processor
+.TP
+.B dedicated
+All components dedicated to this interface
+.TP
+.B all
+All components used by this interface, even if shared
+.RE
+.TP
+.B \-\-show\-fec
+Queries the specified network device for its support of Forward Error Correction.
+.TP
+.B \-\-set\-fec
+Configures Forward Error Correction for the specified network device.
+
+Forward Error Correction modes selected by a user are expected to be persisted
+after any hotplug events. If a module is swapped that does not support the
+current FEC mode, the driver or firmware must take the link down
+administratively and report the problem in the system logs for users to correct.
+.RS 4
+.TP
+.A4 encoding auto off rs baser
+Sets the FEC encoding for the device.
+.TS
+nokeep;
+lB	l.
+auto	Use the driver's default encoding
+off	Turn off FEC
+RS	Force RS-FEC encoding
+BaseR	Force BaseR encoding
+.TE
+.RE
 .SH BUGS
 Not supported (in part or whole) on all network drivers.
 .SH AUTHOR
@@ -1019,7 +1118,8 @@ Andi Kleen,
 Alexander Duyck,
 Sucheta Chakraborty,
 Jesse Brandeburg,
-Ben Hutchings.
+Ben Hutchings,
+Scott Branden.
 .SH AVAILABILITY
 .B ethtool
 is available from
