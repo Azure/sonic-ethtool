@@ -931,6 +931,9 @@ static int parse_wolopts(char *optstr, u32 *data)
 		case 's':
 			*data |= WAKE_MAGICSECURE;
 			break;
+		case 'f':
+			*data |= WAKE_FILTER;
+			break;
 		case 'd':
 			*data = 0;
 			break;
@@ -964,6 +967,8 @@ static char *unparse_wolopts(int wolopts)
 			*p++ = 'g';
 		if (wolopts & WAKE_MAGICSECURE)
 			*p++ = 's';
+		if (wolopts & WAKE_FILTER)
+			*p++ = 'f';
 	} else {
 		*p = 'd';
 	}
@@ -1160,6 +1165,7 @@ static const struct {
 	{ "altera_tse", altera_tse_dump_regs },
 	{ "vmxnet3", vmxnet3_dump_regs },
 	{ "fjes", fjes_dump_regs },
+	{ "lan78xx", lan78xx_dump_regs },
 #endif
 };
 
@@ -3178,17 +3184,26 @@ static int do_gregs(struct cmd_context *ctx)
 	if (!gregs_dump_raw && gregs_dump_file != NULL) {
 		/* overwrite reg values from file dump */
 		FILE *f = fopen(gregs_dump_file, "r");
+		struct ethtool_regs *nregs;
 		struct stat st;
 		size_t nread;
 
 		if (!f || fstat(fileno(f), &st) < 0) {
 			fprintf(stderr, "Can't open '%s': %s\n",
 				gregs_dump_file, strerror(errno));
+			if (f)
+				fclose(f);
 			free(regs);
 			return 75;
 		}
 
-		regs = realloc(regs, sizeof(*regs) + st.st_size);
+		nregs = realloc(regs, sizeof(*regs) + st.st_size);
+		if (!nregs) {
+			perror("Cannot allocate memory for register dump");
+			free(regs); /* was not freed by realloc */
+			return 73;
+		}
+		regs = nregs;
 		regs->len = st.st_size;
 		nread = fread(regs->data, regs->len, 1, f);
 		fclose(f);
@@ -3900,7 +3915,7 @@ static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_default,
 static int do_srxfh(struct cmd_context *ctx)
 {
 	struct ethtool_rxfh rss_head = {0};
-	struct ethtool_rxfh *rss;
+	struct ethtool_rxfh *rss = NULL;
 	struct ethtool_rxnfc ring_count;
 	int rxfhindir_equal = 0, rxfhindir_default = 0;
 	struct ethtool_gstrings *hfuncs = NULL;
@@ -4054,7 +4069,8 @@ static int do_srxfh(struct cmd_context *ctx)
 		hfuncs = get_stringset(ctx, ETH_SS_RSS_HASH_FUNCS, 0, 1);
 		if (!hfuncs) {
 			perror("Cannot get hash functions names");
-			return 1;
+			err = 1;
+			goto free;
 		}
 
 		for (i = 0; i < hfuncs->len && !req_hfunc ; i++) {
@@ -4068,8 +4084,8 @@ static int do_srxfh(struct cmd_context *ctx)
 		if (!req_hfunc) {
 			fprintf(stderr,
 				"Unknown hash function: %s\n", req_hfunc_name);
-			free(hfuncs);
-			return 1;
+			err = 1;
+			goto free;
 		}
 	}
 
@@ -4110,9 +4126,7 @@ static int do_srxfh(struct cmd_context *ctx)
 	}
 
 free:
-	if (hkey)
-		free(hkey);
-
+	free(hkey);
 	free(rss);
 	free(hfuncs);
 	return err;
@@ -4722,8 +4736,8 @@ static int do_get_phy_tunable(struct cmd_context *ctx)
 {
 	int argc = ctx->argc;
 	char **argp = ctx->argp;
-	int err, i;
 	u8 downshift_changed = 0;
+	int i;
 
 	if (argc < 1)
 		exit_bad_args();
@@ -4739,27 +4753,28 @@ static int do_get_phy_tunable(struct cmd_context *ctx)
 	}
 
 	if (downshift_changed) {
-		struct ethtool_tunable ds;
+		struct {
+			struct ethtool_tunable ds;
+			u8 __count;
+		} cont;
 		u8 count = 0;
 
-		ds.cmd = ETHTOOL_PHY_GTUNABLE;
-		ds.id = ETHTOOL_PHY_DOWNSHIFT;
-		ds.type_id = ETHTOOL_TUNABLE_U8;
-		ds.len = 1;
-		ds.data[0] = &count;
-		err = send_ioctl(ctx, &ds);
-		if (err < 0) {
+		cont.ds.cmd = ETHTOOL_PHY_GTUNABLE;
+		cont.ds.id = ETHTOOL_PHY_DOWNSHIFT;
+		cont.ds.type_id = ETHTOOL_TUNABLE_U8;
+		cont.ds.len = 1;
+		if (send_ioctl(ctx, &cont.ds) < 0) {
 			perror("Cannot Get PHY downshift count");
 			return 87;
 		}
-		count = *((u8 *)&ds.data[0]);
+		count = *((u8 *)&cont.ds.data[0]);
 		if (count)
 			fprintf(stdout, "Downshift count: %d\n", count);
 		else
 			fprintf(stdout, "Downshift disabled\n");
 	}
 
-	return err;
+	return 0;
 }
 
 static __u32 parse_reset(char *val, __u32 bitset, char *arg, __u32 *data)
@@ -4930,16 +4945,17 @@ static int do_set_phy_tunable(struct cmd_context *ctx)
 
 	/* Do it */
 	if (ds_changed) {
-		struct ethtool_tunable ds;
-		u8 count;
+		struct {
+			struct ethtool_tunable ds;
+			u8 __count;
+		} cont;
 
-		ds.cmd = ETHTOOL_PHY_STUNABLE;
-		ds.id = ETHTOOL_PHY_DOWNSHIFT;
-		ds.type_id = ETHTOOL_TUNABLE_U8;
-		ds.len = 1;
-		ds.data[0] = &count;
-		*((u8 *)&ds.data[0]) = ds_cnt;
-		err = send_ioctl(ctx, &ds);
+		cont.ds.cmd = ETHTOOL_PHY_STUNABLE;
+		cont.ds.id = ETHTOOL_PHY_DOWNSHIFT;
+		cont.ds.type_id = ETHTOOL_TUNABLE_U8;
+		cont.ds.len = 1;
+		*((u8 *)&cont.ds.data[0]) = ds_cnt;
+		err = send_ioctl(ctx, &cont.ds);
 		if (err < 0) {
 			perror("Cannot Set PHY downshift count");
 			err = 87;
@@ -4951,21 +4967,16 @@ static int do_set_phy_tunable(struct cmd_context *ctx)
 
 static int fecmode_str_to_type(const char *str)
 {
-	int fecmode = 0;
-
-	if (!str)
-		return fecmode;
-
 	if (!strcasecmp(str, "auto"))
-		fecmode |= ETHTOOL_FEC_AUTO;
-	else if (!strcasecmp(str, "off"))
-		fecmode |= ETHTOOL_FEC_OFF;
-	else if (!strcasecmp(str, "rs"))
-		fecmode |= ETHTOOL_FEC_RS;
-	else if (!strcasecmp(str, "baser"))
-		fecmode |= ETHTOOL_FEC_BASER;
+		return ETHTOOL_FEC_AUTO;
+	if (!strcasecmp(str, "off"))
+		return ETHTOOL_FEC_OFF;
+	if (!strcasecmp(str, "rs"))
+		return ETHTOOL_FEC_RS;
+	if (!strcasecmp(str, "baser"))
+		return ETHTOOL_FEC_BASER;
 
-	return fecmode;
+	return 0;
 }
 
 static int do_gfec(struct cmd_context *ctx)
@@ -4997,22 +5008,26 @@ static int do_gfec(struct cmd_context *ctx)
 
 static int do_sfec(struct cmd_context *ctx)
 {
-	char *fecmode_str = NULL;
+	enum { ARG_NONE, ARG_ENCODING } state = ARG_NONE;
 	struct ethtool_fecparam feccmd;
-	struct cmdline_info cmdline_fec[] = {
-		{ "encoding", CMDL_STR,  &fecmode_str,  &feccmd.fec},
-	};
-	int changed;
-	int fecmode;
-	int rv;
+	int fecmode = 0, newmode;
+	int rv, i;
 
-	parse_generic_cmdline(ctx, &changed, cmdline_fec,
-			      ARRAY_SIZE(cmdline_fec));
-
-	if (!fecmode_str)
+	for (i = 0; i < ctx->argc; i++) {
+		if (!strcmp(ctx->argp[i], "encoding")) {
+			state = ARG_ENCODING;
+			continue;
+		}
+		if (state == ARG_ENCODING) {
+			newmode = fecmode_str_to_type(ctx->argp[i]);
+			if (!newmode)
+				exit_bad_args();
+			fecmode |= newmode;
+			continue;
+		}
 		exit_bad_args();
+	}
 
-	fecmode = fecmode_str_to_type(fecmode_str);
 	if (!fecmode)
 		exit_bad_args();
 
@@ -5053,7 +5068,7 @@ static const struct option {
 	  "		[ advertise %x ]\n"
 	  "		[ phyad %d ]\n"
 	  "		[ xcvr internal|external ]\n"
-	  "		[ wol p|u|m|b|a|g|s|d... ]\n"
+	  "		[ wol p|u|m|b|a|g|s|f|d... ]\n"
 	  "		[ sopass %x:%x:%x:%x:%x:%x ]\n"
 	  "		[ msglvl %d | msglvl type on|off ... ]\n" },
 	{ "-a|--show-pause", 1, do_gpause, "Show pause options" },
@@ -5221,7 +5236,7 @@ static const struct option {
 	  "		[ all ]\n"},
 	{ "--show-fec", 1, do_gfec, "Show FEC settings"},
 	{ "--set-fec", 1, do_sfec, "Set FEC settings",
-	  "		[ encoding auto|off|rs|baser ]\n"},
+	  "		[ encoding auto|off|rs|baser [...]]\n"},
 	{ "-h|--help", 0, show_usage, "Show this help" },
 	{ "--version", 0, do_version, "Show version number" },
 	{}
