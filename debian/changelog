@@ -1,8 +1,12 @@
 ethtool (1:4.19-1) UNRELEASED; urgency=medium
 
+  [ Romain Perier ]
   * New upstream release
   * debian/gbp.conf: Fix old-style of section for git-buildpackage
   * debian/source/options: Delete redundant compression settings
+
+  [ Ben Hutchings ]
+  * debian/.gitignore: Ignore generated files
 
  -- Romain Perier <romain.perier@gmail.com>  Fri, 23 Nov 2018 21:29:11 +0100
 
