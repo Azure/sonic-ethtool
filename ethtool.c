@@ -1166,6 +1166,7 @@ static const struct {
 	{ "vmxnet3", vmxnet3_dump_regs },
 	{ "fjes", fjes_dump_regs },
 	{ "lan78xx", lan78xx_dump_regs },
+	{ "dsa", dsa_dump_regs },
 #endif
 };
 
@@ -1465,8 +1466,10 @@ static void dump_features(const struct feature_defs *defs,
 		 * kernel version
 		 */
 		if (defs->off_flag_matched[i] == 0 &&
-		    off_flag_def[i].get_cmd == 0 &&
-		    kernel_ver < off_flag_def[i].min_kernel_ver)
+		    ((off_flag_def[i].get_cmd == 0 &&
+		      kernel_ver < off_flag_def[i].min_kernel_ver) ||
+		     (off_flag_def[i].get_cmd == ETHTOOL_GUFO &&
+		      kernel_ver >= KERNEL_VERSION(4, 14, 0))))
 			continue;
 
 		value = off_flag_def[i].value;
@@ -2076,7 +2079,7 @@ static int do_gchannels(struct cmd_context *ctx)
 
 static int do_gcoalesce(struct cmd_context *ctx)
 {
-	struct ethtool_coalesce ecoal;
+	struct ethtool_coalesce ecoal = {};
 	int err;
 
 	if (ctx->argc != 0)
