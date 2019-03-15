@@ -1,3 +1,9 @@
+ethtool (1:5.0-1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Romain Perier <romain.perier@gmail.com>  Fri, 15 Mar 2019 22:09:14 +0100
+
 ethtool (1:4.19-1) unstable; urgency=medium
 
   [ Romain Perier ]
