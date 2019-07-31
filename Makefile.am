@@ -10,11 +10,16 @@ ethtool_SOURCES = ethtool.c ethtool-copy.h internal.h net_tstamp-copy.h \
 if ETHTOOL_ENABLE_PRETTY_DUMP
 ethtool_SOURCES += \
 		  amd8111e.c de2104x.c dsa.c e100.c e1000.c et131x.c igb.c	\
-		  fec_8xx.c ibm_emac.c ixgb.c ixgbe.c natsemi.c	\
+		  fec.c fec_8xx.c ibm_emac.c ixgb.c ixgbe.c natsemi.c	\
 		  pcnet32.c realtek.c tg3.c marvell.c vioc.c	\
 		  smsc911x.c at76c50x-usb.c sfc.c stmmac.c	\
 		  sff-common.c sff-common.h sfpid.c sfpdiag.c	\
 		  ixgbevf.c tse.c vmxnet3.c qsfp.c qsfp.h fjes.c lan78xx.c
+endif
+
+if ENABLE_BASH_COMPLETION
+bashcompletiondir = $(BASH_COMPLETION_DIR)
+dist_bashcompletion_DATA = shell-completion/bash/ethtool
 endif
 
 TESTS = test-cmdline test-features

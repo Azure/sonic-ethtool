@@ -530,6 +530,23 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
 		ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 		ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseDR4_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+		ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
 	};
 	static const enum ethtool_link_mode_bit_indices
 		additional_advertised_flags_bits[] = {
@@ -619,10 +636,14 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "100baseT/Half" },
 		{ 1, ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 		  "100baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+		  "100baseT1/Full" },
 		{ 0, ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 		  "1000baseT/Half" },
 		{ 1, ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 		  "1000baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+		  "1000baseT1/Full" },
 		{ 0, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 		  "1000baseKX/Full" },
 		{ 0, ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
@@ -633,6 +654,8 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "10000baseKX4/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 		  "10000baseKR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+		  "10000baseR_FEC" },
 		{ 0, ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT,
 		  "20000baseMLD2/Full" },
 		{ 0, ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
@@ -689,6 +712,36 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "2500baseT/Full" },
 		{ 0, ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
 		  "5000baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+		  "50000baseKR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+		  "50000baseSR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+		  "50000baseCR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+		  "50000baseLR_ER_FR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+		  "50000baseDR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+		  "100000baseKR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+		  "100000baseSR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+		  "100000baseCR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+		  "100000baseLR2_ER2_FR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+		  "100000baseDR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
+		  "200000baseKR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
+		  "200000baseSR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
+		  "200000baseLR4_ER4_FR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseDR4_Full_BIT,
+		  "200000baseDR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
+		  "200000baseCR4/Full" },
 	};
 	int indent;
 	int did1, new_line_pend, i;
@@ -1167,6 +1220,7 @@ static const struct {
 	{ "fjes", fjes_dump_regs },
 	{ "lan78xx", lan78xx_dump_regs },
 	{ "dsa", dsa_dump_regs },
+	{ "fec", fec_dump_regs },
 #endif
 };
 
@@ -1373,14 +1427,14 @@ static int dump_coalesce(const struct ethtool_coalesce *ecoal)
 		"tx-frames-irq: %u\n"
 		"\n"
 		"rx-usecs-low: %u\n"
-		"rx-frame-low: %u\n"
+		"rx-frames-low: %u\n"
 		"tx-usecs-low: %u\n"
-		"tx-frame-low: %u\n"
+		"tx-frames-low: %u\n"
 		"\n"
 		"rx-usecs-high: %u\n"
-		"rx-frame-high: %u\n"
+		"rx-frames-high: %u\n"
 		"tx-usecs-high: %u\n"
-		"tx-frame-high: %u\n"
+		"tx-frames-high: %u\n"
 		"\n",
 		ecoal->stats_block_coalesce_usecs,
 		ecoal->rate_sample_interval,
@@ -1408,6 +1462,31 @@ static int dump_coalesce(const struct ethtool_coalesce *ecoal)
 		ecoal->tx_max_coalesced_frames_high);
 
 	return 0;
+}
+
+void dump_per_queue_coalesce(struct ethtool_per_queue_op *per_queue_opt,
+			     __u32 *queue_mask, int n_queues)
+{
+	struct ethtool_coalesce *ecoal;
+	int i, idx = 0;
+
+	ecoal = (struct ethtool_coalesce *)(per_queue_opt + 1);
+	for (i = 0; i < __KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32); i++) {
+		int queue = i * 32;
+		__u32 mask = queue_mask[i];
+
+		while (mask > 0) {
+			if (mask & 0x1) {
+				fprintf(stdout, "Queue: %d\n", queue);
+				dump_coalesce(ecoal + idx);
+				idx++;
+			}
+			mask = mask >> 1;
+			queue++;
+		}
+		if (idx == n_queues)
+			break;
+	}
 }
 
 struct feature_state {
@@ -2101,78 +2180,84 @@ static int do_gcoalesce(struct cmd_context *ctx)
 	return 0;
 }
 
+#define DECLARE_COALESCE_OPTION_VARS()		\
+	s32 coal_stats_wanted = -1;		\
+	int coal_adaptive_rx_wanted = -1;	\
+	int coal_adaptive_tx_wanted = -1;	\
+	s32 coal_sample_rate_wanted = -1;	\
+	s32 coal_pkt_rate_low_wanted = -1;	\
+	s32 coal_pkt_rate_high_wanted = -1;	\
+	s32 coal_rx_usec_wanted = -1;		\
+	s32 coal_rx_frames_wanted = -1;		\
+	s32 coal_rx_usec_irq_wanted = -1;	\
+	s32 coal_rx_frames_irq_wanted = -1;	\
+	s32 coal_tx_usec_wanted = -1;		\
+	s32 coal_tx_frames_wanted = -1;		\
+	s32 coal_tx_usec_irq_wanted = -1;	\
+	s32 coal_tx_frames_irq_wanted = -1;	\
+	s32 coal_rx_usec_low_wanted = -1;	\
+	s32 coal_rx_frames_low_wanted = -1;	\
+	s32 coal_tx_usec_low_wanted = -1;	\
+	s32 coal_tx_frames_low_wanted = -1;	\
+	s32 coal_rx_usec_high_wanted = -1;	\
+	s32 coal_rx_frames_high_wanted = -1;	\
+	s32 coal_tx_usec_high_wanted = -1;	\
+	s32 coal_tx_frames_high_wanted = -1
+
+#define COALESCE_CMDLINE_INFO(__ecoal)					\
+{									\
+	{ "adaptive-rx", CMDL_BOOL, &coal_adaptive_rx_wanted,		\
+	  &__ecoal.use_adaptive_rx_coalesce },				\
+	{ "adaptive-tx", CMDL_BOOL, &coal_adaptive_tx_wanted,		\
+	  &__ecoal.use_adaptive_tx_coalesce },				\
+	{ "sample-interval", CMDL_S32, &coal_sample_rate_wanted,	\
+	  &__ecoal.rate_sample_interval },				\
+	{ "stats-block-usecs", CMDL_S32, &coal_stats_wanted,		\
+	  &__ecoal.stats_block_coalesce_usecs },			\
+	{ "pkt-rate-low", CMDL_S32, &coal_pkt_rate_low_wanted,		\
+	  &__ecoal.pkt_rate_low },					\
+	{ "pkt-rate-high", CMDL_S32, &coal_pkt_rate_high_wanted,	\
+	  &__ecoal.pkt_rate_high },					\
+	{ "rx-usecs", CMDL_S32, &coal_rx_usec_wanted,			\
+	  &__ecoal.rx_coalesce_usecs },					\
+	{ "rx-frames", CMDL_S32, &coal_rx_frames_wanted,		\
+	  &__ecoal.rx_max_coalesced_frames },				\
+	{ "rx-usecs-irq", CMDL_S32, &coal_rx_usec_irq_wanted,		\
+	  &__ecoal.rx_coalesce_usecs_irq },				\
+	{ "rx-frames-irq", CMDL_S32, &coal_rx_frames_irq_wanted,	\
+	  &__ecoal.rx_max_coalesced_frames_irq },			\
+	{ "tx-usecs", CMDL_S32, &coal_tx_usec_wanted,			\
+	  &__ecoal.tx_coalesce_usecs },					\
+	{ "tx-frames", CMDL_S32, &coal_tx_frames_wanted,		\
+	  &__ecoal.tx_max_coalesced_frames },				\
+	{ "tx-usecs-irq", CMDL_S32, &coal_tx_usec_irq_wanted,		\
+	  &__ecoal.tx_coalesce_usecs_irq },				\
+	{ "tx-frames-irq", CMDL_S32, &coal_tx_frames_irq_wanted,	\
+	  &__ecoal.tx_max_coalesced_frames_irq },			\
+	{ "rx-usecs-low", CMDL_S32, &coal_rx_usec_low_wanted,		\
+	  &__ecoal.rx_coalesce_usecs_low },				\
+	{ "rx-frames-low", CMDL_S32, &coal_rx_frames_low_wanted,	\
+	  &__ecoal.rx_max_coalesced_frames_low },			\
+	{ "tx-usecs-low", CMDL_S32, &coal_tx_usec_low_wanted,		\
+	  &__ecoal.tx_coalesce_usecs_low },				\
+	{ "tx-frames-low", CMDL_S32, &coal_tx_frames_low_wanted,	\
+	  &__ecoal.tx_max_coalesced_frames_low },			\
+	{ "rx-usecs-high", CMDL_S32, &coal_rx_usec_high_wanted,		\
+	  &__ecoal.rx_coalesce_usecs_high },				\
+	{ "rx-frames-high", CMDL_S32, &coal_rx_frames_high_wanted,	\
+	  &__ecoal.rx_max_coalesced_frames_high },			\
+	{ "tx-usecs-high", CMDL_S32, &coal_tx_usec_high_wanted,		\
+	  &__ecoal.tx_coalesce_usecs_high },				\
+	{ "tx-frames-high", CMDL_S32, &coal_tx_frames_high_wanted,	\
+	  &__ecoal.tx_max_coalesced_frames_high },			\
+}
+
 static int do_scoalesce(struct cmd_context *ctx)
 {
 	struct ethtool_coalesce ecoal;
 	int gcoalesce_changed = 0;
-	s32 coal_stats_wanted = -1;
-	int coal_adaptive_rx_wanted = -1;
-	int coal_adaptive_tx_wanted = -1;
-	s32 coal_sample_rate_wanted = -1;
-	s32 coal_pkt_rate_low_wanted = -1;
-	s32 coal_pkt_rate_high_wanted = -1;
-	s32 coal_rx_usec_wanted = -1;
-	s32 coal_rx_frames_wanted = -1;
-	s32 coal_rx_usec_irq_wanted = -1;
-	s32 coal_rx_frames_irq_wanted = -1;
-	s32 coal_tx_usec_wanted = -1;
-	s32 coal_tx_frames_wanted = -1;
-	s32 coal_tx_usec_irq_wanted = -1;
-	s32 coal_tx_frames_irq_wanted = -1;
-	s32 coal_rx_usec_low_wanted = -1;
-	s32 coal_rx_frames_low_wanted = -1;
-	s32 coal_tx_usec_low_wanted = -1;
-	s32 coal_tx_frames_low_wanted = -1;
-	s32 coal_rx_usec_high_wanted = -1;
-	s32 coal_rx_frames_high_wanted = -1;
-	s32 coal_tx_usec_high_wanted = -1;
-	s32 coal_tx_frames_high_wanted = -1;
-	struct cmdline_info cmdline_coalesce[] = {
-		{ "adaptive-rx", CMDL_BOOL, &coal_adaptive_rx_wanted,
-		  &ecoal.use_adaptive_rx_coalesce },
-		{ "adaptive-tx", CMDL_BOOL, &coal_adaptive_tx_wanted,
-		  &ecoal.use_adaptive_tx_coalesce },
-		{ "sample-interval", CMDL_S32, &coal_sample_rate_wanted,
-		  &ecoal.rate_sample_interval },
-		{ "stats-block-usecs", CMDL_S32, &coal_stats_wanted,
-		  &ecoal.stats_block_coalesce_usecs },
-		{ "pkt-rate-low", CMDL_S32, &coal_pkt_rate_low_wanted,
-		  &ecoal.pkt_rate_low },
-		{ "pkt-rate-high", CMDL_S32, &coal_pkt_rate_high_wanted,
-		  &ecoal.pkt_rate_high },
-		{ "rx-usecs", CMDL_S32, &coal_rx_usec_wanted,
-		  &ecoal.rx_coalesce_usecs },
-		{ "rx-frames", CMDL_S32, &coal_rx_frames_wanted,
-		  &ecoal.rx_max_coalesced_frames },
-		{ "rx-usecs-irq", CMDL_S32, &coal_rx_usec_irq_wanted,
-		  &ecoal.rx_coalesce_usecs_irq },
-		{ "rx-frames-irq", CMDL_S32, &coal_rx_frames_irq_wanted,
-		  &ecoal.rx_max_coalesced_frames_irq },
-		{ "tx-usecs", CMDL_S32, &coal_tx_usec_wanted,
-		  &ecoal.tx_coalesce_usecs },
-		{ "tx-frames", CMDL_S32, &coal_tx_frames_wanted,
-		  &ecoal.tx_max_coalesced_frames },
-		{ "tx-usecs-irq", CMDL_S32, &coal_tx_usec_irq_wanted,
-		  &ecoal.tx_coalesce_usecs_irq },
-		{ "tx-frames-irq", CMDL_S32, &coal_tx_frames_irq_wanted,
-		  &ecoal.tx_max_coalesced_frames_irq },
-		{ "rx-usecs-low", CMDL_S32, &coal_rx_usec_low_wanted,
-		  &ecoal.rx_coalesce_usecs_low },
-		{ "rx-frames-low", CMDL_S32, &coal_rx_frames_low_wanted,
-		  &ecoal.rx_max_coalesced_frames_low },
-		{ "tx-usecs-low", CMDL_S32, &coal_tx_usec_low_wanted,
-		  &ecoal.tx_coalesce_usecs_low },
-		{ "tx-frames-low", CMDL_S32, &coal_tx_frames_low_wanted,
-		  &ecoal.tx_max_coalesced_frames_low },
-		{ "rx-usecs-high", CMDL_S32, &coal_rx_usec_high_wanted,
-		  &ecoal.rx_coalesce_usecs_high },
-		{ "rx-frames-high", CMDL_S32, &coal_rx_frames_high_wanted,
-		  &ecoal.rx_max_coalesced_frames_high },
-		{ "tx-usecs-high", CMDL_S32, &coal_tx_usec_high_wanted,
-		  &ecoal.tx_coalesce_usecs_high },
-		{ "tx-frames-high", CMDL_S32, &coal_tx_frames_high_wanted,
-		  &ecoal.tx_max_coalesced_frames_high },
-	};
+	DECLARE_COALESCE_OPTION_VARS();
+	struct cmdline_info cmdline_coalesce[] = COALESCE_CMDLINE_INFO(ecoal);
 	int err, changed = 0;
 
 	parse_generic_cmdline(ctx, &gcoalesce_changed,
@@ -3823,13 +3908,14 @@ out:
 }
 
 static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_default,
-			    int rxfhindir_equal, char **rxfhindir_weight,
-			    u32 num_weights)
+			    int rxfhindir_start, int rxfhindir_equal,
+			    char **rxfhindir_weight, u32 num_weights)
 {
 	u32 i;
+
 	if (rxfhindir_equal) {
 		for (i = 0; i < *indir_size; i++)
-			indir[i] = i % rxfhindir_equal;
+			indir[i] = rxfhindir_start + (i % rxfhindir_equal);
 	} else if (rxfhindir_weight) {
 		u32 j, weight, sum = 0, partial = 0;
 
@@ -3858,7 +3944,7 @@ static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_default,
 				weight = get_u32(rxfhindir_weight[j], 0);
 				partial += weight;
 			}
-			indir[i] = j;
+			indir[i] = rxfhindir_start + j;
 		}
 	} else if (rxfhindir_default) {
 		/* "*indir_size == 0" ==> reset indir to default */
@@ -3871,8 +3957,8 @@ static int fill_indir_table(u32 *indir_size, u32 *indir, int rxfhindir_default,
 }
 
 static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_default,
-			 int rxfhindir_equal, char **rxfhindir_weight,
-			 u32 num_weights)
+			 int rxfhindir_start, int rxfhindir_equal,
+			 char **rxfhindir_weight, u32 num_weights)
 {
 	struct ethtool_rxfh_indir indir_head;
 	struct ethtool_rxfh_indir *indir;
@@ -3898,8 +3984,8 @@ static int do_srxfhindir(struct cmd_context *ctx, int rxfhindir_default,
 	indir->size = indir_head.size;
 
 	if (fill_indir_table(&indir->size, indir->ring_index,
-			     rxfhindir_default, rxfhindir_equal,
-			     rxfhindir_weight, num_weights)) {
+			     rxfhindir_default, rxfhindir_start,
+			     rxfhindir_equal, rxfhindir_weight, num_weights)) {
 		free(indir);
 		return 1;
 	}
@@ -3920,7 +4006,7 @@ static int do_srxfh(struct cmd_context *ctx)
 	struct ethtool_rxfh rss_head = {0};
 	struct ethtool_rxfh *rss = NULL;
 	struct ethtool_rxnfc ring_count;
-	int rxfhindir_equal = 0, rxfhindir_default = 0;
+	int rxfhindir_equal = 0, rxfhindir_default = 0, rxfhindir_start = 0;
 	struct ethtool_gstrings *hfuncs = NULL;
 	char **rxfhindir_weight = NULL;
 	char *rxfhindir_key = NULL;
@@ -3944,6 +4030,11 @@ static int do_srxfh(struct cmd_context *ctx)
 			++arg_num;
 			rxfhindir_equal = get_int_range(ctx->argp[arg_num],
 							0, 1, INT_MAX);
+			++arg_num;
+		} else if (!strcmp(ctx->argp[arg_num], "start")) {
+			++arg_num;
+			rxfhindir_start = get_int_range(ctx->argp[arg_num],
+							0, 0, INT_MAX);
 			++arg_num;
 		} else if (!strcmp(ctx->argp[arg_num], "weight")) {
 			++arg_num;
@@ -4005,6 +4096,18 @@ static int do_srxfh(struct cmd_context *ctx)
 		return 1;
 	}
 
+	if (rxfhindir_start && rxfhindir_default) {
+		fprintf(stderr,
+			"Start and default options are mutually exclusive\n");
+		return 1;
+	}
+
+	if (rxfhindir_start && !(rxfhindir_equal || rxfhindir_weight)) {
+		fprintf(stderr,
+			"Start must be used with equal or weight options\n");
+		return 1;
+	}
+
 	if (rxfhindir_default && rss_context) {
 		fprintf(stderr,
 			"Default and context options are mutually exclusive\n");
@@ -4051,8 +4154,9 @@ static int do_srxfh(struct cmd_context *ctx)
 	err = send_ioctl(ctx, &rss_head);
 	if (err < 0 && errno == EOPNOTSUPP && !rxfhindir_key &&
 	    !req_hfunc_name && !rss_context) {
-		return do_srxfhindir(ctx, rxfhindir_default, rxfhindir_equal,
-				     rxfhindir_weight, num_weights);
+		return do_srxfhindir(ctx, rxfhindir_default, rxfhindir_start,
+				     rxfhindir_equal, rxfhindir_weight,
+				     num_weights);
 	} else if (err < 0) {
 		perror("Cannot get RX flow hash indir size and key size");
 		return 1;
@@ -4107,8 +4211,9 @@ static int do_srxfh(struct cmd_context *ctx)
 		rss->indir_size = rss_head.indir_size;
 		rss->key_size = rss_head.key_size;
 		if (fill_indir_table(&rss->indir_size, rss->rss_config,
-				     rxfhindir_default, rxfhindir_equal,
-				     rxfhindir_weight, num_weights)) {
+				     rxfhindir_default, rxfhindir_start,
+				     rxfhindir_equal, rxfhindir_weight,
+				     num_weights)) {
 			err = 1;
 			goto free;
 		}
@@ -4739,28 +4844,15 @@ static int do_get_phy_tunable(struct cmd_context *ctx)
 {
 	int argc = ctx->argc;
 	char **argp = ctx->argp;
-	u8 downshift_changed = 0;
-	int i;
 
 	if (argc < 1)
 		exit_bad_args();
-	for (i = 0; i < argc; i++) {
-		if (!strcmp(argp[i], "downshift")) {
-			downshift_changed = 1;
-			i += 1;
-			if (i < argc)
-				exit_bad_args();
-		} else  {
-			exit_bad_args();
-		}
-	}
 
-	if (downshift_changed) {
+	if (!strcmp(argp[0], "downshift")) {
 		struct {
 			struct ethtool_tunable ds;
-			u8 __count;
+			u8 count;
 		} cont;
-		u8 count = 0;
 
 		cont.ds.cmd = ETHTOOL_PHY_GTUNABLE;
 		cont.ds.id = ETHTOOL_PHY_DOWNSHIFT;
@@ -4770,11 +4862,34 @@ static int do_get_phy_tunable(struct cmd_context *ctx)
 			perror("Cannot Get PHY downshift count");
 			return 87;
 		}
-		count = *((u8 *)&cont.ds.data[0]);
-		if (count)
-			fprintf(stdout, "Downshift count: %d\n", count);
+		if (cont.count)
+			fprintf(stdout, "Downshift count: %d\n", cont.count);
 		else
 			fprintf(stdout, "Downshift disabled\n");
+	} else if (!strcmp(argp[0], "fast-link-down")) {
+		struct {
+			struct ethtool_tunable fld;
+			u8 msecs;
+		} cont;
+
+		cont.fld.cmd = ETHTOOL_PHY_GTUNABLE;
+		cont.fld.id = ETHTOOL_PHY_FAST_LINK_DOWN;
+		cont.fld.type_id = ETHTOOL_TUNABLE_U8;
+		cont.fld.len = 1;
+		if (send_ioctl(ctx, &cont.fld) < 0) {
+			perror("Cannot Get PHY Fast Link Down value");
+			return 87;
+		}
+
+		if (cont.msecs == ETHTOOL_PHY_FAST_LINK_DOWN_ON)
+			fprintf(stdout, "Fast Link Down enabled\n");
+		else if (cont.msecs == ETHTOOL_PHY_FAST_LINK_DOWN_OFF)
+			fprintf(stdout, "Fast Link Down disabled\n");
+		else
+			fprintf(stdout, "Fast Link Down enabled, %d msecs\n",
+				cont.msecs);
+	} else {
+		exit_bad_args();
 	}
 
 	return 0;
@@ -4915,18 +5030,19 @@ static int do_set_phy_tunable(struct cmd_context *ctx)
 	int err = 0;
 	u8 ds_cnt = DOWNSHIFT_DEV_DEFAULT_COUNT;
 	u8 ds_changed = 0, ds_has_cnt = 0, ds_enable = 0;
-
-	if (ctx->argc == 0)
-		exit_bad_args();
+	u8 fld_changed = 0, fld_enable = 0;
+	u8 fld_msecs = ETHTOOL_PHY_FAST_LINK_DOWN_ON;
 
 	/* Parse arguments */
-	while (ctx->argc) {
-		if (parse_named_bool(ctx, "downshift", &ds_enable)) {
-			ds_changed = 1;
-			ds_has_cnt = parse_named_u8(ctx, "count", &ds_cnt);
-		} else {
-			exit_bad_args();
-		}
+	if (parse_named_bool(ctx, "downshift", &ds_enable)) {
+		ds_changed = 1;
+		ds_has_cnt = parse_named_u8(ctx, "count", &ds_cnt);
+	} else if (parse_named_bool(ctx, "fast-link-down", &fld_enable)) {
+		fld_changed = 1;
+		if (fld_enable)
+			parse_named_u8(ctx, "msecs", &fld_msecs);
+	} else {
+		exit_bad_args();
 	}
 
 	/* Validate parameters */
@@ -4944,23 +5060,44 @@ static int do_set_phy_tunable(struct cmd_context *ctx)
 
 		if (!ds_enable)
 			ds_cnt = DOWNSHIFT_DEV_DISABLE;
+	} else if (fld_changed) {
+		if (!fld_enable)
+			fld_msecs = ETHTOOL_PHY_FAST_LINK_DOWN_OFF;
+		else if (fld_msecs == ETHTOOL_PHY_FAST_LINK_DOWN_OFF)
+			exit_bad_args();
 	}
 
 	/* Do it */
 	if (ds_changed) {
 		struct {
 			struct ethtool_tunable ds;
-			u8 __count;
+			u8 count;
 		} cont;
 
 		cont.ds.cmd = ETHTOOL_PHY_STUNABLE;
 		cont.ds.id = ETHTOOL_PHY_DOWNSHIFT;
 		cont.ds.type_id = ETHTOOL_TUNABLE_U8;
 		cont.ds.len = 1;
-		*((u8 *)&cont.ds.data[0]) = ds_cnt;
+		cont.count = ds_cnt;
 		err = send_ioctl(ctx, &cont.ds);
 		if (err < 0) {
 			perror("Cannot Set PHY downshift count");
+			err = 87;
+		}
+	} else if (fld_changed) {
+		struct {
+			struct ethtool_tunable fld;
+			u8 msecs;
+		} cont;
+
+		cont.fld.cmd = ETHTOOL_PHY_STUNABLE;
+		cont.fld.id = ETHTOOL_PHY_FAST_LINK_DOWN;
+		cont.fld.type_id = ETHTOOL_TUNABLE_U8;
+		cont.fld.len = 1;
+		cont.msecs = fld_msecs;
+		err = send_ioctl(ctx, &cont.fld);
+		if (err < 0) {
+			perror("Cannot Set PHY Fast Link Down value");
 			err = 87;
 		}
 	}
@@ -5044,6 +5181,8 @@ static int do_sfec(struct cmd_context *ctx)
 
 	return 0;
 }
+
+static int do_perqueue(struct cmd_context *ctx);
 
 #ifndef TEST_ETHTOOL
 int send_ioctl(struct cmd_context *ctx, void *cmd)
@@ -5212,9 +5351,11 @@ static const struct option {
 	  "		[ tx-lpi on|off ]\n"
 	  "		[ tx-timer %d ]\n"},
 	{ "--set-phy-tunable", 1, do_set_phy_tunable, "Set PHY tunable",
-	  "		[ downshift on|off [count N] ]\n"},
+	  "		[ downshift on|off [count N] ]\n"
+	  "		[ fast-link-down on|off [msecs N] ]\n"},
 	{ "--get-phy-tunable", 1, do_get_phy_tunable, "Get PHY tunable",
-	  "		[ downshift ]\n"},
+	  "		[ downshift ]\n"
+	  "		[ fast-link-down ]\n"},
 	{ "--reset", 1, do_reset, "Reset components",
 	  "		[ flags %x ]\n"
 	  "		[ mgmt ]\n"
@@ -5240,6 +5381,9 @@ static const struct option {
 	{ "--show-fec", 1, do_gfec, "Show FEC settings"},
 	{ "--set-fec", 1, do_sfec, "Set FEC settings",
 	  "		[ encoding auto|off|rs|baser [...]]\n"},
+	{ "-Q|--per-queue", 1, do_perqueue, "Apply per-queue command."
+	  "The supported sub commands include --show-coalesce, --coalesce",
+	  "             [queue_mask %x] SUB_COMMAND\n"},
 	{ "-h|--help", 0, show_usage, "Show this help" },
 	{ "--version", 0, do_version, "Show version number" },
 	{}
@@ -5268,6 +5412,198 @@ static int show_usage(struct cmd_context *ctx)
 	return 0;
 }
 
+static int find_option(int argc, char **argp)
+{
+	const char *opt;
+	size_t len;
+	int k;
+
+	for (k = 0; args[k].opts; k++) {
+		opt = args[k].opts;
+		for (;;) {
+			len = strcspn(opt, "|");
+			if (strncmp(*argp, opt, len) == 0 &&
+			    (*argp)[len] == 0)
+				return k;
+
+			if (opt[len] == 0)
+				break;
+			opt += len + 1;
+		}
+	}
+
+	return -1;
+}
+
+#define MAX(x, y) (x > y ? x : y)
+
+static int find_max_num_queues(struct cmd_context *ctx)
+{
+	struct ethtool_channels echannels;
+
+	echannels.cmd = ETHTOOL_GCHANNELS;
+	if (send_ioctl(ctx, &echannels))
+		return -1;
+
+	return MAX(echannels.rx_count, echannels.tx_count) +
+		echannels.combined_count;
+}
+
+static struct ethtool_per_queue_op *
+get_per_queue_coalesce(struct cmd_context *ctx, __u32 *queue_mask, int n_queues)
+{
+	struct ethtool_per_queue_op *per_queue_opt;
+
+	per_queue_opt = malloc(sizeof(*per_queue_opt) + n_queues *
+			sizeof(struct ethtool_coalesce));
+	if (!per_queue_opt)
+		return NULL;
+
+	memcpy(per_queue_opt->queue_mask, queue_mask,
+	       __KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32) * sizeof(__u32));
+	per_queue_opt->cmd = ETHTOOL_PERQUEUE;
+	per_queue_opt->sub_command = ETHTOOL_GCOALESCE;
+	if (send_ioctl(ctx, per_queue_opt)) {
+		free(per_queue_opt);
+		perror("Cannot get device per queue parameters");
+		return NULL;
+	}
+
+	return per_queue_opt;
+}
+
+static void set_per_queue_coalesce(struct cmd_context *ctx,
+				   struct ethtool_per_queue_op *per_queue_opt,
+				   int n_queues)
+{
+	struct ethtool_coalesce ecoal;
+	DECLARE_COALESCE_OPTION_VARS();
+	struct cmdline_info cmdline_coalesce[] = COALESCE_CMDLINE_INFO(ecoal);
+	__u32 *queue_mask = per_queue_opt->queue_mask;
+	struct ethtool_coalesce *ecoal_q;
+	int gcoalesce_changed = 0;
+	int i, idx = 0;
+
+	parse_generic_cmdline(ctx, &gcoalesce_changed,
+			      cmdline_coalesce, ARRAY_SIZE(cmdline_coalesce));
+
+	ecoal_q = (struct ethtool_coalesce *)(per_queue_opt + 1);
+	for (i = 0; i < __KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32); i++) {
+		int queue = i * 32;
+		__u32 mask = queue_mask[i];
+
+		while (mask > 0) {
+			if (mask & 0x1) {
+				int changed = 0;
+
+				memcpy(&ecoal, ecoal_q + idx,
+				       sizeof(struct ethtool_coalesce));
+				do_generic_set(cmdline_coalesce,
+					       ARRAY_SIZE(cmdline_coalesce),
+					       &changed);
+				if (!changed)
+					fprintf(stderr,
+						"Queue %d, no coalesce parameters changed\n",
+						queue);
+				memcpy(ecoal_q + idx, &ecoal,
+				       sizeof(struct ethtool_coalesce));
+				idx++;
+			}
+			mask = mask >> 1;
+			queue++;
+		}
+		if (idx == n_queues)
+			break;
+	}
+
+	per_queue_opt->cmd = ETHTOOL_PERQUEUE;
+	per_queue_opt->sub_command = ETHTOOL_SCOALESCE;
+
+	if (send_ioctl(ctx, per_queue_opt))
+		perror("Cannot set device per queue parameters");
+}
+
+static int do_perqueue(struct cmd_context *ctx)
+{
+	struct ethtool_per_queue_op *per_queue_opt;
+	__u32 queue_mask[__KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32)] = {0};
+	int i, n_queues = 0;
+
+	if (ctx->argc == 0)
+		exit_bad_args();
+
+	/*
+	 * The sub commands will be applied to
+	 * all queues if no queue_mask set
+	 */
+	if (strncmp(*ctx->argp, "queue_mask", 11)) {
+		n_queues = find_max_num_queues(ctx);
+		if (n_queues < 0) {
+			perror("Cannot get number of queues");
+			return -EFAULT;
+		} else if (n_queues > MAX_NUM_QUEUE) {
+			n_queues = MAX_NUM_QUEUE;
+		}
+		for (i = 0; i < n_queues / 32; i++)
+			queue_mask[i] = ~0;
+		if (n_queues % 32)
+			queue_mask[i] = (1 << (n_queues - i * 32)) - 1;
+		fprintf(stdout,
+			"The sub commands will be applied to all %d queues\n",
+			n_queues);
+	} else {
+		ctx->argc--;
+		ctx->argp++;
+		if (parse_hex_u32_bitmap(*ctx->argp, MAX_NUM_QUEUE,
+		    queue_mask)) {
+			fprintf(stdout, "Invalid queue mask\n");
+			return -1;
+		}
+		for (i = 0; i < __KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32); i++) {
+			__u32 mask = queue_mask[i];
+
+			while (mask > 0) {
+				if (mask & 0x1)
+					n_queues++;
+				mask = mask >> 1;
+			}
+		}
+		ctx->argc--;
+		ctx->argp++;
+	}
+
+	i = find_option(ctx->argc, ctx->argp);
+	if (i < 0)
+		exit_bad_args();
+
+	if (strstr(args[i].opts, "--show-coalesce") != NULL) {
+		per_queue_opt = get_per_queue_coalesce(ctx, queue_mask,
+						       n_queues);
+		if (per_queue_opt == NULL) {
+			perror("Cannot get device per queue parameters");
+			return -EFAULT;
+		}
+		dump_per_queue_coalesce(per_queue_opt, queue_mask, n_queues);
+		free(per_queue_opt);
+	} else if (strstr(args[i].opts, "--coalesce") != NULL) {
+		ctx->argc--;
+		ctx->argp++;
+		per_queue_opt = get_per_queue_coalesce(ctx, queue_mask,
+						       n_queues);
+		if (per_queue_opt == NULL) {
+			perror("Cannot get device per queue parameters");
+			return -EFAULT;
+		}
+		set_per_queue_coalesce(ctx, per_queue_opt, n_queues);
+		free(per_queue_opt);
+	} else {
+		perror("The subcommand is not supported yet");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argp)
 {
 	int (*func)(struct cmd_context *);
@@ -5287,24 +5623,14 @@ int main(int argc, char **argp)
 	 */
 	if (argc == 0)
 		exit_bad_args();
-	for (k = 0; args[k].opts; k++) {
-		const char *opt;
-		size_t len;
-		opt = args[k].opts;
-		for (;;) {
-			len = strcspn(opt, "|");
-			if (strncmp(*argp, opt, len) == 0 &&
-			    (*argp)[len] == 0) {
-				argp++;
-				argc--;
-				func = args[k].func;
-				want_device = args[k].want_device;
-				goto opt_found;
-			}
-			if (opt[len] == 0)
-				break;
-			opt += len + 1;
-		}
+
+	k = find_option(argc, argp);
+	if (k >= 0) {
+		argp++;
+		argc--;
+		func = args[k].func;
+		want_device = args[k].want_device;
+		goto opt_found;
 	}
 	if ((*argp)[0] == '-')
 		exit_bad_args();

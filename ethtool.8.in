@@ -113,7 +113,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "March 2019" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "July 2019" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -297,6 +297,8 @@ ethtool \- query or control network driver and hardware settings
 .B ethtool \-X|\-\-set\-rxfh\-indir|\-\-rxfh
 .I devname
 .RB [ hkey \ \*(MA:\...]
+.RB [ start
+.IR N ]
 .RB [\  equal
 .IR N \ |
 .BI weight\  W0
@@ -355,10 +357,16 @@ ethtool \- query or control network driver and hardware settings
 .A1 on off
 .BN count
 .RB ]
+.RB [
+.B fast\-link\-down
+.A1 on off
+.BN msecs
+.RB ]
 .HP
 .B ethtool \-\-get\-phy\-tunable
 .I devname
 .RB [ downshift ]
+.RB [ fast-link-down ]
 .HP
 .B ethtool \-\-reset
 .I devname
@@ -391,6 +399,14 @@ ethtool \- query or control network driver and hardware settings
 .I devname
 .B encoding
 .BR auto | off | rs | baser \ [...]
+.HP
+.B ethtool \-Q|\-\-per\-queue
+.I devname
+.RB [ queue_mask
+.IR %x ]
+.I sub_command
+.RB ...
+ .
 .
 .\" Adjust lines (i.e. full justification) and hyphenate.
 .ad
@@ -623,8 +639,10 @@ lB	l	lB.
 0x002	10baseT Full
 0x004	100baseT Half
 0x008	100baseT Full
+0x80000000000000000	100baseT1 Full
 0x010	1000baseT Half	(not supported by IEEE standards)
 0x020	1000baseT Full
+0x100000000000000000	1000baseT1 Full
 0x20000	1000baseKX Full
 0x20000000000	1000baseX Full
 0x800000000000	2500baseT Full
@@ -633,6 +651,7 @@ lB	l	lB.
 0x1000	10000baseT Full
 0x40000	10000baseKX4 Full
 0x80000	10000baseKR Full
+0x100000	10000baseR_FEC
 0x40000000000	10000baseCR  Full
 0x80000000000	10000baseSR  Full
 0x100000000000	10000baseLR  Full
@@ -650,6 +669,11 @@ lB	l	lB.
 0x400000000	50000baseCR2 Full
 0x800000000	50000baseKR2 Full
 0x10000000000	50000baseSR2 Full
+0x10000000000000	50000baseKR Full
+0x20000000000000	50000baseSR Full
+0x40000000000000	50000baseCR Full
+0x80000000000000	50000baseLR_ER_FR Full
+0x100000000000000	50000baseDR Full
 0x8000000	56000baseKR4 Full
 0x10000000	56000baseCR4 Full
 0x20000000	56000baseSR4 Full
@@ -658,6 +682,16 @@ lB	l	lB.
 0x2000000000	100000baseSR4 Full
 0x4000000000	100000baseCR4 Full
 0x8000000000	100000baseLR4_ER4 Full
+0x200000000000000	100000baseKR2 Full
+0x400000000000000	100000baseSR2 Full
+0x800000000000000	100000baseCR2 Full
+0x1000000000000000	100000baseLR2_ER2_FR2 Full
+0x2000000000000000	100000baseDR2 Full
+0x4000000000000000	200000baseKR4 Full
+0x8000000000000000	200000baseSR4 Full
+0x10000000000000000	200000baseLR4_ER4_FR4 Full
+0x20000000000000000	200000baseDR4 Full
+0x40000000000000000	200000baseCR4 Full
 .TE
 .TP
 .BI phyad \ N
@@ -929,6 +963,10 @@ even if a nibble is zero.
 Sets RSS hash function of the specified network device.
 List of RSS hash functions which kernel supports is shown as a part of the --show-rxfh command output.
 .TP
+.BI start\  N
+For the \fBequal\fR and \fBweight\fR options, sets the starting receive queue
+for spreading flows to \fIN\fR.
+.TP
 .BI equal\  N
 Sets the receive flow hash indirection table to spread flows evenly
 between the first \fIN\fR receive queues.
@@ -1045,12 +1083,22 @@ Sets the PHY tunable parameters.
 .RS 4
 .TP
 .A2 downshift on off
-Specifies whether downshift should be enabled
+Specifies whether downshift should be enabled.
 .TS
 nokeep;
 lB	l.
 .BI count \ N
-Sets the PHY downshift re-tries count.
+	Sets the PHY downshift re-tries count.
+.TE
+.TP
+.A2 fast-link-down on off
+Specifies whether Fast Link Down should be enabled and time until link down (if supported).
+.TS
+nokeep;
+lB	l.
+.BI msecs \ N
+	Sets the period after which the link is reported as down. Note that the PHY may choose
+	the closest supported value. Only on reading back the tunable do you get the actual value.
 .TE
 .PD
 .RE
@@ -1066,6 +1114,14 @@ Link speed downshift after N failed 1000BASE-T auto-negotiation attempts.
 Downshift is useful where cable does not have the 4 pairs instance.
 
 Gets the PHY downshift count/status.
+.TP
+.B fast\-link\-down
+Depending on the mode it may take 0.5s - 1s until a broken link is reported as down.
+In certain use cases a link-down event needs to be reported as soon as possible.
+Some PHYs support a Fast Link Down Feature and may allow configuration of the delay
+before a broken link is reported as being down.
+
+Gets the PHY Fast Link Down status / period.
 .RE
 .TP
 .B \-\-reset
@@ -1134,6 +1190,19 @@ off	Turn off FEC
 RS	Force RS-FEC encoding
 BaseR	Force BaseR encoding
 .TE
+.RE
+.TP
+.B \-Q|\-\-per\-queue
+Applies provided sub command to specific queues.
+.RS 4
+.TP
+.B queue_mask %x
+Sets the specific queues which the sub command is applied to.
+If queue_mask is not set, the sub command will be applied to all queues.
+.TP
+.B sub_command
+Sub command to apply. The supported sub commands include --show-coalesce and
+--coalesce.
 .RE
 .SH BUGS
 Not supported (in part or whole) on all network drivers.
