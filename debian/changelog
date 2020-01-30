@@ -10,6 +10,7 @@ ethtool (1:5.4-1) UNRELEASED; urgency=medium
   * debian/copyright: Update copyright notices and add a "Files: *" paragraph
   * lintian: Override orig-tarball-missing-upstream-signature warning as
     this is blocked by bug #882694
+  * debian/control: Set Rules-Requires-Root: no
 
  -- Romain Perier <romain.perier@gmail.com>  Fri, 15 Mar 2019 22:09:14 +0100
 
