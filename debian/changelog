@@ -7,6 +7,7 @@ ethtool (1:5.4-1) UNRELEASED; urgency=medium
   * New upstream release: 5.4
   * Add upstream public key and enable signature checking in debian/watch
   * debian/control: Remove Anibal from Uploaders (Closes: #925101)
+  * debian/copyright: Update copyright notices and add a "Files: *" paragraph
 
  -- Romain Perier <romain.perier@gmail.com>  Fri, 15 Mar 2019 22:09:14 +0100
 
