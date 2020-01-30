@@ -1,3 +1,10 @@
+ethtool (1:5.4-2) UNRELEASED; urgency=medium
+
+  * Revert "debian/rules: Configure with --disable-silent-rules by default";
+    dh_auto_configure already passes this option
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Thu, 30 Jan 2020 20:57:53 +0000
+
 ethtool (1:5.4-1) unstable; urgency=medium
 
   [ Romain Perier ]

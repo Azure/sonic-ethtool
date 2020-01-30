@@ -5,8 +5,7 @@
 
 override_dh_auto_configure:
 	./autogen.sh
-	dh_auto_configure -- --sbindir=/sbin \
-		$(if $(filter terse,$(DEB_BUILD_OPTIONS)),,--disable-silent-rules)
+	dh_auto_configure -- --sbindir=/sbin
 
 override_dh_auto_install:
 	dh_auto_install
