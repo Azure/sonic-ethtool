@@ -1,3 +1,3 @@
 version=3
-opts=dversionmangle=s/^1:// \
+opts="pgpmode=mangle, pgpsigurlmangle=s|\.xz$|.sign|, decompress, dversionmangle=s/^1://" \
 https://www.kernel.org/pub/software/network/ethtool/ethtool-([1-9].*)\.tar\.xz
