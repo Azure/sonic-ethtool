@@ -1,7 +1,11 @@
 ethtool (1:5.4-2) UNRELEASED; urgency=medium
 
+  [ Ben Hutchings ]
   * Revert "debian/rules: Configure with --disable-silent-rules by default";
     dh_auto_configure already passes this option
+
+  [ Debian Janitor ]
+  * Trim trailing whitespace.
 
  -- Ben Hutchings <ben@decadent.org.uk>  Thu, 30 Jan 2020 20:57:53 +0000
 
@@ -206,7 +210,7 @@ ethtool (1:2.6.34-2) unstable; urgency=low
 
 ethtool (1:2.6.34-1ubuntu1) maverick; urgency=low
 
-  * Move ethtool to /sbin from /usr/sbin. (LP: #280421) 
+  * Move ethtool to /sbin from /usr/sbin. (LP: #280421)
 
  -- Chuck Short <zulcss@ubuntu.com>  Thu, 03 Jun 2010 09:02:43 -0400
 
@@ -221,7 +225,7 @@ ethtool (1:2.6.34-1) unstable; urgency=low
 
 ethtool (1:2.6.33-1) unstable; urgency=low
 
-  * New upstream release 
+  * New upstream release
   * Debian source format is 3.0 (quilt)
   * DH compatibility level is 7
   * Fix quilt-build-dep-but-no-series-file
@@ -419,5 +423,3 @@ ethtool (1.3-1) unstable; urgency=low
     Meal (hme) Ethernet cards.
 
  -- Eric Delaunay <delaunay@lix.polytechnique.fr>  Tue,  2 Oct 2001 20:25:05 +0200
-
-
