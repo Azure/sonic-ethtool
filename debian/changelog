@@ -6,6 +6,7 @@ ethtool (1:5.4-2) UNRELEASED; urgency=medium
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
+  * Remove empty debian/source/options.
 
  -- Ben Hutchings <ben@decadent.org.uk>  Thu, 30 Jan 2020 20:57:53 +0000
 
