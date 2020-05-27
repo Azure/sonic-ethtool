@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Debian Kernel Team <debian-kernel@lists.debian.org>
 Uploaders: Ben Hutchings <ben@decadent.org.uk>
 Standards-Version: 4.4.1
-Build-Depends: debhelper (>= 12~), autoconf, automake
+Build-Depends: debhelper-compat (= 12), autoconf, automake
 Rules-Requires-Root: no
 Homepage: https://www.kernel.org/pub/software/network/ethtool/
 Vcs-Git: https://salsa.debian.org/kernel-team/ethtool.git
