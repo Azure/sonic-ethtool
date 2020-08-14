@@ -7,6 +7,7 @@ ethtool (1:5.8-1) UNRELEASED; urgency=medium
     dh_auto_configure already passes this option
   * debian/control: Set Architecture: linux-any (Closes: #961965)
   * debian/control: Use my debian.org email in Uploaders field
+  * debian/upstream/signing-key.asc: Update for new upstream maintainer
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
