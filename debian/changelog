@@ -6,6 +6,7 @@ ethtool (1:5.8-1) UNRELEASED; urgency=medium
   * Revert "debian/rules: Configure with --disable-silent-rules by default";
     dh_auto_configure already passes this option
   * debian/control: Set Architecture: linux-any (Closes: #961965)
+  * debian/control: Use my debian.org email in Uploaders field
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
