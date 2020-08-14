@@ -5,6 +5,7 @@ ethtool (1:5.8-1) UNRELEASED; urgency=medium
   [ Ben Hutchings ]
   * Revert "debian/rules: Configure with --disable-silent-rules by default";
     dh_auto_configure already passes this option
+  * debian/control: Set Architecture: linux-any (Closes: #961965)
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
