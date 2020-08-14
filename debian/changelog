@@ -8,7 +8,7 @@ ethtool (1:5.8-1) UNRELEASED; urgency=medium
   * debian/control: Set Architecture: linux-any (Closes: #961965)
   * debian/control: Use my debian.org email in Uploaders field
   * debian/upstream/signing-key.asc: Update for new upstream maintainer
-  * debian/control: Add libmnl-dev to Build-Depends
+  * debian/control: Add libmnl-dev and pkg-config to Build-Depends
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
