@@ -1,4 +1,4 @@
-ethtool (1:5.8-1) UNRELEASED; urgency=medium
+ethtool (1:5.8-1) unstable; urgency=medium
 
   * New upstream release (Closes: #968099)
 
@@ -18,7 +18,7 @@ ethtool (1:5.8-1) UNRELEASED; urgency=medium
   * Set upstream metadata fields: Repository.
   * Update standards version to 4.5.0, no changes needed.
 
- -- Ben Hutchings <ben@decadent.org.uk>  Thu, 30 Jan 2020 20:57:53 +0000
+ -- Ben Hutchings <benh@debian.org>  Fri, 14 Aug 2020 01:50:13 +0100
 
 ethtool (1:5.4-1) unstable; urgency=medium
 
