@@ -23,7 +23,15 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#define maybe_unused __attribute__((__unused__))
+#include "json_writer.h"
+#include "json_print.h"
+
+#define __maybe_unused __attribute__((__unused__))
+
+/* internal for netlink interface */
+#ifdef ETHTOOL_ENABLE_NETLINK
+struct nl_context;
+#endif
 
 /* ethtool.h expects these to be defined by <linux/types.h> */
 #ifndef HAVE_BE_TYPES
@@ -44,8 +52,12 @@ typedef int32_t s32;
 #define __KERNEL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif
 
-#include "ethtool-copy.h"
-#include "net_tstamp-copy.h"
+#ifndef ALTIFNAMSIZ
+#define ALTIFNAMSIZ 128
+#endif
+
+#include <linux/ethtool.h>
+#include <linux/net_tstamp.h>
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 static inline u16 cpu_to_be16(u16 value)
@@ -106,6 +118,20 @@ static inline int test_bit(unsigned int nr, const unsigned long *addr)
 #ifndef SIOCETHTOOL
 #define SIOCETHTOOL     0x8946
 #endif
+
+/* debugging flags */
+enum {
+	DEBUG_PARSE,
+	DEBUG_NL_MSGS,		/* incoming/outgoing netlink messages */
+	DEBUG_NL_DUMP_SND,	/* dump outgoing netlink messages */
+	DEBUG_NL_DUMP_RCV,	/* dump incoming netlink messages */
+	DEBUG_NL_PRETTY_MSG,	/* pretty print of messages and errors */
+};
+
+static inline bool debug_on(unsigned long debug, unsigned int bit)
+{
+	return (debug & (1 << bit));
+}
 
 /* Internal values for old-style offload flags.  Values and names
  * must not clash with the flags defined for ETHTOOL_{G,S}FLAGS.
@@ -197,6 +223,11 @@ struct cmd_context {
 	struct ifreq ifr;	/* ifreq suitable for ethtool ioctl */
 	int argc;		/* number of arguments to the sub-command */
 	char **argp;		/* arguments to the sub-command */
+	unsigned long debug;	/* debugging mask */
+	bool json;		/* Output JSON, if supported */
+#ifdef ETHTOOL_ENABLE_NETLINK
+	struct nl_context *nlctx;	/* netlink context (opaque) */
+#endif
 };
 
 #ifdef TEST_ETHTOOL
@@ -361,5 +392,8 @@ int dsa_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 /* i.MX Fast Ethernet Controller */
 int fec_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
+/* Intel(R) Ethernet Controller I225-LM/I225-V adapter family */
+int igc_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 #endif /* ETHTOOL_INTERNAL_H__ */

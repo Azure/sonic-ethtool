@@ -40,6 +40,7 @@
 #include <sys/utsname.h>
 #include <limits.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -48,28 +49,11 @@
 #include <linux/sockios.h>
 #include <linux/netlink.h>
 
+#include "common.h"
+#include "netlink/extapi.h"
+
 #ifndef MAX_ADDR_LEN
 #define MAX_ADDR_LEN	32
-#endif
-
-#ifndef HAVE_NETIF_MSG
-enum {
-	NETIF_MSG_DRV		= 0x0001,
-	NETIF_MSG_PROBE		= 0x0002,
-	NETIF_MSG_LINK		= 0x0004,
-	NETIF_MSG_TIMER		= 0x0008,
-	NETIF_MSG_IFDOWN	= 0x0010,
-	NETIF_MSG_IFUP		= 0x0020,
-	NETIF_MSG_RX_ERR	= 0x0040,
-	NETIF_MSG_TX_ERR	= 0x0080,
-	NETIF_MSG_TX_QUEUED	= 0x0100,
-	NETIF_MSG_INTR		= 0x0200,
-	NETIF_MSG_TX_DONE	= 0x0400,
-	NETIF_MSG_RX_STATUS	= 0x0800,
-	NETIF_MSG_PKTDATA	= 0x1000,
-	NETIF_MSG_HW		= 0x2000,
-	NETIF_MSG_WOL		= 0x4000,
-};
 #endif
 
 #ifndef NETLINK_GENERIC
@@ -119,74 +103,6 @@ struct cmdline_info {
 	void *seen_val;
 };
 
-struct flag_info {
-	const char *name;
-	u32 value;
-};
-
-static const struct flag_info flags_msglvl[] = {
-	{ "drv",	NETIF_MSG_DRV },
-	{ "probe",	NETIF_MSG_PROBE },
-	{ "link",	NETIF_MSG_LINK },
-	{ "timer",	NETIF_MSG_TIMER },
-	{ "ifdown",	NETIF_MSG_IFDOWN },
-	{ "ifup",	NETIF_MSG_IFUP },
-	{ "rx_err",	NETIF_MSG_RX_ERR },
-	{ "tx_err",	NETIF_MSG_TX_ERR },
-	{ "tx_queued",	NETIF_MSG_TX_QUEUED },
-	{ "intr",	NETIF_MSG_INTR },
-	{ "tx_done",	NETIF_MSG_TX_DONE },
-	{ "rx_status",	NETIF_MSG_RX_STATUS },
-	{ "pktdata",	NETIF_MSG_PKTDATA },
-	{ "hw",		NETIF_MSG_HW },
-	{ "wol",	NETIF_MSG_WOL },
-};
-
-struct off_flag_def {
-	const char *short_name;
-	const char *long_name;
-	const char *kernel_name;
-	u32 get_cmd, set_cmd;
-	u32 value;
-	/* For features exposed through ETHTOOL_GFLAGS, the oldest
-	 * kernel version for which we can trust the result.  Where
-	 * the flag was added at the same time the kernel started
-	 * supporting the feature, this is 0 (to allow for backports).
-	 * Where the feature was supported before the flag was added,
-	 * it is the version that introduced the flag.
-	 */
-	u32 min_kernel_ver;
-};
-static const struct off_flag_def off_flag_def[] = {
-	{ "rx",     "rx-checksumming",		    "rx-checksum",
-	  ETHTOOL_GRXCSUM, ETHTOOL_SRXCSUM, ETH_FLAG_RXCSUM,	0 },
-	{ "tx",     "tx-checksumming",		    "tx-checksum-*",
-	  ETHTOOL_GTXCSUM, ETHTOOL_STXCSUM, ETH_FLAG_TXCSUM,	0 },
-	{ "sg",     "scatter-gather",		    "tx-scatter-gather*",
-	  ETHTOOL_GSG,	   ETHTOOL_SSG,     ETH_FLAG_SG,	0 },
-	{ "tso",    "tcp-segmentation-offload",	    "tx-tcp*-segmentation",
-	  ETHTOOL_GTSO,	   ETHTOOL_STSO,    ETH_FLAG_TSO,	0 },
-	{ "ufo",    "udp-fragmentation-offload",    "tx-udp-fragmentation",
-	  ETHTOOL_GUFO,	   ETHTOOL_SUFO,    ETH_FLAG_UFO,	0 },
-	{ "gso",    "generic-segmentation-offload", "tx-generic-segmentation",
-	  ETHTOOL_GGSO,	   ETHTOOL_SGSO,    ETH_FLAG_GSO,	0 },
-	{ "gro",    "generic-receive-offload",	    "rx-gro",
-	  ETHTOOL_GGRO,	   ETHTOOL_SGRO,    ETH_FLAG_GRO,	0 },
-	{ "lro",    "large-receive-offload",	    "rx-lro",
-	  0,		   0,		    ETH_FLAG_LRO,
-	  KERNEL_VERSION(2,6,24) },
-	{ "rxvlan", "rx-vlan-offload",		    "rx-vlan-hw-parse",
-	  0,		   0,		    ETH_FLAG_RXVLAN,
-	  KERNEL_VERSION(2,6,37) },
-	{ "txvlan", "tx-vlan-offload",		    "tx-vlan-hw-insert",
-	  0,		   0,		    ETH_FLAG_TXVLAN,
-	  KERNEL_VERSION(2,6,37) },
-	{ "ntuple", "ntuple-filters",		    "rx-ntuple-filter",
-	  0,		   0,		    ETH_FLAG_NTUPLE,	0 },
-	{ "rxhash", "receive-hashing",		    "rx-hashing",
-	  0,		   0,		    ETH_FLAG_RXHASH,	0 },
-};
-
 struct feature_def {
 	char name[ETH_GSTRING_LEN];
 	int off_flag_index; /* index in off_flag_def; negative if none match */
@@ -195,7 +111,7 @@ struct feature_def {
 struct feature_defs {
 	size_t n_features;
 	/* Number of features each offload flag is associated with */
-	unsigned int off_flag_matched[ARRAY_SIZE(off_flag_def)];
+	unsigned int off_flag_matched[OFF_FLAG_DEF_SIZE];
 	/* Name and offload flag index for each feature */
 	struct feature_def def[0];
 };
@@ -424,26 +340,6 @@ static void flag_to_cmdline_info(const char *name, u32 value,
 	cli->seen_val = mask;
 }
 
-static void
-print_flags(const struct flag_info *info, unsigned int n_info, u32 value)
-{
-	const char *sep = "";
-
-	while (n_info) {
-		if (value & info->value) {
-			printf("%s%s", sep, info->name);
-			sep = " ";
-			value &= ~info->value;
-		}
-		++info;
-		--n_info;
-	}
-
-	/* Print any unrecognised flags in hex */
-	if (value)
-		printf("%s%#x", sep, value);
-}
-
 static int rxflow_str_to_type(const char *str)
 {
 	int flow_type = 0;
@@ -470,7 +366,7 @@ static int rxflow_str_to_type(const char *str)
 	return flow_type;
 }
 
-static int do_version(struct cmd_context *ctx maybe_unused)
+static int do_version(struct cmd_context *ctx __maybe_unused)
 {
 	fprintf(stdout,
 		PACKAGE " version " VERSION
@@ -562,6 +458,7 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_FEC_NONE_BIT,
 		ETHTOOL_LINK_MODE_FEC_RS_BIT,
 		ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+		ETHTOOL_LINK_MODE_FEC_LLRS_BIT,
 	};
 	unsigned int i;
 
@@ -814,6 +711,12 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 			fprintf(stdout, " RS");
 			fecreported = 1;
 		}
+		if (ethtool_link_mode_test_bit(ETHTOOL_LINK_MODE_FEC_LLRS_BIT,
+					       mask)) {
+			fprintf(stdout, " LLRS");
+			fecreported = 1;
+		}
+
 		if (!fecreported)
 			fprintf(stdout, " Not reported");
 		fprintf(stdout, "\n");
@@ -902,31 +805,9 @@ dump_link_usettings(const struct ethtool_link_usettings *link_usettings)
 		(link_usettings->base.autoneg == AUTONEG_DISABLE) ?
 		"off" : "on");
 
-	if (link_usettings->base.port == PORT_TP) {
-		fprintf(stdout, "	MDI-X: ");
-		if (link_usettings->base.eth_tp_mdix_ctrl == ETH_TP_MDI) {
-			fprintf(stdout, "off (forced)\n");
-		} else if (link_usettings->base.eth_tp_mdix_ctrl
-			   == ETH_TP_MDI_X) {
-			fprintf(stdout, "on (forced)\n");
-		} else {
-			switch (link_usettings->base.eth_tp_mdix) {
-			case ETH_TP_MDI:
-				fprintf(stdout, "off");
-				break;
-			case ETH_TP_MDI_X:
-				fprintf(stdout, "on");
-				break;
-			default:
-				fprintf(stdout, "Unknown");
-				break;
-			}
-			if (link_usettings->base.eth_tp_mdix_ctrl
-			    == ETH_TP_MDI_AUTO)
-				fprintf(stdout, " (auto)");
-			fprintf(stdout, "\n");
-		}
-	}
+	if (link_usettings->base.port == PORT_TP)
+		dump_mdix(link_usettings->base.eth_tp_mdix,
+			  link_usettings->base.eth_tp_mdix_ctrl);
 
 	return 0;
 }
@@ -995,58 +876,6 @@ static int parse_wolopts(char *optstr, u32 *data)
 		}
 		optstr++;
 	}
-	return 0;
-}
-
-static char *unparse_wolopts(int wolopts)
-{
-	static char buf[16];
-	char *p = buf;
-
-	memset(buf, 0, sizeof(buf));
-
-	if (wolopts) {
-		if (wolopts & WAKE_PHY)
-			*p++ = 'p';
-		if (wolopts & WAKE_UCAST)
-			*p++ = 'u';
-		if (wolopts & WAKE_MCAST)
-			*p++ = 'm';
-		if (wolopts & WAKE_BCAST)
-			*p++ = 'b';
-		if (wolopts & WAKE_ARP)
-			*p++ = 'a';
-		if (wolopts & WAKE_MAGIC)
-			*p++ = 'g';
-		if (wolopts & WAKE_MAGICSECURE)
-			*p++ = 's';
-		if (wolopts & WAKE_FILTER)
-			*p++ = 'f';
-	} else {
-		*p = 'd';
-	}
-
-	return buf;
-}
-
-static int dump_wol(struct ethtool_wolinfo *wol)
-{
-	fprintf(stdout, "	Supports Wake-on: %s\n",
-		unparse_wolopts(wol->supported));
-	fprintf(stdout, "	Wake-on: %s\n",
-		unparse_wolopts(wol->wolopts));
-	if (wol->supported & WAKE_MAGICSECURE) {
-		int i;
-		int delim = 0;
-
-		fprintf(stdout, "        SecureOn password: ");
-		for (i = 0; i < SOPASS_MAX; i++) {
-			fprintf(stdout, "%s%02x", delim?":":"", wol->sopass[i]);
-			delim = 1;
-		}
-		fprintf(stdout, "\n");
-	}
-
 	return 0;
 }
 
@@ -1221,6 +1050,7 @@ static const struct {
 	{ "lan78xx", lan78xx_dump_regs },
 	{ "dsa", dsa_dump_regs },
 	{ "fec", fec_dump_regs },
+	{ "igc", igc_dump_regs },
 #endif
 };
 
@@ -1276,7 +1106,7 @@ nested:
 }
 
 static int dump_eeprom(int geeprom_dump_raw,
-		       struct ethtool_drvinfo *info maybe_unused,
+		       struct ethtool_drvinfo *info __maybe_unused,
 		       struct ethtool_eeprom *ee)
 {
 	if (geeprom_dump_raw) {
@@ -1550,7 +1380,7 @@ static void dump_features(const struct feature_defs *defs,
 	int indent;
 	int i, j;
 
-	for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
+	for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 		/* Don't show features whose state is unknown on this
 		 * kernel version
 		 */
@@ -1696,6 +1526,8 @@ static void dump_fec(u32 fec)
 		fprintf(stdout, " BaseR");
 	if (fec & ETHTOOL_FEC_RS)
 		fprintf(stdout, " RS");
+	if (fec & ETHTOOL_FEC_LLRS)
+		fprintf(stdout, " LLRS");
 }
 
 #define N_SOTS 7
@@ -1800,7 +1632,9 @@ get_stringset(struct cmd_context *ctx, enum ethtool_stringset set_id,
 	sset_info.hdr.reserved = 0;
 	sset_info.hdr.sset_mask = 1ULL << set_id;
 	if (send_ioctl(ctx, &sset_info) == 0) {
-		len = sset_info.hdr.sset_mask ? sset_info.hdr.data[0] : 0;
+		const u32 *sset_lengths = sset_info.hdr.data;
+
+		len = sset_info.hdr.sset_mask ? sset_lengths[0] : 0;
 	} else if (errno == EOPNOTSUPP && drvinfo_offset != 0) {
 		/* Fallback for old kernel versions */
 		drvinfo.cmd = ETHTOOL_GDRVINFO;
@@ -1867,7 +1701,7 @@ static struct feature_defs *get_feature_defs(struct cmd_context *ctx)
 		defs->def[i].off_flag_index = -1;
 
 		for (j = 0;
-		     j < ARRAY_SIZE(off_flag_def) &&
+		     j < OFF_FLAG_DEF_SIZE &&
 			     defs->def[i].off_flag_index < 0;
 		     j++) {
 			const char *pattern =
@@ -2315,7 +2149,7 @@ get_features(struct cmd_context *ctx, const struct feature_defs *defs)
 
 	state->off_flags = 0;
 
-	for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
+	for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 		value = off_flag_def[i].value;
 		if (!off_flag_def[i].get_cmd)
 			continue;
@@ -2431,26 +2265,32 @@ static int do_sfeatures(struct cmd_context *ctx)
 	/* Generate cmdline_info for legacy flags and kernel-named
 	 * features, and parse our arguments.
 	 */
-	cmdline_features = calloc(ARRAY_SIZE(off_flag_def) + defs->n_features,
+	cmdline_features = calloc(2 * OFF_FLAG_DEF_SIZE + defs->n_features,
 				  sizeof(cmdline_features[0]));
 	if (!cmdline_features) {
 		perror("Cannot parse arguments");
 		rc = 1;
 		goto err;
 	}
-	for (i = 0; i < ARRAY_SIZE(off_flag_def); i++)
+	j = 0;
+	for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 		flag_to_cmdline_info(off_flag_def[i].short_name,
 				     off_flag_def[i].value,
 				     &off_flags_wanted, &off_flags_mask,
-				     &cmdline_features[i]);
+				     &cmdline_features[j++]);
+		flag_to_cmdline_info(off_flag_def[i].long_name,
+				     off_flag_def[i].value,
+				     &off_flags_wanted, &off_flags_mask,
+				     &cmdline_features[j++]);
+	}
 	for (i = 0; i < defs->n_features; i++)
 		flag_to_cmdline_info(
 			defs->def[i].name, FEATURE_FIELD_FLAG(i),
 			&FEATURE_WORD(efeatures->features, i, requested),
 			&FEATURE_WORD(efeatures->features, i, valid),
-			&cmdline_features[ARRAY_SIZE(off_flag_def) + i]);
+			&cmdline_features[j++]);
 	parse_generic_cmdline(ctx, &any_changed, cmdline_features,
-			      ARRAY_SIZE(off_flag_def) + defs->n_features);
+			      2 * OFF_FLAG_DEF_SIZE + defs->n_features);
 	free(cmdline_features);
 
 	if (!any_changed) {
@@ -2470,7 +2310,7 @@ static int do_sfeatures(struct cmd_context *ctx)
 		 * related features that the user did not specify and that
 		 * are not fixed.  Warn if all related features are fixed.
 		 */
-		for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
+		for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 			int fixed = 1;
 
 			if (!(off_flags_mask & off_flag_def[i].value))
@@ -2511,7 +2351,7 @@ static int do_sfeatures(struct cmd_context *ctx)
 			goto err;
 		}
 	} else {
-		for (i = 0; i < ARRAY_SIZE(off_flag_def); i++) {
+		for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 			if (!off_flag_def[i].set_cmd)
 				continue;
 			if (off_flags_mask & off_flag_def[i].value) {
@@ -2631,8 +2471,8 @@ do_ioctl_glinksettings(struct cmd_context *ctx)
 	if (link_usettings == NULL)
 		return NULL;
 
-	/* keep transceiver 0 */
 	memcpy(&link_usettings->base, &ecmd.req, sizeof(link_usettings->base));
+	link_usettings->deprecated.transceiver = ecmd.req.transceiver;
 
 	/* copy link mode bitmaps */
 	u32_offs = 0;
@@ -2837,8 +2677,7 @@ static int do_gset(struct cmd_context *ctx)
 		fprintf(stdout, "	Current message level: 0x%08x (%d)\n"
 			"			       ",
 			edata.data, edata.data);
-		print_flags(flags_msglvl, ARRAY_SIZE(flags_msglvl),
-			    edata.data);
+		print_flags(flags_msglvl, n_flags_msglvl, edata.data);
 		fprintf(stdout, "\n");
 		allfail = 0;
 	} else if (errno != EOPNOTSUPP) {
@@ -2884,13 +2723,13 @@ static int do_sset(struct cmd_context *ctx)
 	int msglvl_changed = 0;
 	u32 msglvl_wanted = 0;
 	u32 msglvl_mask = 0;
-	struct cmdline_info cmdline_msglvl[ARRAY_SIZE(flags_msglvl)];
+	struct cmdline_info cmdline_msglvl[n_flags_msglvl];
 	int argc = ctx->argc;
 	char **argp = ctx->argp;
 	int i;
 	int err = 0;
 
-	for (i = 0; i < ARRAY_SIZE(flags_msglvl); i++)
+	for (i = 0; i < n_flags_msglvl; i++)
 		flag_to_cmdline_info(flags_msglvl[i].name,
 				     flags_msglvl[i].value,
 				     &msglvl_wanted, &msglvl_mask,
@@ -3069,6 +2908,8 @@ static int do_sset(struct cmd_context *ctx)
 		struct ethtool_link_usettings *link_usettings;
 
 		link_usettings = do_ioctl_glinksettings(ctx);
+		memset(&link_usettings->deprecated, 0,
+		       sizeof(link_usettings->deprecated));
 		if (link_usettings == NULL)
 			link_usettings = do_ioctl_gset(ctx);
 		if (link_usettings == NULL) {
@@ -4850,6 +4691,183 @@ static int do_seee(struct cmd_context *ctx)
 	return 0;
 }
 
+/* copy of net/ethtool/common.c */
+char
+tunable_strings[__ETHTOOL_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
+	[ETHTOOL_ID_UNSPEC]		= "Unspec",
+	[ETHTOOL_RX_COPYBREAK]		= "rx-copybreak",
+	[ETHTOOL_TX_COPYBREAK]		= "tx-copybreak",
+	[ETHTOOL_PFC_PREVENTION_TOUT]	= "pfc-prevention-tout",
+};
+
+union ethtool_tunable_info_val {
+	uint8_t u8;
+	uint16_t u16;
+	uint32_t u32;
+	uint64_t u64;
+	int8_t s8;
+	int16_t s16;
+	int32_t s32;
+	int64_t s64;
+};
+
+struct ethtool_tunable_info {
+	enum tunable_id t_id;
+	enum tunable_type_id t_type_id;
+	size_t size;
+	cmdline_type_t type;
+	union ethtool_tunable_info_val wanted;
+	int seen;
+};
+
+static struct ethtool_tunable_info tunables_info[] = {
+	{ .t_id		= ETHTOOL_RX_COPYBREAK,
+	  .t_type_id	= ETHTOOL_TUNABLE_U32,
+	  .size		= sizeof(u32),
+	  .type		= CMDL_U32,
+	},
+	{ .t_id		= ETHTOOL_TX_COPYBREAK,
+	  .t_type_id	= ETHTOOL_TUNABLE_U32,
+	  .size		= sizeof(u32),
+	  .type		= CMDL_U32,
+	},
+	{ .t_id		= ETHTOOL_PFC_PREVENTION_TOUT,
+	  .t_type_id	= ETHTOOL_TUNABLE_U16,
+	  .size		= sizeof(u16),
+	  .type		= CMDL_U16,
+	},
+};
+#define TUNABLES_INFO_SIZE	ARRAY_SIZE(tunables_info)
+
+static int do_stunable(struct cmd_context *ctx)
+{
+	struct cmdline_info cmdline_tunable[TUNABLES_INFO_SIZE];
+	struct ethtool_tunable_info *tinfo = tunables_info;
+	int changed = 0;
+	int i;
+
+	for (i = 0; i < TUNABLES_INFO_SIZE; i++) {
+		cmdline_tunable[i].name = tunable_strings[tinfo[i].t_id];
+		cmdline_tunable[i].type = tinfo[i].type;
+		cmdline_tunable[i].wanted_val = &tinfo[i].wanted;
+		cmdline_tunable[i].seen_val = &tinfo[i].seen;
+	}
+
+	parse_generic_cmdline(ctx, &changed, cmdline_tunable, TUNABLES_INFO_SIZE);
+	if (!changed)
+		exit_bad_args();
+
+	for (i = 0; i < TUNABLES_INFO_SIZE; i++) {
+		struct ethtool_tunable *tuna;
+		size_t size;
+		int ret;
+
+		if (!tinfo[i].seen)
+			continue;
+
+		size = sizeof(*tuna) + tinfo[i].size;
+		tuna = calloc(1, size);
+		if (!tuna) {
+			perror(tunable_strings[tinfo[i].t_id]);
+			return 1;
+		}
+		tuna->cmd = ETHTOOL_STUNABLE;
+		tuna->id = tinfo[i].t_id;
+		tuna->type_id = tinfo[i].t_type_id;
+		tuna->len = tinfo[i].size;
+		memcpy(tuna->data, &tinfo[i].wanted, tuna->len);
+		ret = send_ioctl(ctx, tuna);
+		if (ret) {
+			perror(tunable_strings[tuna->id]);
+			return ret;
+		}
+		free(tuna);
+	}
+	return 0;
+}
+
+static void print_tunable(struct ethtool_tunable *tuna)
+{
+	char *name = tunable_strings[tuna->id];
+	union ethtool_tunable_info_val *val;
+
+	val = (union ethtool_tunable_info_val *)tuna->data;
+	switch (tuna->type_id) {
+	case ETHTOOL_TUNABLE_U8:
+		fprintf(stdout, "%s: %" PRIu8 "\n", name, val->u8);
+		break;
+	case ETHTOOL_TUNABLE_U16:
+		fprintf(stdout, "%s: %" PRIu16 "\n", name, val->u16);
+		break;
+	case ETHTOOL_TUNABLE_U32:
+		fprintf(stdout, "%s: %" PRIu32 "\n", name, val->u32);
+		break;
+	case ETHTOOL_TUNABLE_U64:
+		fprintf(stdout, "%s: %" PRIu64 "\n", name, val->u64);
+		break;
+	case ETHTOOL_TUNABLE_S8:
+		fprintf(stdout, "%s: %" PRId8 "\n", name, val->s8);
+		break;
+	case ETHTOOL_TUNABLE_S16:
+		fprintf(stdout, "%s: %" PRId16 "\n", name, val->s16);
+		break;
+	case ETHTOOL_TUNABLE_S32:
+		fprintf(stdout, "%s: %" PRId32 "\n", name, val->s32);
+		break;
+	case ETHTOOL_TUNABLE_S64:
+		fprintf(stdout, "%s: %" PRId64 "\n", name, val->s64);
+		break;
+	default:
+		fprintf(stdout, "%s: Unknown format\n", name);
+	}
+}
+
+static int do_gtunable(struct cmd_context *ctx)
+{
+	struct ethtool_tunable_info *tinfo = tunables_info;
+	char **argp = ctx->argp;
+	int argc = ctx->argc;
+	int i;
+	int j;
+
+	if (argc < 1)
+		exit_bad_args();
+
+	for (i = 0; i < argc; i++) {
+		int valid = 0;
+
+		for (j = 0; j < TUNABLES_INFO_SIZE; j++) {
+			char *ts = tunable_strings[tinfo[j].t_id];
+			struct ethtool_tunable *tuna;
+			int ret;
+
+			if (strcmp(argp[i], ts))
+				continue;
+			valid = 1;
+
+			tuna = calloc(1, sizeof(*tuna) + tinfo[j].size);
+			if (!tuna) {
+				perror(ts);
+				return 1;
+			}
+			tuna->cmd = ETHTOOL_GTUNABLE;
+			tuna->id = tinfo[j].t_id;
+			tuna->type_id = tinfo[j].t_type_id;
+			tuna->len = tinfo[j].size;
+			ret = send_ioctl(ctx, tuna);
+			if (ret) {
+				fprintf(stderr, "%s: Cannot get tunable\n", ts);
+				return ret;
+			}
+			print_tunable(tuna);
+			free(tuna);
+		}
+		if (!valid)
+			exit_bad_args();
+	}
+	return 0;
+}
+
 static int do_get_phy_tunable(struct cmd_context *ctx)
 {
 	int argc = ctx->argc;
@@ -5209,7 +5227,8 @@ static int fecmode_str_to_type(const char *str)
 		return ETHTOOL_FEC_RS;
 	if (!strcasecmp(str, "baser"))
 		return ETHTOOL_FEC_BASER;
-
+	if (!strcasecmp(str, "llrs"))
+		return ETHTOOL_FEC_LLRS;
 	return 0;
 }
 
@@ -5288,204 +5307,410 @@ int send_ioctl(struct cmd_context *ctx, void *cmd)
 
 static int show_usage(struct cmd_context *ctx);
 
-static const struct option {
-	const char *opts;
-	int want_device;
-	int (*func)(struct cmd_context *);
-	char *help;
-	char *opthelp;
-} args[] = {
-	{ "-s|--change", 1, do_sset, "Change generic options",
-	  "		[ speed %d ]\n"
-	  "		[ duplex half|full ]\n"
-	  "		[ port tp|aui|bnc|mii|fibre ]\n"
-	  "		[ mdix auto|on|off ]\n"
-	  "		[ autoneg on|off ]\n"
-	  "		[ advertise %x ]\n"
-	  "		[ phyad %d ]\n"
-	  "		[ xcvr internal|external ]\n"
-	  "		[ wol p|u|m|b|a|g|s|f|d... ]\n"
-	  "		[ sopass %x:%x:%x:%x:%x:%x ]\n"
-	  "		[ msglvl %d | msglvl type on|off ... ]\n" },
-	{ "-a|--show-pause", 1, do_gpause, "Show pause options" },
-	{ "-A|--pause", 1, do_spause, "Set pause options",
-	  "		[ autoneg on|off ]\n"
-	  "		[ rx on|off ]\n"
-	  "		[ tx on|off ]\n" },
-	{ "-c|--show-coalesce", 1, do_gcoalesce, "Show coalesce options" },
-	{ "-C|--coalesce", 1, do_scoalesce, "Set coalesce options",
-	  "		[adaptive-rx on|off]\n"
-	  "		[adaptive-tx on|off]\n"
-	  "		[rx-usecs N]\n"
-	  "		[rx-frames N]\n"
-	  "		[rx-usecs-irq N]\n"
-	  "		[rx-frames-irq N]\n"
-	  "		[tx-usecs N]\n"
-	  "		[tx-frames N]\n"
-	  "		[tx-usecs-irq N]\n"
-	  "		[tx-frames-irq N]\n"
-	  "		[stats-block-usecs N]\n"
-	  "		[pkt-rate-low N]\n"
-	  "		[rx-usecs-low N]\n"
-	  "		[rx-frames-low N]\n"
-	  "		[tx-usecs-low N]\n"
-	  "		[tx-frames-low N]\n"
-	  "		[pkt-rate-high N]\n"
-	  "		[rx-usecs-high N]\n"
-	  "		[rx-frames-high N]\n"
-	  "		[tx-usecs-high N]\n"
-	  "		[tx-frames-high N]\n"
-	  "		[sample-interval N]\n" },
-	{ "-g|--show-ring", 1, do_gring, "Query RX/TX ring parameters" },
-	{ "-G|--set-ring", 1, do_sring, "Set RX/TX ring parameters",
-	  "		[ rx N ]\n"
-	  "		[ rx-mini N ]\n"
-	  "		[ rx-jumbo N ]\n"
-	  "		[ tx N ]\n" },
-	{ "-k|--show-features|--show-offload", 1, do_gfeatures,
-	  "Get state of protocol offload and other features" },
-	{ "-K|--features|--offload", 1, do_sfeatures,
-	  "Set protocol offload and other features",
-	  "		FEATURE on|off ...\n" },
-	{ "-i|--driver", 1, do_gdrv, "Show driver information" },
-	{ "-d|--register-dump", 1, do_gregs, "Do a register dump",
-	  "		[ raw on|off ]\n"
-	  "		[ file FILENAME ]\n" },
-	{ "-e|--eeprom-dump", 1, do_geeprom, "Do a EEPROM dump",
-	  "		[ raw on|off ]\n"
-	  "		[ offset N ]\n"
-	  "		[ length N ]\n" },
-	{ "-E|--change-eeprom", 1, do_seeprom,
-	  "Change bytes in device EEPROM",
-	  "		[ magic N ]\n"
-	  "		[ offset N ]\n"
-	  "		[ length N ]\n"
-	  "		[ value N ]\n" },
-	{ "-r|--negotiate", 1, do_nway_rst, "Restart N-WAY negotiation" },
-	{ "-p|--identify", 1, do_phys_id,
-	  "Show visible port identification (e.g. blinking)",
-	  "               [ TIME-IN-SECONDS ]\n" },
-	{ "-t|--test", 1, do_test, "Execute adapter self test",
-	  "               [ online | offline | external_lb ]\n" },
-	{ "-S|--statistics", 1, do_gnicstats, "Show adapter statistics" },
-	{ "--phy-statistics", 1, do_gphystats,
-	  "Show phy statistics" },
-	{ "-n|-u|--show-nfc|--show-ntuple", 1, do_grxclass,
-	  "Show Rx network flow classification options or rules",
-	  "		[ rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|"
-	  "tcp6|udp6|ah6|esp6|sctp6 [context %d] |\n"
-	  "		  rule %d ]\n" },
-	{ "-N|-U|--config-nfc|--config-ntuple", 1, do_srxclass,
-	  "Configure Rx network flow classification options or rules",
-	  "		rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|"
-	  "tcp6|udp6|ah6|esp6|sctp6 m|v|t|s|d|f|n|r... [context %d] |\n"
-	  "		flow-type ether|ip4|tcp4|udp4|sctp4|ah4|esp4|"
-	  "ip6|tcp6|udp6|ah6|esp6|sctp6\n"
-	  "			[ src %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
-	  "			[ dst %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
-	  "			[ proto %d [m %x] ]\n"
-	  "			[ src-ip IP-ADDRESS [m IP-ADDRESS] ]\n"
-	  "			[ dst-ip IP-ADDRESS [m IP-ADDRESS] ]\n"
-	  "			[ tos %d [m %x] ]\n"
-	  "			[ tclass %d [m %x] ]\n"
-	  "			[ l4proto %d [m %x] ]\n"
-	  "			[ src-port %d [m %x] ]\n"
-	  "			[ dst-port %d [m %x] ]\n"
-	  "			[ spi %d [m %x] ]\n"
-	  "			[ vlan-etype %x [m %x] ]\n"
-	  "			[ vlan %x [m %x] ]\n"
-	  "			[ user-def %x [m %x] ]\n"
-	  "			[ dst-mac %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
-	  "			[ action %d ] | [ vf %d queue %d ]\n"
-	  "			[ context %d ]\n"
-	  "			[ loc %d]] |\n"
-	  "		delete %d\n" },
-	{ "-T|--show-time-stamping", 1, do_tsinfo,
-	  "Show time stamping capabilities" },
-	{ "-x|--show-rxfh-indir|--show-rxfh", 1, do_grxfh,
-	  "Show Rx flow hash indirection table and/or RSS hash key",
-	  "		[ context %d ]\n" },
-	{ "-X|--set-rxfh-indir|--rxfh", 1, do_srxfh,
-	  "Set Rx flow hash indirection table and/or RSS hash key",
-	  "		[ context %d|new ]\n"
-	  "		[ equal N | weight W0 W1 ... | default ]\n"
-	  "		[ hkey %x:%x:%x:%x:%x:.... ]\n"
-	  "		[ hfunc FUNC ]\n"
-	  "		[ delete ]\n" },
-	{ "-f|--flash", 1, do_flash,
-	  "Flash firmware image from the specified file to a region on the device",
-	  "               FILENAME [ REGION-NUMBER-TO-FLASH ]\n" },
-	{ "-P|--show-permaddr", 1, do_permaddr,
-	  "Show permanent hardware address" },
-	{ "-w|--get-dump", 1, do_getfwdump,
-	  "Get dump flag, data",
-	  "		[ data FILENAME ]\n" },
-	{ "-W|--set-dump", 1, do_setfwdump,
-	  "Set dump flag of the device",
-	  "		N\n"},
-	{ "-l|--show-channels", 1, do_gchannels, "Query Channels" },
-	{ "-L|--set-channels", 1, do_schannels, "Set Channels",
-	  "               [ rx N ]\n"
-	  "               [ tx N ]\n"
-	  "               [ other N ]\n"
-	  "               [ combined N ]\n" },
-	{ "--show-priv-flags", 1, do_gprivflags, "Query private flags" },
-	{ "--set-priv-flags", 1, do_sprivflags, "Set private flags",
-	  "		FLAG on|off ...\n" },
-	{ "-m|--dump-module-eeprom|--module-info", 1, do_getmodule,
-	  "Query/Decode Module EEPROM information and optical diagnostics if available",
-	  "		[ raw on|off ]\n"
-	  "		[ hex on|off ]\n"
-	  "		[ offset N ]\n"
-	  "		[ length N ]\n" },
-	{ "--show-eee", 1, do_geee, "Show EEE settings"},
-	{ "--set-eee", 1, do_seee, "Set EEE settings",
-	  "		[ eee on|off ]\n"
-	  "		[ advertise %x ]\n"
-	  "		[ tx-lpi on|off ]\n"
-	  "		[ tx-timer %d ]\n"},
-	{ "--set-phy-tunable", 1, do_set_phy_tunable, "Set PHY tunable",
-	  "		[ downshift on|off [count N] ]\n"
-	  "		[ fast-link-down on|off [msecs N] ]\n"
-	  "		[ energy-detect-power-down on|off [msecs N] ]\n"},
-	{ "--get-phy-tunable", 1, do_get_phy_tunable, "Get PHY tunable",
-	  "		[ downshift ]\n"
-	  "		[ fast-link-down ]\n"
-	  "		[ energy-detect-power-down ]\n"},
-	{ "--reset", 1, do_reset, "Reset components",
-	  "		[ flags %x ]\n"
-	  "		[ mgmt ]\n"
-	  "		[ mgmt-shared ]\n"
-	  "		[ irq ]\n"
-	  "		[ irq-shared ]\n"
-	  "		[ dma ]\n"
-	  "		[ dma-shared ]\n"
-	  "		[ filter ]\n"
-	  "		[ filter-shared ]\n"
-	  "		[ offload ]\n"
-	  "		[ offload-shared ]\n"
-	  "		[ mac ]\n"
-	  "		[ mac-shared ]\n"
-	  "		[ phy ]\n"
-	  "		[ phy-shared ]\n"
-	  "		[ ram ]\n"
-	  "		[ ram-shared ]\n"
-	  "		[ ap ]\n"
-	  "		[ ap-shared ]\n"
-	  "		[ dedicated ]\n"
-	  "		[ all ]\n"},
-	{ "--show-fec", 1, do_gfec, "Show FEC settings"},
-	{ "--set-fec", 1, do_sfec, "Set FEC settings",
-	  "		[ encoding auto|off|rs|baser [...]]\n"},
-	{ "-Q|--per-queue", 1, do_perqueue, "Apply per-queue command."
-	  "The supported sub commands include --show-coalesce, --coalesce",
-	  "             [queue_mask %x] SUB_COMMAND\n"},
-	{ "-h|--help", 0, show_usage, "Show this help" },
-	{ "--version", 0, do_version, "Show version number" },
+struct option {
+	const char	*opts;
+	bool		no_dev;
+	int		(*func)(struct cmd_context *);
+	nl_func_t	nlfunc;
+	const char	*help;
+	const char	*xhelp;
+};
+
+static const struct option args[] = {
+	{
+		.opts	= "-s|--change",
+		.func	= do_sset,
+		.nlfunc	= nl_sset,
+		.help	= "Change generic options",
+		.xhelp	= "		[ speed %d ]\n"
+			  "		[ duplex half|full ]\n"
+			  "		[ port tp|aui|bnc|mii|fibre|da ]\n"
+			  "		[ mdix auto|on|off ]\n"
+			  "		[ autoneg on|off ]\n"
+			  "		[ advertise %x[/%x] | mode on|off ... [--] ]\n"
+			  "		[ phyad %d ]\n"
+			  "		[ xcvr internal|external ]\n"
+			  "		[ wol %d[/%d] | p|u|m|b|a|g|s|f|d... ]\n"
+			  "		[ sopass %x:%x:%x:%x:%x:%x ]\n"
+			  "		[ msglvl %d[/%d] | type on|off ... [--] ]\n"
+			  "		[ master-slave master-preferred|slave-preferred|master-force|slave-force ]\n"
+	},
+	{
+		.opts	= "-a|--show-pause",
+		.func	= do_gpause,
+		.nlfunc	= nl_gpause,
+		.help	= "Show pause options"
+	},
+	{
+		.opts	= "-A|--pause",
+		.func	= do_spause,
+		.nlfunc	= nl_spause,
+		.help	= "Set pause options",
+		.xhelp	= "		[ autoneg on|off ]\n"
+			  "		[ rx on|off ]\n"
+			  "		[ tx on|off ]\n"
+	},
+	{
+		.opts	= "-c|--show-coalesce",
+		.func	= do_gcoalesce,
+		.nlfunc	= nl_gcoalesce,
+		.help	= "Show coalesce options"
+	},
+	{
+		.opts	= "-C|--coalesce",
+		.func	= do_scoalesce,
+		.nlfunc	= nl_scoalesce,
+		.help	= "Set coalesce options",
+		.xhelp	= "		[adaptive-rx on|off]\n"
+			  "		[adaptive-tx on|off]\n"
+			  "		[rx-usecs N]\n"
+			  "		[rx-frames N]\n"
+			  "		[rx-usecs-irq N]\n"
+			  "		[rx-frames-irq N]\n"
+			  "		[tx-usecs N]\n"
+			  "		[tx-frames N]\n"
+			  "		[tx-usecs-irq N]\n"
+			  "		[tx-frames-irq N]\n"
+			  "		[stats-block-usecs N]\n"
+			  "		[pkt-rate-low N]\n"
+			  "		[rx-usecs-low N]\n"
+			  "		[rx-frames-low N]\n"
+			  "		[tx-usecs-low N]\n"
+			  "		[tx-frames-low N]\n"
+			  "		[pkt-rate-high N]\n"
+			  "		[rx-usecs-high N]\n"
+			  "		[rx-frames-high N]\n"
+			  "		[tx-usecs-high N]\n"
+			  "		[tx-frames-high N]\n"
+			  "		[sample-interval N]\n"
+	},
+	{
+		.opts	= "-g|--show-ring",
+		.func	= do_gring,
+		.nlfunc	= nl_gring,
+		.help	= "Query RX/TX ring parameters"
+	},
+	{
+		.opts	= "-G|--set-ring",
+		.func	= do_sring,
+		.nlfunc	= nl_sring,
+		.help	= "Set RX/TX ring parameters",
+		.xhelp	= "		[ rx N ]\n"
+			  "		[ rx-mini N ]\n"
+			  "		[ rx-jumbo N ]\n"
+			  "		[ tx N ]\n"
+	},
+	{
+		.opts	= "-k|--show-features|--show-offload",
+		.func	= do_gfeatures,
+		.nlfunc	= nl_gfeatures,
+		.help	= "Get state of protocol offload and other features"
+	},
+	{
+		.opts	= "-K|--features|--offload",
+		.func	= do_sfeatures,
+		.nlfunc	= nl_sfeatures,
+		.help	= "Set protocol offload and other features",
+		.xhelp	= "		FEATURE on|off ...\n"
+	},
+	{
+		.opts	= "-i|--driver",
+		.func	= do_gdrv,
+		.help	= "Show driver information"
+	},
+	{
+		.opts	= "-d|--register-dump",
+		.func	= do_gregs,
+		.help	= "Do a register dump",
+		.xhelp	= "		[ raw on|off ]\n"
+			  "		[ file FILENAME ]\n"
+	},
+	{
+		.opts	= "-e|--eeprom-dump",
+		.func	= do_geeprom,
+		.help	= "Do a EEPROM dump",
+		.xhelp	= "		[ raw on|off ]\n"
+			  "		[ offset N ]\n"
+			  "		[ length N ]\n"
+	},
+	{
+		.opts	= "-E|--change-eeprom",
+		.func	= do_seeprom,
+		.help	= "Change bytes in device EEPROM",
+		.xhelp	= "		[ magic N ]\n"
+			  "		[ offset N ]\n"
+			  "		[ length N ]\n"
+			  "		[ value N ]\n"
+	},
+	{
+		.opts	= "-r|--negotiate",
+		.func	= do_nway_rst,
+		.help	= "Restart N-WAY negotiation"
+	},
+	{
+		.opts	= "-p|--identify",
+		.func	= do_phys_id,
+		.help	= "Show visible port identification (e.g. blinking)",
+		.xhelp	= "               [ TIME-IN-SECONDS ]\n"
+	},
+	{
+		.opts	= "-t|--test",
+		.func	= do_test,
+		.help	= "Execute adapter self test",
+		.xhelp	= "               [ online | offline | external_lb ]\n"
+	},
+	{
+		.opts	= "-S|--statistics",
+		.func	= do_gnicstats,
+		.help	= "Show adapter statistics"
+	},
+	{
+		.opts	= "--phy-statistics",
+		.func	= do_gphystats,
+		.help	= "Show phy statistics"
+	},
+	{
+		.opts	= "-n|-u|--show-nfc|--show-ntuple",
+		.func	= do_grxclass,
+		.help	= "Show Rx network flow classification options or rules",
+		.xhelp	= "		[ rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|"
+			  "tcp6|udp6|ah6|esp6|sctp6 [context %d] |\n"
+			  "		  rule %d ]\n"
+	},
+	{
+		.opts	= "-N|-U|--config-nfc|--config-ntuple",
+		.func	= do_srxclass,
+		.help	= "Configure Rx network flow classification options or rules",
+		.xhelp	= "		rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|"
+			  "tcp6|udp6|ah6|esp6|sctp6 m|v|t|s|d|f|n|r... [context %d] |\n"
+			  "		flow-type ether|ip4|tcp4|udp4|sctp4|ah4|esp4|"
+			  "ip6|tcp6|udp6|ah6|esp6|sctp6\n"
+			  "			[ src %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
+			  "			[ dst %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
+			  "			[ proto %d [m %x] ]\n"
+			  "			[ src-ip IP-ADDRESS [m IP-ADDRESS] ]\n"
+			  "			[ dst-ip IP-ADDRESS [m IP-ADDRESS] ]\n"
+			  "			[ tos %d [m %x] ]\n"
+			  "			[ tclass %d [m %x] ]\n"
+			  "			[ l4proto %d [m %x] ]\n"
+			  "			[ src-port %d [m %x] ]\n"
+			  "			[ dst-port %d [m %x] ]\n"
+			  "			[ spi %d [m %x] ]\n"
+			  "			[ vlan-etype %x [m %x] ]\n"
+			  "			[ vlan %x [m %x] ]\n"
+			  "			[ user-def %x [m %x] ]\n"
+			  "			[ dst-mac %x:%x:%x:%x:%x:%x [m %x:%x:%x:%x:%x:%x] ]\n"
+			  "			[ action %d ] | [ vf %d queue %d ]\n"
+			  "			[ context %d ]\n"
+			  "			[ loc %d]] |\n"
+			  "		delete %d\n"
+	},
+	{
+		.opts	= "-T|--show-time-stamping",
+		.func	= do_tsinfo,
+		.nlfunc	= nl_tsinfo,
+		.help	= "Show time stamping capabilities"
+	},
+	{
+		.opts	= "-x|--show-rxfh-indir|--show-rxfh",
+		.func	= do_grxfh,
+		.help	= "Show Rx flow hash indirection table and/or RSS hash key",
+		.xhelp	= "		[ context %d ]\n"
+	},
+	{
+		.opts	= "-X|--set-rxfh-indir|--rxfh",
+		.func	= do_srxfh,
+		.help	= "Set Rx flow hash indirection table and/or RSS hash key",
+		.xhelp	= "		[ context %d|new ]\n"
+			  "		[ equal N | weight W0 W1 ... | default ]\n"
+			  "		[ hkey %x:%x:%x:%x:%x:.... ]\n"
+			  "		[ hfunc FUNC ]\n"
+			  "		[ delete ]\n"
+	},
+	{
+		.opts	= "-f|--flash",
+		.func	= do_flash,
+		.help	= "Flash firmware image from the specified file to a region on the device",
+		.xhelp	= "               FILENAME [ REGION-NUMBER-TO-FLASH ]\n"
+	},
+	{
+		.opts	= "-P|--show-permaddr",
+		.func	= do_permaddr,
+		.nlfunc	= nl_permaddr,
+		.help	= "Show permanent hardware address"
+	},
+	{
+		.opts	= "-w|--get-dump",
+		.func	= do_getfwdump,
+		.help	= "Get dump flag, data",
+		.xhelp	= "		[ data FILENAME ]\n"
+	},
+	{
+		.opts	= "-W|--set-dump",
+		.func	= do_setfwdump,
+		.help	= "Set dump flag of the device",
+		.xhelp	= "		N\n"
+	},
+	{
+		.opts	= "-l|--show-channels",
+		.func	= do_gchannels,
+		.nlfunc	= nl_gchannels,
+		.help	= "Query Channels"
+	},
+	{
+		.opts	= "-L|--set-channels",
+		.func	= do_schannels,
+		.nlfunc	= nl_schannels,
+		.help	= "Set Channels",
+		.xhelp	= "               [ rx N ]\n"
+			  "               [ tx N ]\n"
+			  "               [ other N ]\n"
+			  "               [ combined N ]\n"
+	},
+	{
+		.opts	= "--show-priv-flags",
+		.func	= do_gprivflags,
+		.nlfunc	= nl_gprivflags,
+		.help	= "Query private flags"
+	},
+	{
+		.opts	= "--set-priv-flags",
+		.func	= do_sprivflags,
+		.nlfunc	= nl_sprivflags,
+		.help	= "Set private flags",
+		.xhelp	= "		FLAG on|off ...\n"
+	},
+	{
+		.opts	= "-m|--dump-module-eeprom|--module-info",
+		.func	= do_getmodule,
+		.help	= "Query/Decode Module EEPROM information and optical diagnostics if available",
+		.xhelp	= "		[ raw on|off ]\n"
+			  "		[ hex on|off ]\n"
+			  "		[ offset N ]\n"
+			  "		[ length N ]\n"
+	},
+	{
+		.opts	= "--show-eee",
+		.func	= do_geee,
+		.nlfunc	= nl_geee,
+		.help	= "Show EEE settings",
+	},
+	{
+		.opts	= "--set-eee",
+		.func	= do_seee,
+		.nlfunc	= nl_seee,
+		.help	= "Set EEE settings",
+		.xhelp	= "		[ eee on|off ]\n"
+			  "		[ advertise %x ]\n"
+			  "		[ tx-lpi on|off ]\n"
+			  "		[ tx-timer %d ]\n"
+	},
+	{
+		.opts	= "--set-phy-tunable",
+		.func	= do_set_phy_tunable,
+		.help	= "Set PHY tunable",
+		.xhelp	= "		[ downshift on|off [count N] ]\n"
+			  "		[ fast-link-down on|off [msecs N] ]\n"
+			  "		[ energy-detect-power-down on|off [msecs N] ]\n"
+	},
+	{
+		.opts	= "--get-phy-tunable",
+		.func	= do_get_phy_tunable,
+		.help	= "Get PHY tunable",
+		.xhelp	= "		[ downshift ]\n"
+			  "		[ fast-link-down ]\n"
+			  "		[ energy-detect-power-down ]\n"
+	},
+	{
+		.opts	= "--get-tunable",
+		.func	= do_gtunable,
+		.help	= "Get tunable",
+		.xhelp	= "		[ rx-copybreak ]\n"
+			  "		[ tx-copybreak ]\n"
+			  "		[ pfc-precention-tout ]\n"
+	},
+	{
+		.opts	= "--set-tunable",
+		.func	= do_stunable,
+		.help	= "Set tunable",
+		.xhelp	= "		[ rx-copybreak N]\n"
+			  "		[ tx-copybreak N]\n"
+			  "		[ pfc-precention-tout N]\n"
+	},
+	{
+		.opts	= "--reset",
+		.func	= do_reset,
+		.help	= "Reset components",
+		.xhelp	= "		[ flags %x ]\n"
+			  "		[ mgmt ]\n"
+			  "		[ mgmt-shared ]\n"
+			  "		[ irq ]\n"
+			  "		[ irq-shared ]\n"
+			  "		[ dma ]\n"
+			  "		[ dma-shared ]\n"
+			  "		[ filter ]\n"
+			  "		[ filter-shared ]\n"
+			  "		[ offload ]\n"
+			  "		[ offload-shared ]\n"
+			  "		[ mac ]\n"
+			  "		[ mac-shared ]\n"
+			  "		[ phy ]\n"
+			  "		[ phy-shared ]\n"
+			  "		[ ram ]\n"
+			  "		[ ram-shared ]\n"
+			  "		[ ap ]\n"
+			  "		[ ap-shared ]\n"
+			  "		[ dedicated ]\n"
+			  "		[ all ]\n"
+	},
+	{
+		.opts	= "--show-fec",
+		.func	= do_gfec,
+		.help	= "Show FEC settings",
+	},
+	{
+		.opts	= "--set-fec",
+		.func	= do_sfec,
+		.help	= "Set FEC settings",
+		.xhelp	= "		[ encoding auto|off|rs|baser|llrs [...]]\n"
+	},
+	{
+		.opts	= "-Q|--per-queue",
+		.func	= do_perqueue,
+		.help	= "Apply per-queue command. ",
+		.xhelp	= "The supported sub commands include --show-coalesce, --coalesce"
+			  "             [queue_mask %x] SUB_COMMAND\n",
+	},
+	{
+		.opts	= "--cable-test",
+		.nlfunc	= nl_cable_test,
+		.help	= "Perform a cable test",
+	},
+	{
+		.opts	= "--cable-test-tdr",
+		.nlfunc	= nl_cable_test_tdr,
+		.help	= "Print cable test time domain reflectrometery data",
+		.xhelp	= "		[ first N ]\n"
+			  "		[ last N ]\n"
+			  "		[ step N ]\n"
+			  "		[ pair N ]\n"
+	},
+	{
+		.opts	= "-h|--help",
+		.no_dev	= true,
+		.func	= show_usage,
+		.help	= "Show this help"
+	},
+	{
+		.opts	= "--version",
+		.no_dev	= true,
+		.func	= do_version,
+		.help	= "Show version number"
+	},
 	{}
 };
 
-static int show_usage(struct cmd_context *ctx maybe_unused)
+static int show_usage(struct cmd_context *ctx __maybe_unused)
 {
 	int i;
 
@@ -5493,17 +5718,19 @@ static int show_usage(struct cmd_context *ctx maybe_unused)
 	fprintf(stdout, PACKAGE " version " VERSION "\n");
 	fprintf(stdout,
 		"Usage:\n"
-		"        ethtool DEVNAME\t"
+		"        ethtool [ --debug MASK ][ --json ] DEVNAME\t"
 		"Display standard information about device\n");
 	for (i = 0; args[i].opts; i++) {
-		fputs("        ethtool ", stdout);
+		fputs("        ethtool [ --debug MASK ][ --json ] ", stdout);
 		fprintf(stdout, "%s %s\t%s\n",
 			args[i].opts,
-			args[i].want_device ? "DEVNAME" : "\t",
+			args[i].no_dev ? "\t" : "DEVNAME",
 			args[i].help);
-		if (args[i].opthelp)
-			fputs(args[i].opthelp, stdout);
+		if (args[i].xhelp)
+			fputs(args[i].xhelp, stdout);
 	}
+	nl_monitor_usage();
+	fprintf(stdout, "Not all options support JSON output\n");
 
 	return 0;
 }
@@ -5699,11 +5926,41 @@ static int do_perqueue(struct cmd_context *ctx)
 	return 0;
 }
 
+static int ioctl_init(struct cmd_context *ctx, bool no_dev)
+{
+	if (no_dev) {
+		ctx->fd = -1;
+		return 0;
+	}
+	if (strlen(ctx->devname) >= IFNAMSIZ) {
+		fprintf(stderr, "Device name longer than %u characters\n",
+			IFNAMSIZ - 1);
+		exit_bad_args();
+	}
+
+	/* Setup our control structures. */
+	memset(&ctx->ifr, 0, sizeof(ctx->ifr));
+	strcpy(ctx->ifr.ifr_name, ctx->devname);
+
+	/* Open control socket. */
+	ctx->fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (ctx->fd < 0)
+		ctx->fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+	if (ctx->fd < 0) {
+		perror("Cannot get control socket");
+		return 70;
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argp)
 {
 	int (*func)(struct cmd_context *);
-	int want_device;
-	struct cmd_context ctx;
+	struct cmd_context ctx = {};
+	nl_func_t nlfunc = NULL;
+	bool no_dev;
+	int ret;
 	int k;
 
 	init_global_link_mode_masks();
@@ -5711,6 +5968,35 @@ int main(int argc, char **argp)
 	/* Skip command name */
 	argp++;
 	argc--;
+
+	while (true) {
+		if (*argp && !strcmp(*argp, "--debug")) {
+			char *eptr;
+
+			if (argc < 2)
+				exit_bad_args();
+			ctx.debug = strtoul(argp[1], &eptr, 0);
+			if (!argp[1][0] || *eptr)
+				exit_bad_args();
+
+			argp += 2;
+			argc -= 2;
+			continue;
+		}
+		if (*argp && !strcmp(*argp, "--json")) {
+			ctx.json = true;
+			argp += 1;
+			argc -= 1;
+			continue;
+		}
+		break;
+	}
+	if (*argp && !strcmp(*argp, "--monitor")) {
+		ctx.argp = ++argp;
+		ctx.argc = --argc;
+		ret = nl_monitor(&ctx);
+		return ret ? 1 : 0;
+	}
 
 	/* First argument must be either a valid option or a device
 	 * name to get settings for (which we don't expect to begin
@@ -5724,42 +6010,31 @@ int main(int argc, char **argp)
 		argp++;
 		argc--;
 		func = args[k].func;
-		want_device = args[k].want_device;
+		nlfunc = args[k].nlfunc;
+		no_dev = args[k].no_dev;
 		goto opt_found;
 	}
 	if ((*argp)[0] == '-')
 		exit_bad_args();
+	nlfunc = nl_gset;
 	func = do_gset;
-	want_device = 1;
+	no_dev = false;
 
 opt_found:
-	if (want_device) {
+	if (!no_dev) {
 		ctx.devname = *argp++;
 		argc--;
 
-		if (ctx.devname == NULL)
+		if (!ctx.devname)
 			exit_bad_args();
-		if (strlen(ctx.devname) >= IFNAMSIZ)
-			exit_bad_args();
-
-		/* Setup our control structures. */
-		memset(&ctx.ifr, 0, sizeof(ctx.ifr));
-		strcpy(ctx.ifr.ifr_name, ctx.devname);
-
-		/* Open control socket. */
-		ctx.fd = socket(AF_INET, SOCK_DGRAM, 0);
-		if (ctx.fd < 0)
-			ctx.fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
-		if (ctx.fd < 0) {
-			perror("Cannot get control socket");
-			return 70;
-		}
-	} else {
-		ctx.fd = -1;
 	}
-
 	ctx.argc = argc;
 	ctx.argp = argp;
+	netlink_run_handler(&ctx, nlfunc, !func);
+
+	ret = ioctl_init(&ctx, no_dev);
+	if (ret)
+		return ret;
 
 	return func(&ctx);
 }

@@ -52,6 +52,10 @@
 .\"
 .ds MA \fIxx\fP\fB:\fP\fIyy\fP\fB:\fP\fIzz\fP\fB:\fP\fIaa\fP\fB:\fP\fIbb\fP\fB:\fP\fIcc\fP
 .\"
+.\"	\(*MS - master-slave property
+.\"
+.ds MS \fBpreferred-master\fP|\fBpreferred-slave\fP|\fBforced-master\fP|\fBforced-slave\fP
+.\"
 .\"	\(*PA - IP address
 .\"
 .ds PA \fIip-address\fP
@@ -113,7 +117,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "January 2020" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "Aug 2020" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -128,6 +132,20 @@ ethtool \- query or control network driver and hardware settings
 .B ethtool \-h|\-\-help
 .HP
 .B ethtool \-\-version
+.HP
+.B ethtool
+.BN --debug
+.I args
+.HP
+.B ethtool [--json]
+.I args
+.HP
+.B ethtool \-\-monitor
+[
+.I command
+] [
+.I devname
+]
 .HP
 .B ethtool \-a|\-\-show\-pause
 .I devname
@@ -231,16 +249,22 @@ ethtool \- query or control network driver and hardware settings
 .I devname
 .BN speed
 .B2 duplex half full
-.B4 port tp aui bnc mii fibre
+.B4 port tp aui bnc mii fibre da
 .B3 mdix auto on off
 .B2 autoneg on off
-.BN advertise
+.RB [ advertise \ \fIN\fP[\fB/\fP\fIM\fP]
+|
+.BI advertise \ mode
+.A1 on off
+.RB ...]
 .BN phyad
 .B2 xcvr internal external
-.RB [ wol \ \*(WO]
+.RB [ wol \ \fIN\fP[\fB/\fP\fIM\fP]
+.RB | \ wol \ \*(WO]
 .RB [ sopass \ \*(MA]
+.RB [ master-slave \ \*(MS]
 .RB [ msglvl
-.IR N \ |
+.IR N\fP[/\fIM\fP] \ |
 .BI msglvl \ type
 .A1 on off
 .RB ...]
@@ -374,6 +398,18 @@ ethtool \- query or control network driver and hardware settings
 .RB [ fast-link-down ]
 .RB [ energy-detect-power-down ]
 .HP
+.B ethtool \-\-get\-tunable
+.I devname
+.RB [ rx-copybreak ]
+.RB [ tx-copybreak ]
+.RB [ pfc-prevention-tout ]
+.HP
+.B ethtool \-\-set\-tunable
+.I devname
+.BN rx\-copybreak
+.BN tx\-copybreak
+.BN pfc\-prevention\-tout
+.HP
 .B ethtool \-\-reset
 .I devname
 .BN flags
@@ -404,7 +440,7 @@ ethtool \- query or control network driver and hardware settings
 .B ethtool \-\-set\-fec
 .I devname
 .B encoding
-.BR auto | off | rs | baser \ [...]
+.BR auto | off | rs | baser | llrs \ [...]
 .HP
 .B ethtool \-Q|\-\-per\-queue
 .I devname
@@ -413,6 +449,16 @@ ethtool \- query or control network driver and hardware settings
 .I sub_command
 .RB ...
  .
+.HP
+.B ethtool \-\-cable\-test
+.I devname
+.HP
+.B ethtool \-\-cable\-test\-tdr
+.I devname
+.BN first N
+.BN last N
+.BN step N
+.BN pair N
 .
 .\" Adjust lines (i.e. full justification) and hyphenate.
 .ad
@@ -436,6 +482,19 @@ Shows a short help message.
 .TP
 .B \-\-version
 Shows the ethtool version number.
+.TP
+.BI \-\-debug \ N
+Turns on debugging messages. Argument is interpreted as a mask:
+.TS
+nokeep;
+lB	l.
+0x01  Parser information
+.TE
+.TP
+.BI \-\-json
+Output results in JavaScript Object Notation (JSON). Only a subset of
+options support this. Those which do not will continue to output
+plain text in the presence of this option.
 .TP
 .B \-a \-\-show\-pause
 Queries the specified Ethernet device for pause parameter information.
@@ -619,8 +678,22 @@ with just the device name as an argument will show you the supported device spee
 .A2 duplex half full
 Sets full or half duplex mode.
 .TP
-.A4 port tp aui bnc mii fibre
+.A4 port tp aui bnc mii fibre da
 Selects device port.
+.TP
+.BR master-slave \ \*(MS
+Configure MASTER/SLAVE role of the PHY. When the PHY is configured as MASTER,
+the PMA Transmit function shall source TX_TCLK from a local clock source. When
+configured as SLAVE, the PMA Transmit function shall source TX_TCLK from the
+clock recovered from data stream provided by MASTER. Not all devices support this.
+.TS
+nokeep;
+lB	l.
+preferred-master	Prefer MASTER role on autonegotiation
+preferred-slave	Prefer SLAVE role on autonegotiation
+forced-master	Force the PHY in MASTER role. Can be used without autonegotiation
+forced-slave	Force the PHY in SLAVE role. Can be used without autonegotiation
+.TE
 .TP
 .A3 mdix auto on off
 Selects MDI-X mode for port. May be used to override the automatic
@@ -1152,6 +1225,34 @@ Gets the current configured setting for Energy Detect Power Down (if supported).
 
 .RE
 .TP
+.B \-\-get\-tunable
+Get the tunable parameters.
+.RS 4
+.TP
+.B rx\-copybreak
+Get the current rx copybreak value in bytes.
+.TP
+.B tx\-copybreak
+Get the current tx copybreak value in bytes.
+.TP
+.B pfc\-prevention\-tout
+Get the current pfc prevention timeout value in msecs.
+.RE
+.TP
+.B \-\-set\-tunable
+Set driver's tunable parameters.
+.RS 4
+.TP
+.BI rx\-copybreak \ N
+Set the rx copybreak value in bytes.
+.TP
+.BI tx\-copybreak \ N
+Set the tx copybreak value in bytes.
+.TP
+.BI pfc\-prevention\-tout \ N
+Set pfc prevention timeout in msecs. Value of 0 means disable and 65535 means auto.
+.RE
+.TP
 .B \-\-reset
 Reset hardware components specified by flags and components listed below
 .RS 4
@@ -1204,7 +1305,7 @@ current FEC mode, the driver or firmware must take the link down
 administratively and report the problem in the system logs for users to correct.
 .RS 4
 .TP
-.BR encoding\ auto | off | rs | baser \ [...]
+.BR encoding\ auto | off | rs | baser | llrs \ [...]
 
 Sets the FEC encoding for the device.  Combinations of options are specified as
 e.g.
@@ -1217,6 +1318,7 @@ auto	Use the driver's default encoding
 off	Turn off FEC
 RS	Force RS-FEC encoding
 BaseR	Force BaseR encoding
+LLRS	Force LLRS-FEC encoding
 .TE
 .RE
 .TP
@@ -1231,6 +1333,55 @@ If queue_mask is not set, the sub command will be applied to all queues.
 .B sub_command
 Sub command to apply. The supported sub commands include --show-coalesce and
 --coalesce.
+.RE
+.TP
+q.B \-\-cable\-test
+Perform a cable test and report the results. What results are returned depends
+on the capabilities of the network interface. Typically open pairs and shorted
+pairs can be reported, along with pairs being O.K. When a fault is detected
+the approximate distance to the fault may be reported.
+.TP
+.B \-\-cable\-test\-tdr
+Perform a cable test and report the raw Time Domain Reflectometer
+data.  A pulse is sent down a cable pair and the amplitude of the
+reflection, for a given distance, is reported. A break in the cable
+returns a big reflection. Minor damage to the cable returns a small
+reflection. If the cable is shorted, the amplitude of the reflection
+can be negative. By default, data is returned for lengths between 0
+and 150m at 1m steps, for all pairs. However parameters can be passed
+to restrict the collection of data. It should be noted, that the
+interface will round the distances to whatever granularity is actually
+implemented. This is often 0.8 of a meter. The results should include
+the actual rounded first and last distance and step size.
+.RS 4
+.TP
+.B first \ N
+Distance along the cable, in meters, where the first measurement
+should be made.
+.TP
+.B last \ N
+Distance along the cable, in meters, where the last measurement should
+be made.
+.TP
+.B step \ N
+Distance, in meters, between each measurement.
+.TP
+.B pair \ N
+Which pair should be measured. Typically a cable has 4 pairs. 0 = Pair A, 1 = Pair B, ...
+.RE
+.TP
+.B \-\-monitor
+Listens to netlink notification and displays them.
+.RS 4
+.TP
+.I command
+If argument matching a command is used, ethtool only shows notifications of
+this type. Without such argument or with --all, all notification types are
+shown.
+.TP
+.I devname
+If a device name is used as argument, only notification for this device are
+shown. Default is to show notifications for all devices.
 .RE
 .SH BUGS
 Not supported (in part or whole) on all network drivers.
