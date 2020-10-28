@@ -109,24 +109,22 @@ static bool flag_pattern_match(const char *name, const char *pattern)
 int dump_features(const struct nlattr *const *tb,
 		  const struct stringset *feature_names)
 {
+	unsigned int *feature_flags = NULL;
 	struct feature_results results;
 	unsigned int i, j;
-	int *feature_flags = NULL;
 	int ret;
 
 	ret = prepare_feature_results(tb, &results);
 	if (ret < 0)
 		return -EFAULT;
-
-	ret = -ENOMEM;
 	feature_flags = calloc(results.count, sizeof(feature_flags[0]));
 	if (!feature_flags)
-		goto out_free;
+		return -ENOMEM;
 
 	/* map netdev features to legacy flags */
 	for (i = 0; i < results.count; i++) {
 		const char *name = get_string(feature_names, i);
-		feature_flags[i] = -1;
+		feature_flags[i] = UINT_MAX;
 
 		if (!name || !*name)
 			continue;
@@ -177,12 +175,11 @@ int dump_features(const struct nlattr *const *tb,
 	for (i = 0; i < results.count; i++) {
 		const char *name = get_string(feature_names, i);
 
-		if (!name || !*name || feature_flags[i] >= 0)
+		if (!name || !*name || feature_flags[i] != UINT_MAX)
 			continue;
 		dump_feature(&results, NULL, NULL, i, name, "");
 	}
 
-out_free:
 	free(feature_flags);
 	return 0;
 }
@@ -243,6 +240,7 @@ int nl_gfeatures(struct cmd_context *ctx)
 /* FEATURES_SET */
 
 struct sfeatures_context {
+	bool			nothing_changed;
 	uint32_t		req_mask[0];
 };
 
@@ -411,10 +409,14 @@ static void show_feature_changes(struct nl_context *nlctx,
 	if (!wanted_val || !wanted_mask || !active_val || !active_mask)
 		goto err;
 
+	sfctx->nothing_changed = true;
 	diff = false;
-	for (i = 0; i < words; i++)
-		if (wanted_mask[i] || active_mask[i])
+	for (i = 0; i < words; i++) {
+		if (wanted_mask[i] != sfctx->req_mask[i])
+			sfctx->nothing_changed = false;
+		if (wanted_mask[i] || (active_mask[i] & ~sfctx->req_mask[i]))
 			diff = true;
+	}
 	if (!diff)
 		return;
 
@@ -520,6 +522,10 @@ int nl_sfeatures(struct cmd_context *ctx)
 	if (ret < 0)
 		return 92;
 	ret = nlsock_process_reply(nlsk, sfeatures_reply_cb, nlctx);
+	if (sfctx->nothing_changed) {
+		fprintf(stderr, "Could not change any device features\n");
+		return nlctx->exit_code ?: 1;
+	}
 	if (ret == 0)
 		return 0;
 	return nlctx->exit_code ?: 92;

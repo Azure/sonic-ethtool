@@ -221,7 +221,7 @@ struct cmd_context {
 	const char *devname;	/* net device name */
 	int fd;			/* socket suitable for ethtool ioctl */
 	struct ifreq ifr;	/* ifreq suitable for ethtool ioctl */
-	int argc;		/* number of arguments to the sub-command */
+	unsigned int argc;	/* number of arguments to the sub-command */
 	char **argp;		/* arguments to the sub-command */
 	unsigned long debug;	/* debugging mask */
 	bool json;		/* Output JSON, if supported */
@@ -395,5 +395,8 @@ int fec_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 /* Intel(R) Ethernet Controller I225-LM/I225-V adapter family */
 int igc_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
+
+/* Broadcom Ethernet Controller */
+int bnxt_dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 #endif /* ETHTOOL_INTERNAL_H__ */

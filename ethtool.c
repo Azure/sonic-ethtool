@@ -223,9 +223,9 @@ static void parse_generic_cmdline(struct cmd_context *ctx,
 				  struct cmdline_info *info,
 				  unsigned int n_info)
 {
-	int argc = ctx->argc;
+	unsigned int argc = ctx->argc;
 	char **argp = ctx->argp;
-	int i, idx;
+	unsigned int i, idx;
 	int found;
 
 	for (i = 0; i < argc; i++) {
@@ -392,9 +392,9 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 		ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 		ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-		ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-		ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
+		ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 		ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
@@ -443,6 +443,28 @@ static void init_global_link_mode_masks(void)
 		ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
 		ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
 		ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseDR8_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseKR_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseSR_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseDR_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseDR2_Full_BIT,
+		ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseDR4_Full_BIT,
+		ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+		ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
 	};
 	static const enum ethtool_link_mode_bit_indices
 		additional_advertised_flags_bits[] = {
@@ -533,20 +555,16 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "100baseT/Half" },
 		{ 1, ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 		  "100baseT/Full" },
-		{ 0, ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
-		  "100baseT1/Full" },
 		{ 0, ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 		  "1000baseT/Half" },
 		{ 1, ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 		  "1000baseT/Full" },
-		{ 0, ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
-		  "1000baseT1/Full" },
-		{ 0, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-		  "1000baseKX/Full" },
-		{ 0, ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
-		  "2500baseX/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 		  "10000baseT/Full" },
+		{ 0, ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
+		  "2500baseX/Full" },
+		{ 0, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+		  "1000baseKX/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
 		  "10000baseKX4/Full" },
 		{ 0, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
@@ -639,10 +657,59 @@ static void dump_link_caps(const char *prefix, const char *an_prefix,
 		  "200000baseDR4/Full" },
 		{ 0, ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
 		  "200000baseCR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+		  "100baseT1/Full" },
+		{ 0, ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+		  "1000baseT1/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT,
+		  "400000baseKR8/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT,
+		  "400000baseSR8/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT,
+		  "400000baseLR8_ER8_FR8/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseDR8_Full_BIT,
+		  "400000baseDR8/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT,
+		  "400000baseCR8/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseKR_Full_BIT,
+		  "100000baseKR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseSR_Full_BIT,
+		  "100000baseSR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT,
+		  "100000baseLR_ER_FR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseDR_Full_BIT,
+		  "100000baseDR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100000baseCR_Full_BIT,
+		  "100000baseCR/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT,
+		  "200000baseKR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT,
+		  "200000baseSR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT,
+		  "200000baseLR2_ER2_FR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseDR2_Full_BIT,
+		  "200000baseDR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT,
+		  "200000baseCR2/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT,
+		  "400000baseKR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT,
+		  "400000baseSR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
+		  "400000baseLR4_ER4_FR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseDR4_Full_BIT,
+		  "400000baseDR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT,
+		  "400000baseCR4/Full" },
+		{ 0, ETHTOOL_LINK_MODE_100baseFX_Half_BIT,
+		  "100baseFX/Half" },
+		{ 1, ETHTOOL_LINK_MODE_100baseFX_Full_BIT,
+		  "100baseFX/Full" },
 	};
 	int indent;
-	int did1, new_line_pend, i;
+	int did1, new_line_pend;
 	int fecreported = 0;
+	unsigned int i;
 
 	/* Indent just like the separate functions used to */
 	indent = strlen(prefix) + 14;
@@ -1051,6 +1118,7 @@ static const struct {
 	{ "dsa", dsa_dump_regs },
 	{ "fec", fec_dump_regs },
 	{ "igc", igc_dump_regs },
+	{ "bnxt_en", bnxt_dump_regs },
 #endif
 };
 
@@ -1071,7 +1139,7 @@ void dump_hex(FILE *file, const u8 *data, int len, int offset)
 static int dump_regs(int gregs_dump_raw, int gregs_dump_hex,
 		     struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 {
-	int i;
+	unsigned int i;
 
 	if (gregs_dump_raw) {
 		fwrite(regs->data, regs->len, 1, stdout);
@@ -1128,7 +1196,8 @@ static int dump_eeprom(int geeprom_dump_raw,
 static int dump_test(struct ethtool_test *test,
 		     struct ethtool_gstrings *strings)
 {
-	int i, rc;
+	unsigned int i;
+	int rc;
 
 	rc = test->flags & ETH_TEST_FL_FAILED;
 	fprintf(stdout, "The test result is %s\n", rc ? "FAIL" : "PASS");
@@ -1359,7 +1428,7 @@ static void dump_one_feature(const char *indent, const char *name,
 	       : "");
 }
 
-static int linux_version_code(void)
+static unsigned int linux_version_code(void)
 {
 	struct utsname utsname;
 	unsigned version, patchlevel, sublevel = 0;
@@ -1375,10 +1444,10 @@ static void dump_features(const struct feature_defs *defs,
 			  const struct feature_state *state,
 			  const struct feature_state *ref_state)
 {
-	int kernel_ver = linux_version_code();
-	u32 value;
+	unsigned int kernel_ver = linux_version_code();
+	unsigned int i, j;
 	int indent;
-	int i, j;
+	u32 value;
 
 	for (i = 0; i < OFF_FLAG_DEF_SIZE; i++) {
 		/* Don't show features whose state is unknown on this
@@ -1411,7 +1480,7 @@ static void dump_features(const struct feature_defs *defs,
 
 		/* Show matching features */
 		for (j = 0; j < defs->n_features; j++) {
-			if (defs->def[j].off_flag_index != i)
+			if (defs->def[j].off_flag_index != (int)i)
 				continue;
 			if (defs->off_flag_matched[i] != 1)
 				/* Show all matching feature states */
@@ -1668,8 +1737,8 @@ static struct feature_defs *get_feature_defs(struct cmd_context *ctx)
 {
 	struct ethtool_gstrings *names;
 	struct feature_defs *defs;
+	unsigned int i, j;
 	u32 n_features;
-	int i, j;
 
 	names = get_stringset(ctx, ETH_SS_FEATURES, 0, 1);
 	if (names) {
@@ -1823,10 +1892,24 @@ static int do_spause(struct cmd_context *ctx)
 	int pause_rx_wanted = -1;
 	int pause_tx_wanted = -1;
 	struct cmdline_info cmdline_pause[] = {
-		{ "autoneg", CMDL_BOOL, &pause_autoneg_wanted,
-		  &epause.autoneg },
-		{ "rx", CMDL_BOOL, &pause_rx_wanted, &epause.rx_pause },
-		{ "tx", CMDL_BOOL, &pause_tx_wanted, &epause.tx_pause },
+		{
+			.name		= "autoneg",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &pause_autoneg_wanted,
+			.ioctl_val	= &epause.autoneg,
+		},
+		{
+			.name		= "rx",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &pause_rx_wanted,
+			.ioctl_val	= &epause.rx_pause,
+		},
+		{
+			.name		= "tx",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &pause_tx_wanted,
+			.ioctl_val	= &epause.tx_pause,
+		},
 	};
 	int err, changed = 0;
 
@@ -1866,12 +1949,30 @@ static int do_sring(struct cmd_context *ctx)
 	s32 ring_rx_jumbo_wanted = -1;
 	s32 ring_tx_wanted = -1;
 	struct cmdline_info cmdline_ring[] = {
-		{ "rx", CMDL_S32, &ring_rx_wanted, &ering.rx_pending },
-		{ "rx-mini", CMDL_S32, &ring_rx_mini_wanted,
-		  &ering.rx_mini_pending },
-		{ "rx-jumbo", CMDL_S32, &ring_rx_jumbo_wanted,
-		  &ering.rx_jumbo_pending },
-		{ "tx", CMDL_S32, &ring_tx_wanted, &ering.tx_pending },
+		{
+			.name		= "rx",
+			.type		= CMDL_S32,
+			.wanted_val	= &ring_rx_wanted,
+			.ioctl_val	= &ering.rx_pending,
+		},
+		{
+			.name		= "rx-mini",
+			.type		= CMDL_S32,
+			.wanted_val	= &ring_rx_mini_wanted,
+			.ioctl_val	= &ering.rx_mini_pending,
+		},
+		{
+			.name		= "rx-jumbo",
+			.type		= CMDL_S32,
+			.wanted_val	= &ring_rx_jumbo_wanted,
+			.ioctl_val	= &ering.rx_jumbo_pending,
+		},
+		{
+			.name		= "tx",
+			.type		= CMDL_S32,
+			.wanted_val	= &ring_tx_wanted,
+			.ioctl_val	= &ering.tx_pending,
+		},
 	};
 	int err, changed = 0;
 
@@ -1935,12 +2036,30 @@ static int do_schannels(struct cmd_context *ctx)
 	s32 channels_other_wanted = -1;
 	s32 channels_combined_wanted = -1;
 	struct cmdline_info cmdline_channels[] = {
-		{ "rx", CMDL_S32, &channels_rx_wanted, &echannels.rx_count },
-		{ "tx", CMDL_S32, &channels_tx_wanted, &echannels.tx_count },
-		{ "other", CMDL_S32, &channels_other_wanted,
-		  &echannels.other_count },
-		{ "combined", CMDL_S32, &channels_combined_wanted,
-		  &echannels.combined_count },
+		{
+			.name		= "rx",
+			.type		= CMDL_S32,
+			.wanted_val	= &channels_rx_wanted,
+			.ioctl_val	= &echannels.rx_count,
+		},
+		{
+			.name		= "tx",
+			.type		= CMDL_S32,
+			.wanted_val	= &channels_tx_wanted,
+			.ioctl_val	= &echannels.tx_count,
+		},
+		{
+			.name		= "other",
+			.type		= CMDL_S32,
+			.wanted_val	= &channels_other_wanted,
+			.ioctl_val	= &echannels.other_count,
+		},
+		{
+			.name		= "combined",
+			.type		= CMDL_S32,
+			.wanted_val	= &channels_combined_wanted,
+			.ioctl_val	= &echannels.combined_count,
+		},
 	};
 	int err, changed = 0;
 
@@ -2050,50 +2169,138 @@ static int do_gcoalesce(struct cmd_context *ctx)
 
 #define COALESCE_CMDLINE_INFO(__ecoal)					\
 {									\
-	{ "adaptive-rx", CMDL_BOOL, &coal_adaptive_rx_wanted,		\
-	  &__ecoal.use_adaptive_rx_coalesce },				\
-	{ "adaptive-tx", CMDL_BOOL, &coal_adaptive_tx_wanted,		\
-	  &__ecoal.use_adaptive_tx_coalesce },				\
-	{ "sample-interval", CMDL_S32, &coal_sample_rate_wanted,	\
-	  &__ecoal.rate_sample_interval },				\
-	{ "stats-block-usecs", CMDL_S32, &coal_stats_wanted,		\
-	  &__ecoal.stats_block_coalesce_usecs },			\
-	{ "pkt-rate-low", CMDL_S32, &coal_pkt_rate_low_wanted,		\
-	  &__ecoal.pkt_rate_low },					\
-	{ "pkt-rate-high", CMDL_S32, &coal_pkt_rate_high_wanted,	\
-	  &__ecoal.pkt_rate_high },					\
-	{ "rx-usecs", CMDL_S32, &coal_rx_usec_wanted,			\
-	  &__ecoal.rx_coalesce_usecs },					\
-	{ "rx-frames", CMDL_S32, &coal_rx_frames_wanted,		\
-	  &__ecoal.rx_max_coalesced_frames },				\
-	{ "rx-usecs-irq", CMDL_S32, &coal_rx_usec_irq_wanted,		\
-	  &__ecoal.rx_coalesce_usecs_irq },				\
-	{ "rx-frames-irq", CMDL_S32, &coal_rx_frames_irq_wanted,	\
-	  &__ecoal.rx_max_coalesced_frames_irq },			\
-	{ "tx-usecs", CMDL_S32, &coal_tx_usec_wanted,			\
-	  &__ecoal.tx_coalesce_usecs },					\
-	{ "tx-frames", CMDL_S32, &coal_tx_frames_wanted,		\
-	  &__ecoal.tx_max_coalesced_frames },				\
-	{ "tx-usecs-irq", CMDL_S32, &coal_tx_usec_irq_wanted,		\
-	  &__ecoal.tx_coalesce_usecs_irq },				\
-	{ "tx-frames-irq", CMDL_S32, &coal_tx_frames_irq_wanted,	\
-	  &__ecoal.tx_max_coalesced_frames_irq },			\
-	{ "rx-usecs-low", CMDL_S32, &coal_rx_usec_low_wanted,		\
-	  &__ecoal.rx_coalesce_usecs_low },				\
-	{ "rx-frames-low", CMDL_S32, &coal_rx_frames_low_wanted,	\
-	  &__ecoal.rx_max_coalesced_frames_low },			\
-	{ "tx-usecs-low", CMDL_S32, &coal_tx_usec_low_wanted,		\
-	  &__ecoal.tx_coalesce_usecs_low },				\
-	{ "tx-frames-low", CMDL_S32, &coal_tx_frames_low_wanted,	\
-	  &__ecoal.tx_max_coalesced_frames_low },			\
-	{ "rx-usecs-high", CMDL_S32, &coal_rx_usec_high_wanted,		\
-	  &__ecoal.rx_coalesce_usecs_high },				\
-	{ "rx-frames-high", CMDL_S32, &coal_rx_frames_high_wanted,	\
-	  &__ecoal.rx_max_coalesced_frames_high },			\
-	{ "tx-usecs-high", CMDL_S32, &coal_tx_usec_high_wanted,		\
-	  &__ecoal.tx_coalesce_usecs_high },				\
-	{ "tx-frames-high", CMDL_S32, &coal_tx_frames_high_wanted,	\
-	  &__ecoal.tx_max_coalesced_frames_high },			\
+	{								\
+		.name		= "adaptive-rx",			\
+		.type		= CMDL_BOOL,				\
+		.wanted_val	= &coal_adaptive_rx_wanted,		\
+		.ioctl_val	= &__ecoal.use_adaptive_rx_coalesce,	\
+	},								\
+	{								\
+		.name		= "adaptive-tx",			\
+		.type		= CMDL_BOOL,				\
+		.wanted_val	= &coal_adaptive_tx_wanted,		\
+		.ioctl_val	= &__ecoal.use_adaptive_tx_coalesce,	\
+	},								\
+	{								\
+		.name		= "sample-interval",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_sample_rate_wanted,		\
+		.ioctl_val	= &__ecoal.rate_sample_interval,	\
+	},								\
+	{								\
+		.name		= "stats-block-usecs",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_stats_wanted,			\
+		.ioctl_val	= &__ecoal.stats_block_coalesce_usecs,	\
+	},								\
+	{								\
+		.name		= "pkt-rate-low",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_pkt_rate_low_wanted,		\
+		.ioctl_val	= &__ecoal.pkt_rate_low,		\
+	},								\
+	{								\
+		.name		= "pkt-rate-high",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_pkt_rate_high_wanted,		\
+		.ioctl_val	= &__ecoal.pkt_rate_high,		\
+	},								\
+	{								\
+		.name		= "rx-usecs",				\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_usec_wanted,			\
+		.ioctl_val	= &__ecoal.rx_coalesce_usecs,		\
+	},								\
+	{								\
+		.name		= "rx-frames",				\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_frames_wanted,		\
+		.ioctl_val	= &__ecoal.rx_max_coalesced_frames,	\
+	},								\
+	{								\
+		.name		= "rx-usecs-irq",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_usec_irq_wanted,		\
+		.ioctl_val	= &__ecoal.rx_coalesce_usecs_irq,	\
+	},								\
+	{								\
+		.name		= "rx-frames-irq",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_frames_irq_wanted,		\
+		.ioctl_val	= &__ecoal.rx_max_coalesced_frames_irq,	\
+	},								\
+	{								\
+		.name		= "tx-usecs",				\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_usec_wanted,			\
+		.ioctl_val	= &__ecoal.tx_coalesce_usecs,		\
+	},								\
+	{								\
+		.name		= "tx-frames",				\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_frames_wanted,		\
+		.ioctl_val	= &__ecoal.tx_max_coalesced_frames,	\
+	},								\
+	{								\
+		.name		= "tx-usecs-irq",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_usec_irq_wanted,		\
+		.ioctl_val	= &__ecoal.tx_coalesce_usecs_irq,	\
+	},								\
+	{								\
+		.name		= "tx-frames-irq",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_frames_irq_wanted,		\
+		.ioctl_val	= &__ecoal.tx_max_coalesced_frames_irq,	\
+	},								\
+	{								\
+		.name		= "rx-usecs-low",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_usec_low_wanted,		\
+		.ioctl_val	= &__ecoal.rx_coalesce_usecs_low,	\
+	},								\
+	{								\
+		.name		= "rx-frames-low",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_frames_low_wanted,		\
+		.ioctl_val	= &__ecoal.rx_max_coalesced_frames_low,	\
+	},								\
+	{								\
+		.name		= "tx-usecs-low",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_usec_low_wanted,		\
+		.ioctl_val	= &__ecoal.tx_coalesce_usecs_low,	\
+	},								\
+	{								\
+		.name		= "tx-frames-low",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_frames_low_wanted,		\
+		.ioctl_val	= &__ecoal.tx_max_coalesced_frames_low,	\
+	},								\
+	{								\
+		.name		= "rx-usecs-high",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_usec_high_wanted,		\
+		.ioctl_val	= &__ecoal.rx_coalesce_usecs_high,	\
+	},								\
+	{								\
+		.name		= "rx-frames-high",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_rx_frames_high_wanted,		\
+		.ioctl_val	= &__ecoal.rx_max_coalesced_frames_high,\
+	},								\
+	{								\
+		.name		= "tx-usecs-high",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_usec_high_wanted,		\
+		.ioctl_val	= &__ecoal.tx_coalesce_usecs_high,	\
+	},								\
+	{								\
+		.name		= "tx-frames-high",			\
+		.type		= CMDL_S32,				\
+		.wanted_val	= &coal_tx_frames_high_wanted,		\
+		.ioctl_val	= &__ecoal.tx_max_coalesced_frames_high,\
+	},								\
 }
 
 static int do_scoalesce(struct cmd_context *ctx)
@@ -2232,12 +2439,13 @@ static int do_sfeatures(struct cmd_context *ctx)
 	int any_changed = 0, any_mismatch = 0;
 	u32 off_flags_wanted = 0;
 	u32 off_flags_mask = 0;
-	struct ethtool_sfeatures *efeatures;
+	struct ethtool_sfeatures *efeatures = NULL;
+	struct feature_state *old_state = NULL;
+	struct feature_state *new_state = NULL;
 	struct cmdline_info *cmdline_features;
-	struct feature_state *old_state, *new_state;
 	struct ethtool_value eval;
+	unsigned int i, j;
 	int err, rc;
-	int i, j;
 
 	defs = get_feature_defs(ctx);
 	if (!defs) {
@@ -2258,8 +2466,6 @@ static int do_sfeatures(struct cmd_context *ctx)
 		memset(efeatures->features, 0,
 		       FEATURE_BITS_TO_BLOCKS(defs->n_features) *
 		       sizeof(efeatures->features[0]));
-	} else {
-		efeatures = NULL;
 	}
 
 	/* Generate cmdline_info for legacy flags and kernel-named
@@ -2317,7 +2523,7 @@ static int do_sfeatures(struct cmd_context *ctx)
 				continue;
 
 			for (j = 0; j < defs->n_features; j++) {
-				if (defs->def[j].off_flag_index != i ||
+				if (defs->def[j].off_flag_index != (int)i ||
 				    !FEATURE_BIT_IS_SET(
 					    old_state->features.features,
 					    j, available) ||
@@ -2418,9 +2624,11 @@ static int do_sfeatures(struct cmd_context *ctx)
 	rc = 0;
 
 err:
+	free(new_state);
+	free(old_state);
 	free(defs);
-	if (efeatures)
-		free(efeatures);
+	free(efeatures);
+
 	return rc;
 }
 
@@ -2724,9 +2932,9 @@ static int do_sset(struct cmd_context *ctx)
 	u32 msglvl_wanted = 0;
 	u32 msglvl_mask = 0;
 	struct cmdline_info cmdline_msglvl[n_flags_msglvl];
-	int argc = ctx->argc;
+	unsigned int argc = ctx->argc;
 	char **argp = ctx->argp;
-	int i;
+	unsigned int i;
 	int err = 0;
 
 	for (i = 0; i < n_flags_msglvl; i++)
@@ -2908,10 +3116,11 @@ static int do_sset(struct cmd_context *ctx)
 		struct ethtool_link_usettings *link_usettings;
 
 		link_usettings = do_ioctl_glinksettings(ctx);
-		memset(&link_usettings->deprecated, 0,
-		       sizeof(link_usettings->deprecated));
 		if (link_usettings == NULL)
 			link_usettings = do_ioctl_gset(ctx);
+		else
+			memset(&link_usettings->deprecated, 0,
+			       sizeof(link_usettings->deprecated));
 		if (link_usettings == NULL) {
 			perror("Cannot get current device settings");
 			err = -1;
@@ -3088,9 +3297,21 @@ static int do_gregs(struct cmd_context *ctx)
 	int gregs_dump_hex = 0;
 	char *gregs_dump_file = NULL;
 	struct cmdline_info cmdline_gregs[] = {
-		{ "raw", CMDL_BOOL, &gregs_dump_raw, NULL },
-		{ "hex", CMDL_BOOL, &gregs_dump_hex, NULL },
-		{ "file", CMDL_STR, &gregs_dump_file, NULL },
+		{
+			.name		= "raw",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &gregs_dump_raw,
+		},
+		{
+			.name		= "hex",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &gregs_dump_hex,
+		},
+		{
+			.name		= "file",
+			.type		= CMDL_STR,
+			.wanted_val	= &gregs_dump_file,
+		},
 	};
 	int err;
 	struct ethtool_drvinfo drvinfo;
@@ -3184,11 +3405,25 @@ static int do_geeprom(struct cmd_context *ctx)
 	int geeprom_changed = 0;
 	int geeprom_dump_raw = 0;
 	u32 geeprom_offset = 0;
-	u32 geeprom_length = -1;
+	u32 geeprom_length = 0;
+	int geeprom_length_seen = 0;
 	struct cmdline_info cmdline_geeprom[] = {
-		{ "offset", CMDL_U32, &geeprom_offset, NULL },
-		{ "length", CMDL_U32, &geeprom_length, NULL },
-		{ "raw", CMDL_BOOL, &geeprom_dump_raw, NULL },
+		{
+			.name		= "offset",
+			.type		= CMDL_U32,
+			.wanted_val	= &geeprom_offset,
+		},
+		{
+			.name		= "length",
+			.type		= CMDL_U32,
+			.wanted_val	= &geeprom_length,
+			.seen_val	= &geeprom_length_seen,
+		},
+		{
+			.name		= "raw",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &geeprom_dump_raw,
+		},
 	};
 	int err;
 	struct ethtool_drvinfo drvinfo;
@@ -3204,7 +3439,7 @@ static int do_geeprom(struct cmd_context *ctx)
 		return 74;
 	}
 
-	if (geeprom_length == -1)
+	if (!geeprom_length_seen)
 		geeprom_length = drvinfo.eedump_len;
 
 	if (drvinfo.eedump_len < geeprom_offset + geeprom_length)
@@ -3234,16 +3469,34 @@ static int do_seeprom(struct cmd_context *ctx)
 {
 	int seeprom_changed = 0;
 	u32 seeprom_magic = 0;
-	u32 seeprom_length = -1;
+	u32 seeprom_length = 0;
 	u32 seeprom_offset = 0;
 	u8 seeprom_value = 0;
+	int seeprom_length_seen = 0;
 	int seeprom_value_seen = 0;
 	struct cmdline_info cmdline_seeprom[] = {
-		{ "magic", CMDL_U32, &seeprom_magic, NULL },
-		{ "offset", CMDL_U32, &seeprom_offset, NULL },
-		{ "length", CMDL_U32, &seeprom_length, NULL },
-		{ "value", CMDL_U8, &seeprom_value, NULL,
-		  0, &seeprom_value_seen },
+		{
+			.name		= "magic",
+			.type		= CMDL_U32,
+			.wanted_val	= &seeprom_magic,
+		},
+		{
+			.name		= "offset",
+			.type		= CMDL_U32,
+			.wanted_val	= &seeprom_offset,
+		},
+		{
+			.name		= "length",
+			.type		= CMDL_U32,
+			.wanted_val	= &seeprom_length,
+			.seen_val	= &seeprom_length_seen,
+		},
+		{
+			.name		= "value",
+			.type		= CMDL_U8,
+			.wanted_val	= &seeprom_value,
+			.seen_val	= &seeprom_value_seen,
+		},
 	};
 	int err;
 	struct ethtool_drvinfo drvinfo;
@@ -3262,7 +3515,7 @@ static int do_seeprom(struct cmd_context *ctx)
 	if (seeprom_value_seen)
 		seeprom_length = 1;
 
-	if (seeprom_length == -1)
+	if (!seeprom_length_seen)
 		seeprom_length = drvinfo.eedump_len;
 
 	if (drvinfo.eedump_len < seeprom_offset + seeprom_length) {
@@ -3667,7 +3920,7 @@ static int do_grxfh(struct cmd_context *ctx)
 	struct ethtool_rxfh *rss;
 	u32 rss_context = 0;
 	u32 i, indir_bytes;
-	int arg_num = 0;
+	unsigned int arg_num = 0;
 	char *hkey;
 	int err;
 
@@ -3865,7 +4118,7 @@ static int do_srxfh(struct cmd_context *ctx)
 	char *hfunc_name = NULL;
 	char *hkey = NULL;
 	int err = 0;
-	int i;
+	unsigned int i;
 	u32 arg_num = 0, indir_bytes = 0;
 	u32 req_hfunc = 0;
 	u32 entry_size = sizeof(rss_head.rss_config[0]);
@@ -4131,7 +4384,8 @@ static int do_flash(struct cmd_context *ctx)
 
 static int do_permaddr(struct cmd_context *ctx)
 {
-	int i, err;
+	unsigned int i;
+	int err;
 	struct ethtool_perm_addr *epaddr;
 
 	epaddr = malloc(sizeof(struct ethtool_perm_addr) + MAX_ADDR_LEN);
@@ -4538,17 +4792,35 @@ static int do_getmodule(struct cmd_context *ctx)
 	struct ethtool_modinfo modinfo;
 	struct ethtool_eeprom *eeprom;
 	u32 geeprom_offset = 0;
-	u32 geeprom_length = -1;
+	u32 geeprom_length = 0;
 	int geeprom_changed = 0;
 	int geeprom_dump_raw = 0;
 	int geeprom_dump_hex = 0;
+	int geeprom_length_seen = 0;
 	int err;
 
 	struct cmdline_info cmdline_geeprom[] = {
-		{ "offset", CMDL_U32, &geeprom_offset, NULL },
-		{ "length", CMDL_U32, &geeprom_length, NULL },
-		{ "raw", CMDL_BOOL, &geeprom_dump_raw, NULL },
-		{ "hex", CMDL_BOOL, &geeprom_dump_hex, NULL },
+		{
+			.name		= "offset",
+			.type		= CMDL_U32,
+			.wanted_val	= &geeprom_offset,
+		},
+		{
+			.name		= "length",
+			.type		= CMDL_U32,
+			.wanted_val	= &geeprom_length,
+			.seen_val	= &geeprom_length_seen,
+		},
+		{
+			.name		= "raw",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &geeprom_dump_raw,
+		},
+		{
+			.name		= "hex",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &geeprom_dump_hex,
+		},
 	};
 
 	parse_generic_cmdline(ctx, &geeprom_changed,
@@ -4566,7 +4838,7 @@ static int do_getmodule(struct cmd_context *ctx)
 		return 1;
 	}
 
-	if (geeprom_length == -1)
+	if (!geeprom_length_seen)
 		geeprom_length = modinfo.eeprom_len;
 
 	if (modinfo.eeprom_len < geeprom_offset + geeprom_length)
@@ -4660,10 +4932,30 @@ static int do_seee(struct cmd_context *ctx)
 	int change = -1, change2 = 0;
 	struct ethtool_eee eeecmd;
 	struct cmdline_info cmdline_eee[] = {
-		{ "advertise",    CMDL_U32,  &adv_c,       &eeecmd.advertised },
-		{ "tx-lpi",       CMDL_BOOL, &lpi_c,   &eeecmd.tx_lpi_enabled },
-		{ "tx-timer",	  CMDL_U32,  &lpi_time_c, &eeecmd.tx_lpi_timer},
-		{ "eee",	  CMDL_BOOL, &eee_c,	   &eeecmd.eee_enabled},
+		{
+			.name		= "advertise",
+			.type		= CMDL_U32,
+			.wanted_val	= &adv_c,
+			.ioctl_val	= &eeecmd.advertised,
+		},
+		{
+			.name		= "tx-lpi",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &lpi_c,
+			.ioctl_val	= &eeecmd.tx_lpi_enabled,
+		},
+		{
+			.name		= "tx-timer",
+			.type		= CMDL_U32,
+			.wanted_val	= &lpi_time_c,
+			.ioctl_val	= &eeecmd.tx_lpi_timer,
+		},
+		{
+			.name		= "eee",
+			.type		= CMDL_BOOL,
+			.wanted_val	= &eee_c,
+			.ioctl_val	= &eeecmd.eee_enabled,
+		},
 	};
 
 	if (ctx->argc == 0)
@@ -4744,7 +5036,7 @@ static int do_stunable(struct cmd_context *ctx)
 	struct cmdline_info cmdline_tunable[TUNABLES_INFO_SIZE];
 	struct ethtool_tunable_info *tinfo = tunables_info;
 	int changed = 0;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < TUNABLES_INFO_SIZE; i++) {
 		cmdline_tunable[i].name = tunable_strings[tinfo[i].t_id];
@@ -4826,9 +5118,8 @@ static int do_gtunable(struct cmd_context *ctx)
 {
 	struct ethtool_tunable_info *tinfo = tunables_info;
 	char **argp = ctx->argp;
-	int argc = ctx->argc;
-	int i;
-	int j;
+	unsigned int argc = ctx->argc;
+	unsigned int i, j;
 
 	if (argc < 1)
 		exit_bad_args();
@@ -4870,7 +5161,7 @@ static int do_gtunable(struct cmd_context *ctx)
 
 static int do_get_phy_tunable(struct cmd_context *ctx)
 {
-	int argc = ctx->argc;
+	unsigned int argc = ctx->argc;
 	char **argp = ctx->argp;
 
 	if (argc < 1)
@@ -4974,9 +5265,9 @@ static int do_reset(struct cmd_context *ctx)
 {
 	struct ethtool_value resetinfo;
 	__u32 data;
-	int argc = ctx->argc;
+	unsigned int argc = ctx->argc;
 	char **argp = ctx->argp;
-	int i;
+	unsigned int i;
 
 	if (argc == 0)
 		exit_bad_args();
@@ -5264,7 +5555,8 @@ static int do_sfec(struct cmd_context *ctx)
 	enum { ARG_NONE, ARG_ENCODING } state = ARG_NONE;
 	struct ethtool_fecparam feccmd;
 	int fecmode = 0, newmode;
-	int rv, i;
+	unsigned int i;
+	int rv;
 
 	for (i = 0; i < ctx->argc; i++) {
 		if (!strcmp(ctx->argp[i], "encoding")) {
@@ -5696,6 +5988,11 @@ static const struct option args[] = {
 			  "		[ pair N ]\n"
 	},
 	{
+		.opts	= "--show-tunnels",
+		.nlfunc	= nl_gtunnels,
+		.help	= "Show NIC tunnel offload information",
+	},
+	{
 		.opts	= "-h|--help",
 		.no_dev	= true,
 		.func	= show_usage,
@@ -5874,6 +6171,8 @@ static int do_perqueue(struct cmd_context *ctx)
 			"The sub commands will be applied to all %d queues\n",
 			n_queues);
 	} else {
+		if (ctx->argc <= 2)
+			exit_bad_args();
 		ctx->argc--;
 		ctx->argp++;
 		if (parse_hex_u32_bitmap(*ctx->argp, MAX_NUM_QUEUE,

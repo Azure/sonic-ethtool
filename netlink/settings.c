@@ -64,159 +64,112 @@ static const char *const names_transceiver[] = {
  * there is little chance of getting them separated any time soon so let's
  * sort them out ourselves
  */
+#define __REAL(_speed) \
+	{ .class = LM_CLASS_REAL, .speed = _speed, .duplex = DUPLEX_FULL }
+#define __HALF_DUPLEX(_speed) \
+	{ .class = LM_CLASS_REAL, .speed = _speed, .duplex = DUPLEX_HALF }
+#define __SPECIAL(_class) \
+	{ .class = LM_CLASS_ ## _class }
+
 static const struct link_mode_info link_modes[] = {
-	[ETHTOOL_LINK_MODE_10baseT_Half_BIT] =
-		{ LM_CLASS_REAL,	10,	DUPLEX_HALF },
-	[ETHTOOL_LINK_MODE_10baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	10,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100baseT_Half_BIT] =
-		{ LM_CLASS_REAL,	100,	DUPLEX_HALF },
-	[ETHTOOL_LINK_MODE_100baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	100,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_1000baseT_Half_BIT] =
-		{ LM_CLASS_REAL,	1000,	DUPLEX_HALF },
-	[ETHTOOL_LINK_MODE_1000baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	1000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_Autoneg_BIT] =
-		{ LM_CLASS_AUTONEG },
-	[ETHTOOL_LINK_MODE_TP_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_AUI_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_MII_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_FIBRE_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_BNC_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_10000baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_Pause_BIT] =
-		{ LM_CLASS_PAUSE },
-	[ETHTOOL_LINK_MODE_Asym_Pause_BIT] =
-		{ LM_CLASS_PAUSE },
-	[ETHTOOL_LINK_MODE_2500baseX_Full_BIT] =
-		{ LM_CLASS_REAL,	2500,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_Backplane_BIT] =
-		{ LM_CLASS_PORT },
-	[ETHTOOL_LINK_MODE_1000baseKX_Full_BIT] =
-		{ LM_CLASS_REAL,	1000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseKR_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseR_FEC_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT] =
-		{ LM_CLASS_REAL,	20000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT] =
-		{ LM_CLASS_REAL,	20000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT] =
-		{ LM_CLASS_REAL,	40000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT] =
-		{ LM_CLASS_REAL,	40000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT] =
-		{ LM_CLASS_REAL,	40000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT] =
-		{ LM_CLASS_REAL,	40000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT] =
-		{ LM_CLASS_REAL,	56000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT] =
-		{ LM_CLASS_REAL,	56000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT] =
-		{ LM_CLASS_REAL,	56000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT] =
-		{ LM_CLASS_REAL,	56000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_25000baseCR_Full_BIT] =
-		{ LM_CLASS_REAL,	25000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_25000baseKR_Full_BIT] =
-		{ LM_CLASS_REAL,	25000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_25000baseSR_Full_BIT] =
-		{ LM_CLASS_REAL,	25000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_1000baseX_Full_BIT] =
-		{ LM_CLASS_REAL,	1000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseCR_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseSR_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseLR_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_10000baseER_Full_BIT] =
-		{ LM_CLASS_REAL,	10000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_2500baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	2500,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_5000baseT_Full_BIT] =
-		{ LM_CLASS_REAL,	5000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_FEC_NONE_BIT] =
-		{ LM_CLASS_FEC },
-	[ETHTOOL_LINK_MODE_FEC_RS_BIT] =
-		{ LM_CLASS_FEC },
-	[ETHTOOL_LINK_MODE_FEC_BASER_BIT] =
-		{ LM_CLASS_FEC },
-	[ETHTOOL_LINK_MODE_50000baseKR_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseSR_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseCR_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_50000baseDR_Full_BIT] =
-		{ LM_CLASS_REAL,	50000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT] =
-		{ LM_CLASS_REAL,	100000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT] =
-		{ LM_CLASS_REAL,	200000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT] =
-		{ LM_CLASS_REAL,	200000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT] =
-		{ LM_CLASS_REAL,	200000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_200000baseDR4_Full_BIT] =
-		{ LM_CLASS_REAL,	200000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT] =
-		{ LM_CLASS_REAL,	200000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_100baseT1_Full_BIT] =
-		{ LM_CLASS_REAL,	100,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_1000baseT1_Full_BIT] =
-		{ LM_CLASS_REAL,	1000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT] =
-		{ LM_CLASS_REAL,	400000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT] =
-		{ LM_CLASS_REAL,	400000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT] =
-		{ LM_CLASS_REAL,	400000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_400000baseDR8_Full_BIT] =
-		{ LM_CLASS_REAL,	400000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT] =
-		{ LM_CLASS_REAL,	400000,	DUPLEX_FULL },
-	[ETHTOOL_LINK_MODE_FEC_LLRS_BIT] =
-		{ LM_CLASS_FEC },
+	[ETHTOOL_LINK_MODE_10baseT_Half_BIT]		= __HALF_DUPLEX(10),
+	[ETHTOOL_LINK_MODE_10baseT_Full_BIT]		= __REAL(10),
+	[ETHTOOL_LINK_MODE_100baseT_Half_BIT]		= __HALF_DUPLEX(100),
+	[ETHTOOL_LINK_MODE_100baseT_Full_BIT]		= __REAL(100),
+	[ETHTOOL_LINK_MODE_1000baseT_Half_BIT]		= __HALF_DUPLEX(1000),
+	[ETHTOOL_LINK_MODE_1000baseT_Full_BIT]		= __REAL(1000),
+	[ETHTOOL_LINK_MODE_Autoneg_BIT]			= __SPECIAL(AUTONEG),
+	[ETHTOOL_LINK_MODE_TP_BIT]			= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_AUI_BIT]			= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_MII_BIT]			= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_FIBRE_BIT]			= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_BNC_BIT]			= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_10000baseT_Full_BIT]		= __REAL(10000),
+	[ETHTOOL_LINK_MODE_Pause_BIT]			= __SPECIAL(PAUSE),
+	[ETHTOOL_LINK_MODE_Asym_Pause_BIT]		= __SPECIAL(PAUSE),
+	[ETHTOOL_LINK_MODE_2500baseX_Full_BIT]		= __REAL(2500),
+	[ETHTOOL_LINK_MODE_Backplane_BIT]		= __SPECIAL(PORT),
+	[ETHTOOL_LINK_MODE_1000baseKX_Full_BIT]		= __REAL(1000),
+	[ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseKR_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseR_FEC_BIT]		= __REAL(10000),
+	[ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT]	= __REAL(20000),
+	[ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT]	= __REAL(20000),
+	[ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT]	= __REAL(40000),
+	[ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT]	= __REAL(40000),
+	[ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT]	= __REAL(40000),
+	[ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT]	= __REAL(40000),
+	[ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT]	= __REAL(56000),
+	[ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT]	= __REAL(56000),
+	[ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT]	= __REAL(56000),
+	[ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT]	= __REAL(56000),
+	[ETHTOOL_LINK_MODE_25000baseCR_Full_BIT]	= __REAL(25000),
+	[ETHTOOL_LINK_MODE_25000baseKR_Full_BIT]	= __REAL(25000),
+	[ETHTOOL_LINK_MODE_25000baseSR_Full_BIT]	= __REAL(25000),
+	[ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_1000baseX_Full_BIT]		= __REAL(1000),
+	[ETHTOOL_LINK_MODE_10000baseCR_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseSR_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseLR_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_10000baseER_Full_BIT]	= __REAL(10000),
+	[ETHTOOL_LINK_MODE_2500baseT_Full_BIT]		= __REAL(2500),
+	[ETHTOOL_LINK_MODE_5000baseT_Full_BIT]		= __REAL(5000),
+	[ETHTOOL_LINK_MODE_FEC_NONE_BIT]		= __SPECIAL(FEC),
+	[ETHTOOL_LINK_MODE_FEC_RS_BIT]			= __SPECIAL(FEC),
+	[ETHTOOL_LINK_MODE_FEC_BASER_BIT]		= __SPECIAL(FEC),
+	[ETHTOOL_LINK_MODE_50000baseKR_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_50000baseSR_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_50000baseCR_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_50000baseDR_Full_BIT]	= __REAL(50000),
+	[ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT] = __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT] = __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseDR4_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_100baseT1_Full_BIT]		= __REAL(100),
+	[ETHTOOL_LINK_MODE_1000baseT1_Full_BIT]		= __REAL(1000),
+	[ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT] = __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseDR8_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_FEC_LLRS_BIT]		= __SPECIAL(FEC),
+	[ETHTOOL_LINK_MODE_100000baseKR_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseSR_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseCR_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_100000baseDR_Full_BIT]	= __REAL(100000),
+	[ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT] = __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseDR2_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT]	= __REAL(200000),
+	[ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT] = __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseDR4_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT]	= __REAL(400000),
+	[ETHTOOL_LINK_MODE_100baseFX_Half_BIT]		= __HALF_DUPLEX(100),
+	[ETHTOOL_LINK_MODE_100baseFX_Full_BIT]		= __REAL(100),
 };
 const unsigned int link_modes_count = ARRAY_SIZE(link_modes);
+
+#undef __REAL
+#undef __HALF_DUPLEX
+#undef __SPECIAL
 
 static bool lm_class_match(unsigned int mode, enum link_mode_class class)
 {
@@ -276,10 +229,10 @@ int dump_link_modes(struct nl_context *nlctx, const struct nlattr *bitset,
 	const struct nlattr *bitset_tb[ETHTOOL_A_BITSET_MAX + 1] = {};
 	DECLARE_ATTR_TB_INFO(bitset_tb);
 	const unsigned int before_len = strlen(before);
+	unsigned int prev = UINT_MAX - 1;
 	const struct nlattr *bits;
 	const struct nlattr *bit;
 	bool first = true;
-	int prev = -2;
 	bool nomask;
 	int ret;
 
@@ -333,7 +286,7 @@ int dump_link_modes(struct nl_context *nlctx, const struct nlattr *bitset,
 			if (first)
 				first = false;
 			/* ugly hack to preserve old output format */
-			if (class == LM_CLASS_REAL && (prev == idx - 1) &&
+			if (class == LM_CLASS_REAL && (idx == prev + 1) &&
 			    prev < link_modes_count &&
 			    link_modes[prev].class == LM_CLASS_REAL &&
 			    link_modes[prev].duplex == DUPLEX_HALF)
@@ -375,7 +328,7 @@ int dump_link_modes(struct nl_context *nlctx, const struct nlattr *bitset,
 			first = false;
 		} else {
 			/* ugly hack to preserve old output format */
-			if ((class == LM_CLASS_REAL) && (prev == idx - 1) &&
+			if ((class == LM_CLASS_REAL) && (idx == prev + 1) &&
 			    (prev < link_modes_count) &&
 			    (link_modes[prev].class == LM_CLASS_REAL) &&
 			    (link_modes[prev].duplex == DUPLEX_HALF))
@@ -614,6 +567,149 @@ int linkinfo_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 	return MNL_CB_OK;
 }
 
+static const char *get_enum_string(const char *const *string_table, unsigned int n_string_table,
+				   unsigned int val)
+{
+	if (val >= n_string_table || !string_table[val])
+		return NULL;
+	else
+		return string_table[val];
+}
+
+static const char *const names_link_ext_state[] = {
+	[ETHTOOL_LINK_EXT_STATE_AUTONEG]		= "Autoneg",
+	[ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE]	= "Link training failure",
+	[ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH]	= "Logical mismatch",
+	[ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY]	= "Bad signal integrity",
+	[ETHTOOL_LINK_EXT_STATE_NO_CABLE]		= "No cable",
+	[ETHTOOL_LINK_EXT_STATE_CABLE_ISSUE]		= "Cable issue",
+	[ETHTOOL_LINK_EXT_STATE_EEPROM_ISSUE]		= "EEPROM issue",
+	[ETHTOOL_LINK_EXT_STATE_CALIBRATION_FAILURE]	= "Calibration failure",
+	[ETHTOOL_LINK_EXT_STATE_POWER_BUDGET_EXCEEDED]	= "Power budget exceeded",
+	[ETHTOOL_LINK_EXT_STATE_OVERHEAT]		= "Overheat",
+};
+
+static const char *const names_autoneg_link_ext_substate[] = {
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED]		=
+		"No partner detected",
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_ACK_NOT_RECEIVED]			=
+		"Ack not received",
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_NEXT_PAGE_EXCHANGE_FAILED]	=
+		"Next page exchange failed",
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_PARTNER_DETECTED_FORCE_MODE]	=
+		"No partner detected during force mode",
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_FEC_MISMATCH_DURING_OVERRIDE]	=
+		"FEC mismatch during override",
+	[ETHTOOL_LINK_EXT_SUBSTATE_AN_NO_HCD]				=
+		"No HCD",
+};
+
+static const char *const names_link_training_link_ext_substate[] = {
+	[ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_FRAME_LOCK_NOT_ACQUIRED]			=
+		"KR frame lock not acquired",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_INHIBIT_TIMEOUT]				=
+		"KR link inhibit timeout",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LT_KR_LINK_PARTNER_DID_NOT_SET_RECEIVER_READY]	=
+		"KR Link partner did not set receiver ready",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT]					=
+		"Remote side is not ready yet",
+};
+
+static const char *const names_link_logical_mismatch_link_ext_substate[] = {
+	[ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_BLOCK_LOCK]	=
+		"PCS did not acquire block lock",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_ACQUIRE_AM_LOCK]	=
+		"PCS did not acquire AM lock",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LLM_PCS_DID_NOT_GET_ALIGN_STATUS]	=
+		"PCS did not get align_status",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LLM_FC_FEC_IS_NOT_LOCKED]		=
+		"FC FEC is not locked",
+	[ETHTOOL_LINK_EXT_SUBSTATE_LLM_RS_FEC_IS_NOT_LOCKED]		=
+		"RS FEC is not locked",
+};
+
+static const char *const names_bad_signal_integrity_link_ext_substate[] = {
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_LARGE_NUMBER_OF_PHYSICAL_ERRORS]	=
+		"Large number of physical errors",
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE]		=
+		"Unsupported rate",
+};
+
+static const char *const names_cable_issue_link_ext_substate[] = {
+	[ETHTOOL_LINK_EXT_SUBSTATE_CI_UNSUPPORTED_CABLE]	=
+		"Unsupported cable",
+	[ETHTOOL_LINK_EXT_SUBSTATE_CI_CABLE_TEST_FAILURE]	=
+		"Cable test failure",
+};
+
+static const char *link_ext_substate_get(uint8_t link_ext_state_val, uint8_t link_ext_substate_val)
+{
+	switch (link_ext_state_val) {
+	case ETHTOOL_LINK_EXT_STATE_AUTONEG:
+		return get_enum_string(names_autoneg_link_ext_substate,
+				       ARRAY_SIZE(names_autoneg_link_ext_substate),
+				       link_ext_substate_val);
+	case ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE:
+		return get_enum_string(names_link_training_link_ext_substate,
+				       ARRAY_SIZE(names_link_training_link_ext_substate),
+				       link_ext_substate_val);
+	case ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH:
+		return get_enum_string(names_link_logical_mismatch_link_ext_substate,
+				       ARRAY_SIZE(names_link_logical_mismatch_link_ext_substate),
+				       link_ext_substate_val);
+	case ETHTOOL_LINK_EXT_STATE_BAD_SIGNAL_INTEGRITY:
+		return get_enum_string(names_bad_signal_integrity_link_ext_substate,
+				       ARRAY_SIZE(names_bad_signal_integrity_link_ext_substate),
+				       link_ext_substate_val);
+	case ETHTOOL_LINK_EXT_STATE_CABLE_ISSUE:
+		return get_enum_string(names_cable_issue_link_ext_substate,
+				       ARRAY_SIZE(names_cable_issue_link_ext_substate),
+				       link_ext_substate_val);
+	default:
+		return NULL;
+	}
+}
+
+static void linkstate_link_ext_substate_print(const struct nlattr *tb[],
+					      uint8_t link_ext_state_val)
+{
+	uint8_t link_ext_substate_val;
+	const char *link_ext_substate_str;
+
+	if (!tb[ETHTOOL_A_LINKSTATE_EXT_SUBSTATE])
+		return;
+
+	link_ext_substate_val = mnl_attr_get_u8(tb[ETHTOOL_A_LINKSTATE_EXT_SUBSTATE]);
+
+	link_ext_substate_str = link_ext_substate_get(link_ext_state_val, link_ext_substate_val);
+	if (!link_ext_substate_str)
+		printf(", %u", link_ext_substate_val);
+	else
+		printf(", %s", link_ext_substate_str);
+}
+
+static void linkstate_link_ext_state_print(const struct nlattr *tb[])
+{
+	uint8_t link_ext_state_val;
+	const char *link_ext_state_str;
+
+	if (!tb[ETHTOOL_A_LINKSTATE_EXT_STATE])
+		return;
+
+	link_ext_state_val = mnl_attr_get_u8(tb[ETHTOOL_A_LINKSTATE_EXT_STATE]);
+
+	link_ext_state_str = get_enum_string(names_link_ext_state,
+					     ARRAY_SIZE(names_link_ext_state),
+					     link_ext_state_val);
+	if (!link_ext_state_str)
+		printf(" (%u", link_ext_state_val);
+	else
+		printf(" (%s", link_ext_state_str);
+
+	linkstate_link_ext_substate_print(tb, link_ext_state_val);
+	printf(")");
+}
+
 int linkstate_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 {
 	const struct nlattr *tb[ETHTOOL_A_LINKSTATE_MAX + 1] = {};
@@ -634,7 +730,9 @@ int linkstate_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 		uint8_t val = mnl_attr_get_u8(tb[ETHTOOL_A_LINKSTATE_LINK]);
 
 		print_banner(nlctx);
-		printf("\tLink detected: %s\n", val ? "yes" : "no");
+		printf("\tLink detected: %s", val ? "yes" : "no");
+		linkstate_link_ext_state_print(tb);
+		printf("\n");
 	}
 
 	if (tb[ETHTOOL_A_LINKSTATE_SQI]) {
