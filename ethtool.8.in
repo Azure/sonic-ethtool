@@ -251,6 +251,7 @@ ethtool \- query or control network driver and hardware settings
 .B ethtool \-s
 .I devname
 .BN speed
+.BN lanes
 .B2 duplex half full
 .B4 port tp aui bnc mii fibre da
 .B3 mdix auto on off
@@ -684,6 +685,9 @@ was specified.
 Set speed in Mb/s.
 .B ethtool
 with just the device name as an argument will show you the supported device speeds.
+.TP
+.BI lanes \ N
+Set number of lanes.
 .TP
 .A2 duplex half full
 Sets full or half duplex mode.
