@@ -1068,6 +1068,13 @@ static const struct param_parser sset_params[] = {
 		.min_argc	= 1,
 	},
 	{
+		.arg		= "lanes",
+		.group		= ETHTOOL_MSG_LINKMODES_SET,
+		.type		= ETHTOOL_A_LINKMODES_LANES,
+		.handler	= nl_parse_direct_u32,
+		.min_argc	= 1,
+	},
+	{
 		.arg		= "duplex",
 		.group		= ETHTOOL_MSG_LINKMODES_SET,
 		.type		= ETHTOOL_A_LINKMODES_DUPLEX,
