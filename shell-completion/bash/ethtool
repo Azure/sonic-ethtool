@@ -97,6 +97,7 @@ _ethtool_change()
 		[speed]=notseen
 		[wol]=notseen
 		[xcvr]=notseen
+		[lanes]=notseen
 	)
 
 	local -A msgtypes=(
@@ -174,6 +175,9 @@ _ethtool_change()
 			return ;;
 		xcvr)
 			COMPREPLY=( $( compgen -W 'internal external' -- "$cur" ) )
+			return ;;
+		lanes)
+			# Number
 			return ;;
 	esac
 

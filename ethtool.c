@@ -5620,6 +5620,7 @@ static const struct option args[] = {
 		.nlfunc	= nl_sset,
 		.help	= "Change generic options",
 		.xhelp	= "		[ speed %d ]\n"
+			  "		[ lanes %d ]\n"
 			  "		[ duplex half|full ]\n"
 			  "		[ port tp|aui|bnc|mii|fibre|da ]\n"
 			  "		[ mdix auto|on|off ]\n"

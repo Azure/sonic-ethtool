@@ -473,6 +473,12 @@ int linkmodes_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 		else
 			printf("\tSpeed: %uMb/s\n", val);
 	}
+	if (tb[ETHTOOL_A_LINKMODES_LANES]) {
+		uint32_t val = mnl_attr_get_u32(tb[ETHTOOL_A_LINKMODES_LANES]);
+
+		print_banner(nlctx);
+		printf("\tLanes: %u\n", val);
+	}
 	if (tb[ETHTOOL_A_LINKMODES_DUPLEX]) {
 		uint8_t val = mnl_attr_get_u8(tb[ETHTOOL_A_LINKMODES_DUPLEX]);
 
@@ -1064,6 +1070,13 @@ static const struct param_parser sset_params[] = {
 		.arg		= "speed",
 		.group		= ETHTOOL_MSG_LINKMODES_SET,
 		.type		= ETHTOOL_A_LINKMODES_SPEED,
+		.handler	= nl_parse_direct_u32,
+		.min_argc	= 1,
+	},
+	{
+		.arg		= "lanes",
+		.group		= ETHTOOL_MSG_LINKMODES_SET,
+		.type		= ETHTOOL_A_LINKMODES_LANES,
 		.handler	= nl_parse_direct_u32,
 		.min_argc	= 1,
 	},
