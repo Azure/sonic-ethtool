@@ -72,6 +72,16 @@ static void exit_bad_args(void)
 	exit(1);
 }
 
+static void exit_nlonly_param(const char *name) __attribute__((noreturn));
+
+static void exit_nlonly_param(const char *name)
+{
+	fprintf(stderr,
+		"ethtool: parameter '%s' can be used only with netlink\n",
+		name);
+	exit(1);
+}
+
 typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
@@ -3066,6 +3076,8 @@ static int do_sset(struct cmd_context *ctx)
 					ARRAY_SIZE(cmdline_msglvl));
 				break;
 			}
+		} else if (!strcmp(argp[i], "master-slave")) {
+			exit_nlonly_param(argp[i]);
 		} else {
 			exit_bad_args();
 		}
