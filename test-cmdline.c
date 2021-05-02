@@ -300,7 +300,7 @@ static struct test_case {
 	{ 1, "-0" },
 };
 
-int send_ioctl(struct cmd_context *ctx, void *cmd)
+int send_ioctl(struct cmd_context *ctx __maybe_unused, void *cmd __maybe_unused)
 {
 	/* If we get this far then parsing succeeded */
 	test_exit(0);
@@ -310,7 +310,8 @@ int send_ioctl(struct cmd_context *ctx, void *cmd)
 struct nl_socket;
 struct nl_msg_buff;
 
-ssize_t nlsock_sendmsg(struct nl_socket *nlsk, struct nl_msg_buff *altbuff)
+ssize_t nlsock_sendmsg(struct nl_socket *nlsk __maybe_unused,
+		       struct nl_msg_buff *altbuff __maybe_unused)
 {
 	/* If we get this far then parsing succeeded */
 	test_exit(0);

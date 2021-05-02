@@ -351,7 +351,8 @@ static void find_mc_group(struct nl_context *nlctx, struct nlattr *nest)
 	}
 }
 
-static int family_info_cb(const struct nlmsghdr *nlhdr, void *data)
+static int __maybe_unused family_info_cb(const struct nlmsghdr *nlhdr,
+					 void *data)
 {
 	struct nl_context *nlctx = data;
 	struct nlattr *attr;
@@ -377,7 +378,8 @@ static int family_info_cb(const struct nlmsghdr *nlhdr, void *data)
 }
 
 #ifdef TEST_ETHTOOL
-static int get_genl_family(struct nl_context *nlctx, struct nl_socket *nlsk)
+static int get_genl_family(struct nl_context *nlctx __maybe_unused,
+			   struct nl_socket *nlsk __maybe_unused)
 {
 	return 0;
 }
