@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -38,6 +39,79 @@ fec_mode_walk(unsigned int idx, const char *name, bool val, void *data)
 		name = "BaseR";
 
 	print_string(PRINT_ANY, NULL, " %s", name);
+}
+
+static int fec_show_stats(const struct nlattr *nest)
+{
+	const struct nlattr *tb[ETHTOOL_A_FEC_STAT_MAX + 1] = {};
+	DECLARE_ATTR_TB_INFO(tb);
+	static const struct {
+		unsigned int attr;
+		char *name;
+	} stats[] = {
+		{ ETHTOOL_A_FEC_STAT_CORRECTED, "corrected_blocks" },
+		{ ETHTOOL_A_FEC_STAT_UNCORR, "uncorrectable_blocks" },
+		{ ETHTOOL_A_FEC_STAT_CORR_BITS, "corrected_bits" },
+	};
+	bool header = false;
+	unsigned int i;
+	int ret;
+
+	ret = mnl_attr_parse_nested(nest, attr_cb, &tb_info);
+	if (ret < 0)
+		return ret;
+
+	open_json_object("statistics");
+	for (i = 0; i < ARRAY_SIZE(stats); i++) {
+		uint64_t *vals;
+		int lanes, l;
+
+		if (!tb[stats[i].attr] ||
+		    !mnl_attr_get_payload_len(tb[stats[i].attr]))
+			continue;
+
+		if (!header && !is_json_context()) {
+			printf("Statistics:\n");
+			header = true;
+		}
+
+		if (mnl_attr_get_payload_len(tb[stats[i].attr]) % 8) {
+			fprintf(stderr, "malformed netlink message (statistic)\n");
+			goto err_close_stats;
+		}
+
+		vals = mnl_attr_get_payload(tb[stats[i].attr]);
+		lanes = mnl_attr_get_payload_len(tb[stats[i].attr]) / 8 - 1;
+
+		if (!is_json_context()) {
+			fprintf(stdout, "  %s: %" PRIu64 "\n",
+				stats[i].name, *vals++);
+		} else {
+			open_json_object(stats[i].name);
+			print_u64(PRINT_JSON, "total", NULL, *vals++);
+		}
+
+		if (lanes)
+			open_json_array("lanes", "");
+		for (l = 0; l < lanes; l++) {
+			if (!is_json_context())
+				fprintf(stdout, "    Lane %d: %" PRIu64 "\n",
+					l, *vals++);
+			else
+				print_u64(PRINT_JSON, NULL, NULL, *vals++);
+		}
+		if (lanes)
+			close_json_array("");
+
+		close_json_object();
+	}
+	close_json_object();
+
+	return 0;
+
+err_close_stats:
+	close_json_object();
+	return -1;
 }
 
 int fec_reply_cb(const struct nlmsghdr *nlhdr, void *data)
@@ -106,6 +180,12 @@ int fec_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 	}
 	close_json_array("\n");
 
+	if (tb[ETHTOOL_A_FEC_STATS]) {
+		ret = fec_show_stats(tb[ETHTOOL_A_FEC_STATS]);
+		if (ret < 0)
+			goto err_close_dev;
+	}
+
 	close_json_object();
 
 	return MNL_CB_OK;
@@ -119,6 +199,7 @@ int nl_gfec(struct cmd_context *ctx)
 {
 	struct nl_context *nlctx = ctx->nlctx;
 	struct nl_socket *nlsk = nlctx->ethnl_socket;
+	u32 flags;
 	int ret;
 
 	if (netlink_cmd_check(ctx, ETHTOOL_MSG_FEC_GET, true))
@@ -129,8 +210,10 @@ int nl_gfec(struct cmd_context *ctx)
 		return 1;
 	}
 
+	flags = get_stats_flag(nlctx, ETHTOOL_MSG_FEC_GET,
+			       ETHTOOL_A_FEC_HEADER);
 	ret = nlsock_prep_get_request(nlsk, ETHTOOL_MSG_FEC_GET,
-				      ETHTOOL_A_FEC_HEADER, 0);
+				      ETHTOOL_A_FEC_HEADER, flags);
 	if (ret < 0)
 		return ret;
 
