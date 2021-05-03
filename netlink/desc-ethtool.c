@@ -318,6 +318,14 @@ const struct pretty_nla_desc __tunnel_info_desc[] = {
 	NLATTR_DESC_NESTED(ETHTOOL_A_TUNNEL_INFO_UDP_PORTS, tunnel_udp),
 };
 
+static const struct pretty_nla_desc __fec_desc[] = {
+	NLATTR_DESC_INVALID(ETHTOOL_A_FEC_UNSPEC),
+	NLATTR_DESC_NESTED(ETHTOOL_A_FEC_HEADER, header),
+	NLATTR_DESC_NESTED(ETHTOOL_A_FEC_MODES, bitset),
+	NLATTR_DESC_BOOL(ETHTOOL_A_FEC_AUTO),
+	NLATTR_DESC_U32(ETHTOOL_A_FEC_ACTIVE),
+};
+
 const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC_INVALID(ETHTOOL_MSG_USER_NONE),
 	NLMSG_DESC(ETHTOOL_MSG_STRSET_GET, strset),
@@ -348,6 +356,8 @@ const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_CABLE_TEST_ACT, cable_test),
 	NLMSG_DESC(ETHTOOL_MSG_CABLE_TEST_TDR_ACT, cable_test_tdr),
 	NLMSG_DESC(ETHTOOL_MSG_TUNNEL_INFO_GET, tunnel_info),
+	NLMSG_DESC(ETHTOOL_MSG_FEC_GET, fec),
+	NLMSG_DESC(ETHTOOL_MSG_FEC_SET, fec),
 };
 
 const unsigned int ethnl_umsg_n_desc = ARRAY_SIZE(ethnl_umsg_desc);
@@ -383,6 +393,8 @@ const struct pretty_nlmsg_desc ethnl_kmsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_CABLE_TEST_NTF, cable_test_ntf),
 	NLMSG_DESC(ETHTOOL_MSG_CABLE_TEST_TDR_NTF, cable_test_tdr_ntf),
 	NLMSG_DESC(ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY, tunnel_info),
+	NLMSG_DESC(ETHTOOL_MSG_FEC_GET_REPLY, fec),
+	NLMSG_DESC(ETHTOOL_MSG_FEC_NTF, fec),
 };
 
 const unsigned int ethnl_kmsg_n_desc = ARRAY_SIZE(ethnl_kmsg_desc);
