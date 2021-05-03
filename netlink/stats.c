@@ -220,6 +220,54 @@ static const struct bitset_parser_data stats_parser_data = {
 	.force_hex	= false,
 };
 
+static int stats_parse_all_groups(struct nl_context *nlctx, uint16_t type,
+				  const void *data, struct nl_msg_buff *msgbuff,
+				  void *dest)
+{
+	const struct stringset *std_str;
+	struct nlattr *nest;
+	int i, ret, nbits;
+	uint32_t *bits;
+
+	if (data || dest)
+		return -EFAULT;
+
+	/* ethnl2 and strset code already does caching */
+	ret = netlink_init_ethnl2_socket(nlctx);
+	if (ret < 0)
+		return ret;
+	std_str = global_stringset(ETH_SS_STATS_STD, nlctx->ethnl2_socket);
+
+	nbits = get_count(std_str);
+	bits = calloc(DIV_ROUND_UP(nbits, 32), sizeof(uint32_t));
+	if (!bits)
+		return -ENOMEM;
+
+	for (i = 0; i < nbits; i++)
+		bits[i / 32] |= 1U << (i % 32);
+
+	ret = -EMSGSIZE;
+	nest = ethnla_nest_start(msgbuff, type);
+	if (!nest)
+		goto err_free;
+
+	if (ethnla_put_flag(msgbuff, ETHTOOL_A_BITSET_NOMASK, true) ||
+	    ethnla_put_u32(msgbuff, ETHTOOL_A_BITSET_SIZE, nbits) ||
+	    ethnla_put(msgbuff, ETHTOOL_A_BITSET_VALUE,
+		       DIV_ROUND_UP(nbits, 32) * sizeof(uint32_t), bits))
+		goto err_cancel;
+
+	ethnla_nest_end(msgbuff, nest);
+	free(bits);
+	return 0;
+
+err_cancel:
+	ethnla_nest_cancel(msgbuff, nest);
+err_free:
+	free(bits);
+	return ret;
+}
+
 static const struct param_parser stats_params[] = {
 	{
 		.arg		= "--groups",
@@ -227,6 +275,13 @@ static const struct param_parser stats_params[] = {
 		.handler	= nl_parse_bitset,
 		.handler_data	= &stats_parser_data,
 		.min_argc	= 1,
+		.alt_group	= 1,
+	},
+	{
+		.arg		= "--all-groups",
+		.type		= ETHTOOL_A_STATS_GROUPS,
+		.handler	= stats_parse_all_groups,
+		.alt_group	= 1,
 	},
 	{}
 };

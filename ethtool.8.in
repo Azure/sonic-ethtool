@@ -240,7 +240,7 @@ ethtool \- query or control network driver and hardware settings
 .HP
 .B ethtool \-S|\-\-statistics
 .I devname
-.RB [\fB\-\-groups
+.RB [\fB\-\-all\-groups\fP|\fB\-\-groups
 .RB [\fBeth\-phy\fP]
 .RB [\fBeth\-mac\fP]
 .RB [\fBeth\-ctrl\fP]
@@ -666,6 +666,9 @@ NIC- and driver-specific statistics and standard statistics are independent,
 devices may implement either, both or none. There is little commonality between
 naming of NIC- and driver-specific statistics across vendors.
 .RS 4
+.TP
+.B \fB\-\-all\-groups
+.E
 .TP
 .B \fB\-\-groups [\fBeth\-phy\fP] [\fBeth\-mac\fP] [\fBeth\-ctrl\fP] [\fBrmon\fP]
 Request groups of standard device statistics.
