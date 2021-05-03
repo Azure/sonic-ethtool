@@ -11,11 +11,12 @@ struct cmd_context;
 struct nl_context;
 
 typedef int (*nl_func_t)(struct cmd_context *);
+typedef bool (*nl_chk_t)(struct cmd_context *);
 
 #ifdef ETHTOOL_ENABLE_NETLINK
 
-void netlink_run_handler(struct cmd_context *ctx, nl_func_t nlfunc,
-			 bool no_fallback);
+void netlink_run_handler(struct cmd_context *ctx, nl_chk_t nlchk,
+			 nl_func_t nlfunc, bool no_fallback);
 
 int nl_gset(struct cmd_context *ctx);
 int nl_sset(struct cmd_context *ctx);
@@ -47,6 +48,7 @@ void nl_monitor_usage(void);
 #else /* ETHTOOL_ENABLE_NETLINK */
 
 static inline void netlink_run_handler(struct cmd_context *ctx __maybe_unused,
+				       nl_chk_t nlchk __maybe_unused,
 				       nl_func_t nlfunc __maybe_unused,
 				       bool no_fallback)
 {

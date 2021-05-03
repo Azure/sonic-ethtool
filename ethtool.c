@@ -5620,6 +5620,7 @@ struct option {
 	const char	*opts;
 	bool		no_dev;
 	int		(*func)(struct cmd_context *);
+	nl_chk_t	nlchk;
 	nl_func_t	nlfunc;
 	const char	*help;
 	const char	*xhelp;
@@ -6282,6 +6283,7 @@ int main(int argc, char **argp)
 	int (*func)(struct cmd_context *);
 	struct cmd_context ctx = {};
 	nl_func_t nlfunc = NULL;
+	nl_chk_t nlchk = NULL;
 	bool no_dev;
 	int ret;
 	int k;
@@ -6341,6 +6343,7 @@ int main(int argc, char **argp)
 		argc--;
 		func = args[k].func;
 		nlfunc = args[k].nlfunc;
+		nlchk = args[k].nlchk;
 		no_dev = args[k].no_dev;
 		goto opt_found;
 	}
@@ -6360,7 +6363,7 @@ opt_found:
 	}
 	ctx.argc = argc;
 	ctx.argp = argp;
-	netlink_run_handler(&ctx, nlfunc, !func);
+	netlink_run_handler(&ctx, nlchk, nlfunc, !func);
 
 	ret = ioctl_init(&ctx, no_dev);
 	if (ret)
