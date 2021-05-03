@@ -5773,7 +5773,10 @@ static const struct option args[] = {
 	{
 		.opts	= "-S|--statistics",
 		.func	= do_gnicstats,
-		.help	= "Show adapter statistics"
+		.nlchk	= nl_gstats_chk,
+		.nlfunc	= nl_gstats,
+		.help	= "Show adapter statistics",
+		.xhelp	= "               [ --groups [eth-phy] [eth-mac] [eth-ctrl] [rmon] ]\n"
 	},
 	{
 		.opts	= "--phy-statistics",

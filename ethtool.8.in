@@ -240,6 +240,12 @@ ethtool \- query or control network driver and hardware settings
 .HP
 .B ethtool \-S|\-\-statistics
 .I devname
+.RB [\fB\-\-groups
+.RB [\fBeth\-phy\fP]
+.RB [\fBeth\-mac\fP]
+.RB [\fBeth\-ctrl\fP]
+.RN [\fBrmon\fP]
+.RB ]
 .HP
 .B ethtool \-\-phy\-statistics
 .I devname
@@ -652,8 +658,18 @@ Restarts auto-negotiation on the specified Ethernet device, if
 auto-negotiation is enabled.
 .TP
 .B \-S \-\-statistics
-Queries the specified network device for NIC- and driver-specific
-statistics.
+Queries the specified network device for standard (IEEE, IETF, etc.), or NIC-
+and driver-specific statistics. NIC- and driver-specific statistics are
+requested when no group of statistics is specified.
+
+NIC- and driver-specific statistics and standard statistics are independent,
+devices may implement either, both or none. There is little commonality between
+naming of NIC- and driver-specific statistics across vendors.
+.RS 4
+.TP
+.B \fB\-\-groups [\fBeth\-phy\fP] [\fBeth\-mac\fP] [\fBeth\-ctrl\fP] [\fBrmon\fP]
+Request groups of standard device statistics.
+.RE
 .TP
 .B \-\-phy\-statistics
 Queries the specified network device for PHY specific statistics.

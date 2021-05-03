@@ -41,6 +41,8 @@ int nl_cable_test_tdr(struct cmd_context *ctx);
 int nl_gtunnels(struct cmd_context *ctx);
 int nl_gfec(struct cmd_context *ctx);
 int nl_sfec(struct cmd_context *ctx);
+bool nl_gstats_chk(struct cmd_context *ctx);
+int nl_gstats(struct cmd_context *ctx);
 int nl_monitor(struct cmd_context *ctx);
 
 void nl_monitor_usage(void);
@@ -93,6 +95,8 @@ static inline void nl_monitor_usage(void)
 #define nl_gtunnels		NULL
 #define nl_gfec			NULL
 #define nl_sfec			NULL
+#define nl_gstats_chk		NULL
+#define nl_gstats		NULL
 
 #endif /* ETHTOOL_ENABLE_NETLINK */
 
