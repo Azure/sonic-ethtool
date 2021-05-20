@@ -5620,6 +5620,7 @@ struct option {
 	const char	*opts;
 	bool		no_dev;
 	int		(*func)(struct cmd_context *);
+	nl_chk_t	nlchk;
 	nl_func_t	nlfunc;
 	const char	*help;
 	const char	*xhelp;
@@ -5772,7 +5773,10 @@ static const struct option args[] = {
 	{
 		.opts	= "-S|--statistics",
 		.func	= do_gnicstats,
-		.help	= "Show adapter statistics"
+		.nlchk	= nl_gstats_chk,
+		.nlfunc	= nl_gstats,
+		.help	= "Show adapter statistics",
+		.xhelp	= "               [ --all-groups | --groups [eth-phy] [eth-mac] [eth-ctrl] [rmon] ]\n"
 	},
 	{
 		.opts	= "--phy-statistics",
@@ -5976,11 +5980,13 @@ static const struct option args[] = {
 	{
 		.opts	= "--show-fec",
 		.func	= do_gfec,
+		.nlfunc	= nl_gfec,
 		.help	= "Show FEC settings",
 	},
 	{
 		.opts	= "--set-fec",
 		.func	= do_sfec,
+		.nlfunc	= nl_sfec,
 		.help	= "Set FEC settings",
 		.xhelp	= "		[ encoding auto|off|rs|baser|llrs [...]]\n"
 	},
@@ -6280,6 +6286,7 @@ int main(int argc, char **argp)
 	int (*func)(struct cmd_context *);
 	struct cmd_context ctx = {};
 	nl_func_t nlfunc = NULL;
+	nl_chk_t nlchk = NULL;
 	bool no_dev;
 	int ret;
 	int k;
@@ -6339,6 +6346,7 @@ int main(int argc, char **argp)
 		argc--;
 		func = args[k].func;
 		nlfunc = args[k].nlfunc;
+		nlchk = args[k].nlchk;
 		no_dev = args[k].no_dev;
 		goto opt_found;
 	}
@@ -6358,7 +6366,7 @@ opt_found:
 	}
 	ctx.argc = argc;
 	ctx.argp = argp;
-	netlink_run_handler(&ctx, nlfunc, !func);
+	netlink_run_handler(&ctx, nlchk, nlfunc, !func);
 
 	ret = ioctl_init(&ctx, no_dev);
 	if (ret)

@@ -919,6 +919,17 @@ static void __parser_set(uint64_t *map, unsigned int idx)
 	map[idx / 64] |= (1 << (idx % 64));
 }
 
+static void __parser_set_group(const struct param_parser *params,
+			       uint64_t *map, unsigned int alt_group)
+{
+	const struct param_parser *parser;
+	unsigned int idx = 0;
+
+	for (parser = params; parser->arg; parser++, idx++)
+		if (parser->alt_group == alt_group)
+			__parser_set(map, idx);
+}
+
 struct tmp_buff {
 	struct nl_msg_buff	*msgbuff;
 	unsigned int		id;
@@ -1074,7 +1085,11 @@ int nl_parser(struct nl_context *nlctx, const struct param_parser *params,
 			parser_err_min_argc(nlctx, parser->min_argc);
 			goto out_free;
 		}
-		__parser_set(params_seen, parser - params);
+		if (parser->alt_group)
+			__parser_set_group(params, params_seen,
+					   parser->alt_group);
+		else
+			__parser_set(params_seen, parser - params);
 
 		buff = NULL;
 		if (parser->group)

@@ -43,6 +43,10 @@ struct param_parser {
 	unsigned int		min_argc;
 	/* if @dest is passed to nl_parser(), offset to store value */
 	unsigned int		dest_offset;
+	/* parameter alternative group - only one parameter from a group
+	 * can be specified, 0 means no group
+	 */
+	unsigned int		alt_group;
 };
 
 /* data structures used for handler data */
