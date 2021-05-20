@@ -287,9 +287,10 @@ static struct test_case {
 	{ 0, "--set-fec devname encoding off" },
 	{ 0, "--set-fec devname encoding baser rs" },
 	{ 0, "--set-fec devname encoding auto auto" },
-	{ 1, "--set-fec devname encoding foo" },
-	{ 1, "--set-fec devname encoding auto foo" },
-	{ 1, "--set-fec devname encoding none" },
+	/* encoding names are validated by kernel with netlink */
+	{ !IS_NL, "--set-fec devname encoding foo" },
+	{ !IS_NL, "--set-fec devname encoding auto foo" },
+	{ !IS_NL, "--set-fec devname encoding none" },
 	{ 1, "--set-fec devname auto" },
 	/* can't test --set-priv-flags yet */
 	{ 0, "-h" },
