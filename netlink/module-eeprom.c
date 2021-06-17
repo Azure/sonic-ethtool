@@ -302,6 +302,7 @@ static int decoder_prefetch(struct nl_context *nlctx)
 		request.page = 3;
 		break;
 	case SFF8024_ID_QSFP_DD:
+	case SFF8024_ID_DSFP:
 		memset(&request, 0, sizeof(request));
 		request.i2c_address = ETH_I2C_ADDRESS_LOW;
 		request.offset = 128;
@@ -315,12 +316,23 @@ static int decoder_prefetch(struct nl_context *nlctx)
 
 static void decoder_print(void)
 {
+	struct ethtool_module_eeprom *page_three = cache_get(3, 0, ETH_I2C_ADDRESS_LOW);
 	struct ethtool_module_eeprom *page_zero = cache_get(0, 0, ETH_I2C_ADDRESS_LOW);
+	struct ethtool_module_eeprom *page_one = cache_get(1, 0, ETH_I2C_ADDRESS_LOW);
 	u8 module_id = page_zero->data[SFF8636_ID_OFFSET];
 
 	switch (module_id) {
 	case SFF8024_ID_SFP:
 		sff8079_show_all(page_zero->data);
+		break;
+	case SFF8024_ID_QSFP:
+	case SFF8024_ID_QSFP28:
+	case SFF8024_ID_QSFP_PLUS:
+		sff8636_show_all_paged(page_zero, page_three);
+		break;
+	case SFF8024_ID_QSFP_DD:
+	case SFF8024_ID_DSFP:
+		cmis_show_all(page_zero, page_one);
 		break;
 	default:
 		dump_hex(stdout, page_zero->data, page_zero->length, page_zero->offset);
