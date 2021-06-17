@@ -11,7 +11,7 @@
 
 #include "../sff-common.h"
 #include "../qsfp.h"
-#include "../qsfp-dd.h"
+#include "../cmis.h"
 #include "../internal.h"
 #include "../common.h"
 #include "../list.h"

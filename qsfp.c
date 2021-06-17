@@ -58,7 +58,7 @@
 #include "internal.h"
 #include "sff-common.h"
 #include "qsfp.h"
-#include "qsfp-dd.h"
+#include "cmis.h"
 
 #define MAX_DESC_SIZE	42
 
