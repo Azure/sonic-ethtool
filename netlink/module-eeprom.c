@@ -22,8 +22,7 @@
 #define ETH_I2C_ADDRESS_HIGH	0x51
 #define ETH_I2C_MAX_ADDRESS	0x7F
 
-static struct cmd_params
-{
+struct cmd_params {
 	u8 dump_hex;
 	u8 dump_raw;
 	u32 offset;
@@ -31,7 +30,7 @@ static struct cmd_params
 	u32 page;
 	u32 bank;
 	u32 i2c_address;
-} getmodule_cmd_params;
+};
 
 static const struct param_parser getmodule_params[] = {
 	{
@@ -342,6 +341,7 @@ static void decoder_print(void)
 
 int nl_getmodule(struct cmd_context *ctx)
 {
+	struct cmd_params getmodule_cmd_params = {};
 	struct ethtool_module_eeprom request = {0};
 	struct ethtool_module_eeprom *reply_page;
 	struct nl_context *nlctx = ctx->nlctx;
