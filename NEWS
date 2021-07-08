@@ -1,3 +1,10 @@
+Version 5.13 - July 9, 2021
+	* Feature: netlink handler for FEC (--show-fec and --set-fec)
+	* Feature: FEC stats support (--show-fec)
+	* Feature: standard based stats support (-S)
+	* Feature: netlink handler for module EEPROM dump (-m)
+	* Feature: page, bank and i2c selection in module dump (-m)
+
 Version 5.12 - May 2, 2021
 	* Feature: support lanes count (no option and -s)
 	* Fix: fix help message for master-slave parameter (-s)
