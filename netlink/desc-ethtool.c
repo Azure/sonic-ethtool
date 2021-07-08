@@ -363,6 +363,17 @@ static const struct pretty_nla_desc __stats_desc[] = {
 	NLATTR_DESC_NESTED(ETHTOOL_A_STATS_GRP, stats_grp),
 };
 
+const struct pretty_nla_desc __module_eeprom_desc[] = {
+	NLATTR_DESC_INVALID(ETHTOOL_A_MODULE_EEPROM_UNSPEC),
+	NLATTR_DESC_NESTED(ETHTOOL_A_MODULE_EEPROM_HEADER, header),
+	NLATTR_DESC_U32(ETHTOOL_A_MODULE_EEPROM_OFFSET),
+	NLATTR_DESC_U32(ETHTOOL_A_MODULE_EEPROM_LENGTH),
+	NLATTR_DESC_U8(ETHTOOL_A_MODULE_EEPROM_PAGE),
+	NLATTR_DESC_U8(ETHTOOL_A_MODULE_EEPROM_BANK),
+	NLATTR_DESC_U8(ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS),
+	NLATTR_DESC_BINARY(ETHTOOL_A_MODULE_EEPROM_DATA)
+};
+
 const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC_INVALID(ETHTOOL_MSG_USER_NONE),
 	NLMSG_DESC(ETHTOOL_MSG_STRSET_GET, strset),
@@ -396,6 +407,7 @@ const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_FEC_GET, fec),
 	NLMSG_DESC(ETHTOOL_MSG_FEC_SET, fec),
 	NLMSG_DESC(ETHTOOL_MSG_STATS_GET, stats),
+	NLMSG_DESC(ETHTOOL_MSG_MODULE_EEPROM_GET, module_eeprom),
 };
 
 const unsigned int ethnl_umsg_n_desc = ARRAY_SIZE(ethnl_umsg_desc);
@@ -434,6 +446,7 @@ const struct pretty_nlmsg_desc ethnl_kmsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_FEC_GET_REPLY, fec),
 	NLMSG_DESC(ETHTOOL_MSG_FEC_NTF, fec),
 	NLMSG_DESC(ETHTOOL_MSG_STATS_GET_REPLY, stats),
+	NLMSG_DESC(ETHTOOL_MSG_MODULE_EEPROM_GET_REPLY, module_eeprom),
 };
 
 const unsigned int ethnl_kmsg_n_desc = ARRAY_SIZE(ethnl_kmsg_desc);
