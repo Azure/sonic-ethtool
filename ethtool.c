@@ -2122,7 +2122,7 @@ static int do_gchannels(struct cmd_context *ctx)
 		if (err)
 			return err;
 	} else {
-		perror("Cannot get device channel parameters\n");
+		perror("Cannot get device channel parameters");
 		return 1;
 	}
 	return 0;
@@ -4613,7 +4613,7 @@ static int do_getfwdump(struct cmd_context *ctx)
 
 	err = send_ioctl(ctx, &edata);
 	if (err < 0) {
-		perror("Can not get dump level\n");
+		perror("Can not get dump level");
 		return 1;
 	}
 	if (dump_flag != ETHTOOL_GET_DUMP_DATA) {
@@ -4623,14 +4623,14 @@ static int do_getfwdump(struct cmd_context *ctx)
 	}
 	data = calloc(1, offsetof(struct ethtool_dump, data) + edata.len);
 	if (!data) {
-		perror("Can not allocate enough memory\n");
+		perror("Can not allocate enough memory");
 		return 1;
 	}
 	data->cmd = ETHTOOL_GET_DUMP_DATA;
 	data->len = edata.len;
 	err = send_ioctl(ctx, data);
 	if (err < 0) {
-		perror("Can not get dump data\n");
+		perror("Can not get dump data");
 		err = 1;
 		goto free;
 	}
@@ -4654,7 +4654,7 @@ static int do_setfwdump(struct cmd_context *ctx)
 	dump.flag = dump_flag;
 	err = send_ioctl(ctx, &dump);
 	if (err < 0) {
-		perror("Can not set dump level\n");
+		perror("Can not set dump level");
 		return 1;
 	}
 	return 0;
