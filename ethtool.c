@@ -6352,15 +6352,14 @@ int main(int argc, char **argp)
 		nlfunc = args[k].nlfunc;
 		nlchk = args[k].nlchk;
 		no_dev = args[k].no_dev;
-		goto opt_found;
+	} else {
+		if ((*argp)[0] == '-')
+			exit_bad_args();
+		nlfunc = nl_gset;
+		func = do_gset;
+		no_dev = false;
 	}
-	if ((*argp)[0] == '-')
-		exit_bad_args();
-	nlfunc = nl_gset;
-	func = do_gset;
-	no_dev = false;
 
-opt_found:
 	if (!no_dev) {
 		ctx.devname = *argp++;
 		argc--;
