@@ -5619,6 +5619,7 @@ static int show_usage(struct cmd_context *ctx);
 struct option {
 	const char	*opts;
 	bool		no_dev;
+	bool		json;
 	int		(*func)(struct cmd_context *);
 	nl_chk_t	nlchk;
 	nl_func_t	nlfunc;
@@ -5655,6 +5656,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "-a|--show-pause",
+		.json	= true,
 		.func	= do_gpause,
 		.nlfunc	= nl_gpause,
 		.help	= "Show pause options"
@@ -5779,6 +5781,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "-S|--statistics",
+		.json	= true,
 		.func	= do_gnicstats,
 		.nlchk	= nl_gstats_chk,
 		.nlfunc	= nl_gstats,
@@ -5990,6 +5993,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--show-fec",
+		.json	= true,
 		.func	= do_gfec,
 		.nlfunc	= nl_gfec,
 		.help	= "Show FEC settings",
@@ -6010,11 +6014,13 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--cable-test",
+		.json	= true,
 		.nlfunc	= nl_cable_test,
 		.help	= "Perform a cable test",
 	},
 	{
 		.opts	= "--cable-test-tdr",
+		.json	= true,
 		.nlfunc	= nl_cable_test_tdr,
 		.help	= "Print cable test time domain reflectrometery data",
 		.xhelp	= "		[ first N ]\n"
@@ -6361,9 +6367,14 @@ int main(int argc, char **argp)
 		if (!ctx.devname)
 			exit_bad_args();
 	}
+	if (ctx.json && !args[k].json)
+		exit_bad_args();
 	ctx.argc = argc;
 	ctx.argp = argp;
 	netlink_run_handler(&ctx, args[k].nlchk, args[k].nlfunc, !args[k].func);
+
+	if (ctx.json) /* no IOCTL command supports JSON output */
+		exit_bad_args();
 
 	ret = ioctl_init(&ctx, args[k].no_dev);
 	if (ret)
