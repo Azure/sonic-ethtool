@@ -5628,6 +5628,13 @@ struct option {
 
 static const struct option args[] = {
 	{
+		/* "default" entry when no switch is used */
+		.opts	= "",
+		.func	= do_gset,
+		.nlfunc	= nl_gset,
+		.help	= "Display standard information about device",
+	},
+	{
 		.opts	= "-s|--change",
 		.func	= do_sset,
 		.nlfunc	= nl_sset,
@@ -6041,10 +6048,7 @@ static int show_usage(struct cmd_context *ctx __maybe_unused)
 
 	/* ethtool -h */
 	fprintf(stdout, PACKAGE " version " VERSION "\n");
-	fprintf(stdout,
-		"Usage:\n"
-		"        ethtool [ FLAGS ] DEVNAME\t"
-		"Display standard information about device\n");
+	fprintf(stdout,	"Usage:\n");
 	for (i = 0; args[i].opts; i++) {
 		fputs("        ethtool [ FLAGS ] ", stdout);
 		fprintf(stdout, "%s %s\t%s\n",
@@ -6287,11 +6291,7 @@ static int ioctl_init(struct cmd_context *ctx, bool no_dev)
 
 int main(int argc, char **argp)
 {
-	int (*func)(struct cmd_context *);
 	struct cmd_context ctx = {};
-	nl_func_t nlfunc = NULL;
-	nl_chk_t nlchk = NULL;
-	bool no_dev;
 	int ret;
 	int k;
 
@@ -6345,22 +6345,16 @@ int main(int argc, char **argp)
 		exit_bad_args();
 
 	k = find_option(*argp);
-	if (k >= 0) {
+	if (k > 0) {
 		argp++;
 		argc--;
-		func = args[k].func;
-		nlfunc = args[k].nlfunc;
-		nlchk = args[k].nlchk;
-		no_dev = args[k].no_dev;
 	} else {
 		if ((*argp)[0] == '-')
 			exit_bad_args();
-		nlfunc = nl_gset;
-		func = do_gset;
-		no_dev = false;
+		k = 0;
 	}
 
-	if (!no_dev) {
+	if (!args[k].no_dev) {
 		ctx.devname = *argp++;
 		argc--;
 
@@ -6369,11 +6363,11 @@ int main(int argc, char **argp)
 	}
 	ctx.argc = argc;
 	ctx.argp = argp;
-	netlink_run_handler(&ctx, nlchk, nlfunc, !func);
+	netlink_run_handler(&ctx, args[k].nlchk, args[k].nlfunc, !args[k].func);
 
-	ret = ioctl_init(&ctx, no_dev);
+	ret = ioctl_init(&ctx, args[k].no_dev);
 	if (ret)
 		return ret;
 
-	return func(&ctx);
+	return args[k].func(&ctx);
 }
