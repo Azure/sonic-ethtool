@@ -5619,6 +5619,7 @@ static int show_usage(struct cmd_context *ctx);
 struct option {
 	const char	*opts;
 	bool		no_dev;
+	bool		json;
 	int		(*func)(struct cmd_context *);
 	nl_chk_t	nlchk;
 	nl_func_t	nlfunc;
@@ -5627,6 +5628,13 @@ struct option {
 };
 
 static const struct option args[] = {
+	{
+		/* "default" entry when no switch is used */
+		.opts	= "",
+		.func	= do_gset,
+		.nlfunc	= nl_gset,
+		.help	= "Display standard information about device",
+	},
 	{
 		.opts	= "-s|--change",
 		.func	= do_sset,
@@ -5648,6 +5656,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "-a|--show-pause",
+		.json	= true,
 		.func	= do_gpause,
 		.nlfunc	= nl_gpause,
 		.help	= "Show pause options"
@@ -5772,6 +5781,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "-S|--statistics",
+		.json	= true,
 		.func	= do_gnicstats,
 		.nlchk	= nl_gstats_chk,
 		.nlfunc	= nl_gstats,
@@ -5983,6 +5993,7 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--show-fec",
+		.json	= true,
 		.func	= do_gfec,
 		.nlfunc	= nl_gfec,
 		.help	= "Show FEC settings",
@@ -6003,11 +6014,13 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--cable-test",
+		.json	= true,
 		.nlfunc	= nl_cable_test,
 		.help	= "Perform a cable test",
 	},
 	{
 		.opts	= "--cable-test-tdr",
+		.json	= true,
 		.nlfunc	= nl_cable_test_tdr,
 		.help	= "Print cable test time domain reflectrometery data",
 		.xhelp	= "		[ first N ]\n"
@@ -6041,10 +6054,7 @@ static int show_usage(struct cmd_context *ctx __maybe_unused)
 
 	/* ethtool -h */
 	fprintf(stdout, PACKAGE " version " VERSION "\n");
-	fprintf(stdout,
-		"Usage:\n"
-		"        ethtool [ FLAGS ] DEVNAME\t"
-		"Display standard information about device\n");
+	fprintf(stdout,	"Usage:\n");
 	for (i = 0; args[i].opts; i++) {
 		fputs("        ethtool [ FLAGS ] ", stdout);
 		fprintf(stdout, "%s %s\t%s\n",
@@ -6287,11 +6297,7 @@ static int ioctl_init(struct cmd_context *ctx, bool no_dev)
 
 int main(int argc, char **argp)
 {
-	int (*func)(struct cmd_context *);
 	struct cmd_context ctx = {};
-	nl_func_t nlfunc = NULL;
-	nl_chk_t nlchk = NULL;
-	bool no_dev;
 	int ret;
 	int k;
 
@@ -6345,36 +6351,34 @@ int main(int argc, char **argp)
 		exit_bad_args();
 
 	k = find_option(*argp);
-	if (k >= 0) {
+	if (k > 0) {
 		argp++;
 		argc--;
-		func = args[k].func;
-		nlfunc = args[k].nlfunc;
-		nlchk = args[k].nlchk;
-		no_dev = args[k].no_dev;
-		goto opt_found;
+	} else {
+		if ((*argp)[0] == '-')
+			exit_bad_args();
+		k = 0;
 	}
-	if ((*argp)[0] == '-')
-		exit_bad_args();
-	nlfunc = nl_gset;
-	func = do_gset;
-	no_dev = false;
 
-opt_found:
-	if (!no_dev) {
+	if (!args[k].no_dev) {
 		ctx.devname = *argp++;
 		argc--;
 
 		if (!ctx.devname)
 			exit_bad_args();
 	}
+	if (ctx.json && !args[k].json)
+		exit_bad_args();
 	ctx.argc = argc;
 	ctx.argp = argp;
-	netlink_run_handler(&ctx, nlchk, nlfunc, !func);
+	netlink_run_handler(&ctx, args[k].nlchk, args[k].nlfunc, !args[k].func);
 
-	ret = ioctl_init(&ctx, no_dev);
+	if (ctx.json) /* no IOCTL command supports JSON output */
+		exit_bad_args();
+
+	ret = ioctl_init(&ctx, args[k].no_dev);
 	if (ret)
 		return ret;
 
-	return func(&ctx);
+	return args[k].func(&ctx);
 }
