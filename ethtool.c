@@ -6080,7 +6080,7 @@ static int find_option(char *arg)
 	size_t len;
 	int k;
 
-	for (k = 0; args[k].opts; k++) {
+	for (k = 1; args[k].opts; k++) {
 		opt = args[k].opts;
 		for (;;) {
 			len = strcspn(opt, "|");
