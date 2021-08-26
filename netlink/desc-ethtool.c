@@ -318,12 +318,21 @@ const struct pretty_nla_desc __tunnel_info_desc[] = {
 	NLATTR_DESC_NESTED(ETHTOOL_A_TUNNEL_INFO_UDP_PORTS, tunnel_udp),
 };
 
+const struct pretty_nla_desc __fec_stats_desc[] = {
+	NLATTR_DESC_INVALID(ETHTOOL_A_FEC_STAT_UNSPEC),
+	NLATTR_DESC_BINARY(ETHTOOL_A_FEC_STAT_PAD),
+	NLATTR_DESC_U64(ETHTOOL_A_FEC_STAT_CORRECTED),
+	NLATTR_DESC_U64(ETHTOOL_A_FEC_STAT_UNCORR),
+	NLATTR_DESC_U64(ETHTOOL_A_FEC_STAT_CORR_BITS),
+};
+
 static const struct pretty_nla_desc __fec_desc[] = {
 	NLATTR_DESC_INVALID(ETHTOOL_A_FEC_UNSPEC),
 	NLATTR_DESC_NESTED(ETHTOOL_A_FEC_HEADER, header),
 	NLATTR_DESC_NESTED(ETHTOOL_A_FEC_MODES, bitset),
 	NLATTR_DESC_BOOL(ETHTOOL_A_FEC_AUTO),
 	NLATTR_DESC_U32(ETHTOOL_A_FEC_ACTIVE),
+	NLATTR_DESC_NESTED(ETHTOOL_A_FEC_STATS, fec_stats),
 };
 
 const struct pretty_nla_desc __module_eeprom_desc[] = {
