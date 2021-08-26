@@ -639,6 +639,10 @@ static const char *const names_bad_signal_integrity_link_ext_substate[] = {
 		"Large number of physical errors",
 	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE]		=
 		"Unsupported rate",
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_REFERENCE_CLOCK_LOST]	=
+		"Serdes reference clock lost",
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_ALOS]			=
+		"Serdes ALOS",
 };
 
 static const char *const names_cable_issue_link_ext_substate[] = {
