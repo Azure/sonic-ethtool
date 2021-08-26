@@ -383,6 +383,13 @@ static const struct pretty_nla_desc __stats_desc[] = {
 	NLATTR_DESC_NESTED(ETHTOOL_A_STATS_GRP, stats_grp),
 };
 
+static const struct pretty_nla_desc __phc_vclocks_desc[] = {
+	NLATTR_DESC_INVALID(ETHTOOL_A_PHC_VCLOCKS_UNSPEC),
+	NLATTR_DESC_NESTED(ETHTOOL_A_PHC_VCLOCKS_HEADER, header),
+	NLATTR_DESC_U32(ETHTOOL_A_PHC_VCLOCKS_NUM),
+	NLATTR_DESC_BINARY(ETHTOOL_A_PHC_VCLOCKS_INDEX),
+};
+
 const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC_INVALID(ETHTOOL_MSG_USER_NONE),
 	NLMSG_DESC(ETHTOOL_MSG_STRSET_GET, strset),
@@ -417,6 +424,7 @@ const struct pretty_nlmsg_desc ethnl_umsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_FEC_SET, fec),
 	NLMSG_DESC(ETHTOOL_MSG_MODULE_EEPROM_GET, module_eeprom),
 	NLMSG_DESC(ETHTOOL_MSG_STATS_GET, stats),
+	NLMSG_DESC(ETHTOOL_MSG_PHC_VCLOCKS_GET, phc_vclocks),
 };
 
 const unsigned int ethnl_umsg_n_desc = ARRAY_SIZE(ethnl_umsg_desc);
@@ -456,6 +464,7 @@ const struct pretty_nlmsg_desc ethnl_kmsg_desc[] = {
 	NLMSG_DESC(ETHTOOL_MSG_FEC_NTF, fec),
 	NLMSG_DESC(ETHTOOL_MSG_MODULE_EEPROM_GET_REPLY, module_eeprom),
 	NLMSG_DESC(ETHTOOL_MSG_STATS_GET_REPLY, stats),
+	NLMSG_DESC(ETHTOOL_MSG_PHC_VCLOCKS_GET_REPLY, phc_vclocks),
 };
 
 const unsigned int ethnl_kmsg_n_desc = ARRAY_SIZE(ethnl_kmsg_desc);
