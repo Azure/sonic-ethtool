@@ -5703,6 +5703,8 @@ static const struct option args[] = {
 			  "		[tx-usecs-high N]\n"
 			  "		[tx-frames-high N]\n"
 			  "		[sample-interval N]\n"
+			  "		[cqe-mode-rx on|off]\n"
+			  "		[cqe-mode-tx on|off]\n"
 	},
 	{
 		.opts	= "-g|--show-ring",

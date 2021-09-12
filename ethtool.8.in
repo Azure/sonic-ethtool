@@ -186,6 +186,8 @@ ethtool \- query or control network driver and hardware settings
 .BN tx\-usecs\-high
 .BN tx\-frames\-high
 .BN sample\-interval
+.B2 cqe\-mode\-rx on off
+.B2 cqe\-mode\-tx on off
 .HP
 .B ethtool \-g|\-\-show\-ring
 .I devname
