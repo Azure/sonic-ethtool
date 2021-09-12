@@ -1,3 +1,7 @@
+Version 5.14 - September 12, 2021
+	* Feature: do not silently ignore --json if unsupported
+	* Feature: support new message types in pretty print
+
 Version 5.13 - July 9, 2021
 	* Feature: netlink handler for FEC (--show-fec and --set-fec)
 	* Feature: FEC stats support (--show-fec)
