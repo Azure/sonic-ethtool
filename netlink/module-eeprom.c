@@ -365,6 +365,16 @@ int nl_getmodule(struct cmd_context *ctx)
 		return -EINVAL;
 	}
 
+	/* When complete hex/raw dump of the EEPROM is requested, fallback to
+	 * ioctl. Netlink can only request specific pages.
+	 */
+	if ((getmodule_cmd_params.dump_hex || getmodule_cmd_params.dump_raw) &&
+	    !getmodule_cmd_params.page && !getmodule_cmd_params.bank &&
+	    !getmodule_cmd_params.i2c_address) {
+		nlctx->ioctl_fallback = true;
+		return -EOPNOTSUPP;
+	}
+
 	request.i2c_address = ETH_I2C_ADDRESS_LOW;
 	request.length = 128;
 	ret = page_fetch(nlctx, &request);
