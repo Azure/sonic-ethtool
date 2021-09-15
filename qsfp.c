@@ -867,7 +867,7 @@ void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
 		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_PLUS) ||
 		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP28)) {
 		sff6836_show_page_zero(id);
-		sff8636_show_dom(id, id + SFF8636_PAGE03H_OFFSET, eeprom_len);
+		sff8636_show_dom(id, id + 3 * 0x80, eeprom_len);
 	}
 }
 

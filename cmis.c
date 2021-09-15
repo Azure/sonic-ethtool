@@ -297,7 +297,7 @@ static void cmis_show_link_len_from_page(const __u8 *page_one_data)
  */
 static void cmis_show_link_len(const __u8 *id)
 {
-	cmis_show_link_len_from_page(id + PAG01H_UPPER_OFFSET);
+	cmis_show_link_len_from_page(id);
 }
 
 /**
