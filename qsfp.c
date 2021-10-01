@@ -64,7 +64,7 @@
 
 static struct sff8636_aw_flags {
 	const char *str;        /* Human-readable string, null at the end */
-	int offset;             /* A2-relative address offset */
+	int offset;
 	__u8 value;             /* Alarm is on if (offset & value) != 0. */
 } sff8636_aw_flags[] = {
 	{ "Laser bias current high alarm   (Chan 1)",
