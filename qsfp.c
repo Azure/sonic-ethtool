@@ -863,11 +863,13 @@ void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
 	}
 
 	sff8636_show_identifier(id);
-	if ((id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP) ||
-		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_PLUS) ||
-		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP28)) {
+	switch (id[SFF8636_ID_OFFSET]) {
+	case SFF8024_ID_QSFP:
+	case SFF8024_ID_QSFP_PLUS:
+	case SFF8024_ID_QSFP28:
 		sff8636_show_page_zero(id);
 		sff8636_show_dom(id, id + 3 * 0x80, eeprom_len);
+		break;
 	}
 }
 
