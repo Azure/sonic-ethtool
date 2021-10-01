@@ -11,7 +11,7 @@
 
 /* Module-Level Monitors (Page 0) */
 #define CMIS_CURR_TEMP_OFFSET			0x0E
-#define CMIS_CURR_CURR_OFFSET			0x10
+#define CMIS_CURR_VCC_OFFSET			0x10
 
 #define CMIS_CTOR_OFFSET			0xCB
 

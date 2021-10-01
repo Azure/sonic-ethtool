@@ -271,7 +271,7 @@ static void cmis_show_mod_lvl_monitors(const __u8 *id)
 	PRINT_TEMP("Module temperature",
 		   OFFSET_TO_TEMP(CMIS_CURR_TEMP_OFFSET));
 	PRINT_VCC("Module voltage",
-		  OFFSET_TO_U16(CMIS_CURR_CURR_OFFSET));
+		  OFFSET_TO_U16(CMIS_CURR_VCC_OFFSET));
 }
 
 static void cmis_show_link_len_from_page(const __u8 *page_one_data)
