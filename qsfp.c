@@ -738,7 +738,6 @@ static void sff8636_dom_parse(const __u8 *id, const __u8 *page_three, struct sff
 		sd->scd[i].rx_power = OFFSET_TO_U16(rx_power_offset);
 		sd->scd[i].tx_power = OFFSET_TO_U16(tx_power_offset);
 	}
-
 }
 
 static void sff8636_show_dom(const __u8 *id, const __u8 *page_three, __u32 eeprom_len)
@@ -818,7 +817,6 @@ static void sff8636_show_dom(const __u8 *id, const __u8 *page_three, __u32 eepro
 		sff_show_thresholds(sd);
 	}
 }
-
 
 static void sff8636_show_page_zero(const __u8 *id)
 {
