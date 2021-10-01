@@ -1,7 +1,7 @@
 /**
  * Description:
  *
- * This module adds QSFP-DD support to ethtool. The changes are similar to
+ * This module adds CMIS support to ethtool. The changes are similar to
  * the ones already existing in qsfp.c, but customized to use the memory
  * addresses and logic as defined in the specification's document.
  *
