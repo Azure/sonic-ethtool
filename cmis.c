@@ -307,6 +307,8 @@ static void cmis_show_link_len(const __u8 *id)
  */
 static void cmis_show_vendor_info(const __u8 *id)
 {
+	const char *clei = (const char *)(id + CMIS_CLEI_START_OFFSET);
+
 	sff_show_ascii(id, CMIS_VENDOR_NAME_START_OFFSET,
 		       CMIS_VENDOR_NAME_END_OFFSET, "Vendor name");
 	cmis_show_oui(id);
@@ -319,9 +321,9 @@ static void cmis_show_vendor_info(const __u8 *id)
 	sff_show_ascii(id, CMIS_DATE_YEAR_OFFSET,
 		       CMIS_DATE_VENDOR_LOT_OFFSET + 1, "Date code");
 
-	if (id[CMIS_CLEI_PRESENT_BYTE] & CMIS_CLEI_PRESENT_MASK)
-		sff_show_ascii(id, CMIS_CLEI_START_OFFSET,
-			       CMIS_CLEI_END_OFFSET, "CLEI code");
+	if (*clei && strncmp(clei, CMIS_CLEI_BLANK, CMIS_CLEI_LEN))
+		sff_show_ascii(id, CMIS_CLEI_START_OFFSET, CMIS_CLEI_END_OFFSET,
+			       "CLEI code");
 }
 
 void qsfp_dd_show_all(const __u8 *id)
