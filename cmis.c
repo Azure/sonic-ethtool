@@ -1,7 +1,7 @@
 /**
  * Description:
  *
- * This module adds QSFP-DD support to ethtool. The changes are similar to
+ * This module adds CMIS support to ethtool. The changes are similar to
  * the ones already existing in qsfp.c, but customized to use the memory
  * addresses and logic as defined in the specification's document.
  *
@@ -271,7 +271,7 @@ static void cmis_show_mod_lvl_monitors(const __u8 *id)
 	PRINT_TEMP("Module temperature",
 		   OFFSET_TO_TEMP(CMIS_CURR_TEMP_OFFSET));
 	PRINT_VCC("Module voltage",
-		  OFFSET_TO_U16(CMIS_CURR_CURR_OFFSET));
+		  OFFSET_TO_U16(CMIS_CURR_VCC_OFFSET));
 }
 
 static void cmis_show_link_len_from_page(const __u8 *page_one_data)
@@ -307,6 +307,8 @@ static void cmis_show_link_len(const __u8 *id)
  */
 static void cmis_show_vendor_info(const __u8 *id)
 {
+	const char *clei = (const char *)(id + CMIS_CLEI_START_OFFSET);
+
 	sff_show_ascii(id, CMIS_VENDOR_NAME_START_OFFSET,
 		       CMIS_VENDOR_NAME_END_OFFSET, "Vendor name");
 	cmis_show_oui(id);
@@ -319,9 +321,9 @@ static void cmis_show_vendor_info(const __u8 *id)
 	sff_show_ascii(id, CMIS_DATE_YEAR_OFFSET,
 		       CMIS_DATE_VENDOR_LOT_OFFSET + 1, "Date code");
 
-	if (id[CMIS_CLEI_PRESENT_BYTE] & CMIS_CLEI_PRESENT_MASK)
-		sff_show_ascii(id, CMIS_CLEI_START_OFFSET,
-			       CMIS_CLEI_END_OFFSET, "CLEI code");
+	if (*clei && strncmp(clei, CMIS_CLEI_BLANK, CMIS_CLEI_LEN))
+		sff_show_ascii(id, CMIS_CLEI_START_OFFSET, CMIS_CLEI_END_OFFSET,
+			       "CLEI code");
 }
 
 void qsfp_dd_show_all(const __u8 *id)

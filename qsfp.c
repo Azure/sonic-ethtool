@@ -64,7 +64,7 @@
 
 static struct sff8636_aw_flags {
 	const char *str;        /* Human-readable string, null at the end */
-	int offset;             /* A2-relative address offset */
+	int offset;
 	__u8 value;             /* Alarm is on if (offset & value) != 0. */
 } sff8636_aw_flags[] = {
 	{ "Laser bias current high alarm   (Chan 1)",
@@ -738,7 +738,6 @@ static void sff8636_dom_parse(const __u8 *id, const __u8 *page_three, struct sff
 		sd->scd[i].rx_power = OFFSET_TO_U16(rx_power_offset);
 		sd->scd[i].tx_power = OFFSET_TO_U16(tx_power_offset);
 	}
-
 }
 
 static void sff8636_show_dom(const __u8 *id, const __u8 *page_three, __u32 eeprom_len)
@@ -819,8 +818,7 @@ static void sff8636_show_dom(const __u8 *id, const __u8 *page_three, __u32 eepro
 	}
 }
 
-
-static void sff6836_show_page_zero(const __u8 *id)
+static void sff8636_show_page_zero(const __u8 *id)
 {
 	sff8636_show_ext_identifier(id);
 	sff8636_show_connector(id);
@@ -863,11 +861,13 @@ void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
 	}
 
 	sff8636_show_identifier(id);
-	if ((id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP) ||
-		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_PLUS) ||
-		(id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP28)) {
-		sff6836_show_page_zero(id);
+	switch (id[SFF8636_ID_OFFSET]) {
+	case SFF8024_ID_QSFP:
+	case SFF8024_ID_QSFP_PLUS:
+	case SFF8024_ID_QSFP28:
+		sff8636_show_page_zero(id);
 		sff8636_show_dom(id, id + 3 * 0x80, eeprom_len);
+		break;
 	}
 }
 
@@ -875,7 +875,7 @@ void sff8636_show_all_paged(const struct ethtool_module_eeprom *page_zero,
 			    const struct ethtool_module_eeprom *page_three)
 {
 	sff8636_show_identifier(page_zero->data);
-	sff6836_show_page_zero(page_zero->data);
+	sff8636_show_page_zero(page_zero->data);
 	if (page_three)
 		sff8636_show_dom(page_zero->data, page_three->data - 0x80,
 				 ETH_MODULE_SFF_8636_MAX_LEN);
