@@ -340,6 +340,20 @@ static void cmis_show_vendor_info(const struct cmis_memory_map *map)
 			       CMIS_CLEI_END_OFFSET, "CLEI code");
 }
 
+static void cmis_show_all_common(const struct cmis_memory_map *map)
+{
+	cmis_show_identifier(map);
+	cmis_show_power_info(map);
+	cmis_show_connector(map);
+	cmis_show_cbl_asm_len(map);
+	cmis_show_sig_integrity(map);
+	cmis_show_mit_compliance(map);
+	cmis_show_mod_lvl_monitors(map);
+	cmis_show_link_len(map);
+	cmis_show_vendor_info(map);
+	cmis_show_rev_compliance(map);
+}
+
 static void cmis_memory_map_init_buf(struct cmis_memory_map *map,
 				     const __u8 *id)
 {
@@ -367,17 +381,7 @@ void cmis_show_all_ioctl(const __u8 *id)
 	struct cmis_memory_map map = {};
 
 	cmis_memory_map_init_buf(&map, id);
-
-	cmis_show_identifier(&map);
-	cmis_show_power_info(&map);
-	cmis_show_connector(&map);
-	cmis_show_cbl_asm_len(&map);
-	cmis_show_sig_integrity(&map);
-	cmis_show_mit_compliance(&map);
-	cmis_show_mod_lvl_monitors(&map);
-	cmis_show_link_len(&map);
-	cmis_show_vendor_info(&map);
-	cmis_show_rev_compliance(&map);
+	cmis_show_all_common(&map);
 }
 
 static void
@@ -411,15 +415,5 @@ void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
 	struct cmis_memory_map map = {};
 
 	cmis_memory_map_init_pages(&map, page_zero, page_one);
-
-	cmis_show_identifier(&map);
-	cmis_show_power_info(&map);
-	cmis_show_connector(&map);
-	cmis_show_cbl_asm_len(&map);
-	cmis_show_sig_integrity(&map);
-	cmis_show_mit_compliance(&map);
-	cmis_show_mod_lvl_monitors(&map);
-	cmis_show_link_len(&map);
-	cmis_show_vendor_info(&map);
-	cmis_show_rev_compliance(&map);
+	cmis_show_all_common(&map);
 }
