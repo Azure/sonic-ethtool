@@ -123,7 +123,6 @@
 
 void cmis_show_all_ioctl(const __u8 *id);
 
-void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
-		      const struct ethtool_module_eeprom *page_one);
+int cmis_show_all_nl(struct cmd_context *ctx);
 
 #endif /* CMIS_H__ */

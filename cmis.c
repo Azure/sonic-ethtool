@@ -9,9 +9,11 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
 #include "internal.h"
 #include "sff-common.h"
 #include "cmis.h"
+#include "netlink/extapi.h"
 
 struct cmis_memory_map {
 	const __u8 *lower_memory;
@@ -21,6 +23,7 @@ struct cmis_memory_map {
 };
 
 #define CMIS_PAGE_SIZE		0x80
+#define CMIS_I2C_ADDRESS	0x50
 
 static void cmis_show_identifier(const struct cmis_memory_map *map)
 {
@@ -384,36 +387,67 @@ void cmis_show_all_ioctl(const __u8 *id)
 	cmis_show_all_common(&map);
 }
 
-static void
-cmis_memory_map_init_pages(struct cmis_memory_map *map,
-			   const struct ethtool_module_eeprom *page_zero,
-			   const struct ethtool_module_eeprom *page_one)
+static void cmis_request_init(struct ethtool_module_eeprom *request, u8 bank,
+			      u8 page, u32 offset)
 {
+	request->offset = offset;
+	request->length = CMIS_PAGE_SIZE;
+	request->page = page;
+	request->bank = bank;
+	request->i2c_address = CMIS_I2C_ADDRESS;
+	request->data = NULL;
+}
+
+static int
+cmis_memory_map_init_pages(struct cmd_context *ctx,
+			   struct cmis_memory_map *map)
+{
+	struct ethtool_module_eeprom request;
+	int ret;
+
 	/* Lower Memory and Page 00h are always present.
 	 *
 	 * Offset into Upper Memory is between page size and twice the page
 	 * size. Therefore, set the base address of each page to its base
-	 * address minus page size. For Page 00h, this is the address of the
-	 * Lower Memory.
+	 * address minus page size.
 	 */
-	map->lower_memory = page_zero->data;
-	map->page_00h = page_zero->data;
+	cmis_request_init(&request, 0, 0x0, 0);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->lower_memory = request.data;
+
+	cmis_request_init(&request, 0, 0x0, CMIS_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_00h = request.data - CMIS_PAGE_SIZE;
 
 	/* Page 01h is only present when the module memory model is paged and
 	 * not flat.
 	 */
 	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
 	    CMIS_MEMORY_MODEL_MASK)
-		return;
+		return 0;
 
-	map->page_01h = page_one->data - CMIS_PAGE_SIZE;
+	cmis_request_init(&request, 0, 0x1, CMIS_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_01h = request.data - CMIS_PAGE_SIZE;
+
+	return 0;
 }
 
-void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
-		      const struct ethtool_module_eeprom *page_one)
+int cmis_show_all_nl(struct cmd_context *ctx)
 {
 	struct cmis_memory_map map = {};
+	int ret;
 
-	cmis_memory_map_init_pages(&map, page_zero, page_one);
+	ret = cmis_memory_map_init_pages(ctx, &map);
+	if (ret < 0)
+		return ret;
 	cmis_show_all_common(&map);
+
+	return 0;
 }
