@@ -55,10 +55,12 @@
  **/
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
 #include "internal.h"
 #include "sff-common.h"
 #include "qsfp.h"
 #include "cmis.h"
+#include "netlink/extapi.h"
 
 struct sff8636_memory_map {
 	const __u8 *lower_memory;
@@ -68,6 +70,7 @@ struct sff8636_memory_map {
 };
 
 #define SFF8636_PAGE_SIZE	0x80
+#define SFF8636_I2C_ADDRESS	0x50
 
 #define MAX_DESC_SIZE	42
 
@@ -947,36 +950,67 @@ void sff8636_show_all_ioctl(const __u8 *id, __u32 eeprom_len)
 	sff8636_show_all_common(&map);
 }
 
-static void
-sff8636_memory_map_init_pages(struct sff8636_memory_map *map,
-			      const struct ethtool_module_eeprom *page_zero,
-			      const struct ethtool_module_eeprom *page_three)
+static void sff8636_request_init(struct ethtool_module_eeprom *request, u8 page,
+				 u32 offset)
 {
+	request->offset = offset;
+	request->length = SFF8636_PAGE_SIZE;
+	request->page = page;
+	request->bank = 0;
+	request->i2c_address = SFF8636_I2C_ADDRESS;
+	request->data = NULL;
+}
+
+static int
+sff8636_memory_map_init_pages(struct cmd_context *ctx,
+			      struct sff8636_memory_map *map)
+{
+	struct ethtool_module_eeprom request;
+	int ret;
+
 	/* Lower Memory and Page 00h are always present.
 	 *
 	 * Offset into Upper Memory is between page size and twice the page
 	 * size. Therefore, set the base address of each page to its base
-	 * address minus page size. For Page 00h, this is the address of the
-	 * Lower Memory.
+	 * address minus page size.
 	 */
-	map->lower_memory = page_zero->data;
-	map->page_00h = page_zero->data;
+	sff8636_request_init(&request, 0x0, 0);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->lower_memory = request.data;
+
+	sff8636_request_init(&request, 0x0, SFF8636_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_00h = request.data - SFF8636_PAGE_SIZE;
 
 	/* Page 03h is only present when the module memory model is paged and
 	 * not flat.
 	 */
 	if (map->lower_memory[SFF8636_STATUS_2_OFFSET] &
 	    SFF8636_STATUS_PAGE_3_PRESENT)
-		return;
+		return 0;
 
-	map->page_03h = page_three->data - SFF8636_PAGE_SIZE;
+	sff8636_request_init(&request, 0x3, SFF8636_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_03h = request.data - SFF8636_PAGE_SIZE;
+
+	return 0;
 }
 
-void sff8636_show_all_nl(const struct ethtool_module_eeprom *page_zero,
-			 const struct ethtool_module_eeprom *page_three)
+int sff8636_show_all_nl(struct cmd_context *ctx)
 {
 	struct sff8636_memory_map map = {};
+	int ret;
 
-	sff8636_memory_map_init_pages(&map, page_zero, page_three);
+	ret = sff8636_memory_map_init_pages(ctx, &map);
+	if (ret < 0)
+		return ret;
 	sff8636_show_all_common(&map);
+
+	return 0;
 }
