@@ -326,7 +326,7 @@ static void cmis_show_vendor_info(const __u8 *id)
 			       "CLEI code");
 }
 
-void qsfp_dd_show_all(const __u8 *id)
+void cmis_show_all_ioctl(const __u8 *id)
 {
 	cmis_show_identifier(id);
 	cmis_show_power_info(id);
@@ -340,8 +340,8 @@ void qsfp_dd_show_all(const __u8 *id)
 	cmis_show_rev_compliance(id);
 }
 
-void cmis_show_all(const struct ethtool_module_eeprom *page_zero,
-		   const struct ethtool_module_eeprom *page_one)
+void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
+		      const struct ethtool_module_eeprom *page_one)
 {
 	const __u8 *page_zero_data = page_zero->data;
 

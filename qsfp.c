@@ -856,7 +856,7 @@ static void sff8636_show_page_zero(const __u8 *id)
 void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
 {
 	if (id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_DD) {
-		qsfp_dd_show_all(id);
+		cmis_show_all_ioctl(id);
 		return;
 	}
 

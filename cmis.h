@@ -120,9 +120,9 @@
 #define YESNO(x) (((x) != 0) ? "Yes" : "No")
 #define ONOFF(x) (((x) != 0) ? "On" : "Off")
 
-void qsfp_dd_show_all(const __u8 *id);
+void cmis_show_all_ioctl(const __u8 *id);
 
-void cmis_show_all(const struct ethtool_module_eeprom *page_zero,
-		   const struct ethtool_module_eeprom *page_one);
+void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
+		      const struct ethtool_module_eeprom *page_one);
 
 #endif /* CMIS_H__ */

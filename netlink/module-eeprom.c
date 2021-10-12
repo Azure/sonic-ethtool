@@ -332,7 +332,7 @@ static void decoder_print(void)
 		break;
 	case SFF8024_ID_QSFP_DD:
 	case SFF8024_ID_DSFP:
-		cmis_show_all(page_zero, page_one);
+		cmis_show_all_nl(page_zero, page_one);
 		break;
 	default:
 		dump_hex(stdout, page_zero->data, page_zero->length, page_zero->offset);
