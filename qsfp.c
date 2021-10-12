@@ -898,6 +898,19 @@ static void sff8636_show_page_zero(const struct sff8636_memory_map *map)
 				     SFF8636_REV_COMPLIANCE_OFFSET);
 }
 
+static void sff8636_show_all_common(const struct sff8636_memory_map *map)
+{
+	sff8636_show_identifier(map);
+	switch (map->lower_memory[SFF8636_ID_OFFSET]) {
+	case SFF8024_ID_QSFP:
+	case SFF8024_ID_QSFP_PLUS:
+	case SFF8024_ID_QSFP28:
+		sff8636_show_page_zero(map);
+		sff8636_show_dom(map);
+		break;
+	}
+}
+
 static void sff8636_memory_map_init_buf(struct sff8636_memory_map *map,
 					const __u8 *id, __u32 eeprom_len)
 {
@@ -931,16 +944,7 @@ void sff8636_show_all_ioctl(const __u8 *id, __u32 eeprom_len)
 	}
 
 	sff8636_memory_map_init_buf(&map, id, eeprom_len);
-
-	sff8636_show_identifier(&map);
-	switch (map.lower_memory[SFF8636_ID_OFFSET]) {
-	case SFF8024_ID_QSFP:
-	case SFF8024_ID_QSFP_PLUS:
-	case SFF8024_ID_QSFP28:
-		sff8636_show_page_zero(&map);
-		sff8636_show_dom(&map);
-		break;
-	}
+	sff8636_show_all_common(&map);
 }
 
 static void
@@ -974,8 +978,5 @@ void sff8636_show_all_nl(const struct ethtool_module_eeprom *page_zero,
 	struct sff8636_memory_map map = {};
 
 	sff8636_memory_map_init_pages(&map, page_zero, page_three);
-
-	sff8636_show_identifier(&map);
-	sff8636_show_page_zero(&map);
-	sff8636_show_dom(&map);
+	sff8636_show_all_common(&map);
 }
