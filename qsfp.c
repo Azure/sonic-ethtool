@@ -60,6 +60,15 @@
 #include "qsfp.h"
 #include "cmis.h"
 
+struct sff8636_memory_map {
+	const __u8 *lower_memory;
+	const __u8 *upper_memory[4];
+#define page_00h upper_memory[0x0]
+#define page_03h upper_memory[0x3]
+};
+
+#define SFF8636_PAGE_SIZE	0x80
+
 #define MAX_DESC_SIZE	42
 
 static struct sff8636_aw_flags {
@@ -853,12 +862,39 @@ static void sff8636_show_page_zero(const __u8 *id)
 
 }
 
+static void sff8636_memory_map_init_buf(struct sff8636_memory_map *map,
+					const __u8 *id, __u32 eeprom_len)
+{
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to base address
+	 * plus page size multiplied by the page number.
+	 */
+	map->lower_memory = id;
+	map->page_00h = id;
+
+	/* Page 03h is only present when the module memory model is paged and
+	 * not flat and when we got a big enough buffer from the kernel.
+	 */
+	if (map->lower_memory[SFF8636_STATUS_2_OFFSET] &
+	    SFF8636_STATUS_PAGE_3_PRESENT ||
+	    eeprom_len != ETH_MODULE_SFF_8636_MAX_LEN)
+		return;
+
+	map->page_03h = id + 3 * SFF8636_PAGE_SIZE;
+}
+
 void sff8636_show_all_ioctl(const __u8 *id, __u32 eeprom_len)
 {
+	struct sff8636_memory_map map = {};
+
 	if (id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_DD) {
 		cmis_show_all_ioctl(id);
 		return;
 	}
+
+	sff8636_memory_map_init_buf(&map, id, eeprom_len);
 
 	sff8636_show_identifier(id);
 	switch (id[SFF8636_ID_OFFSET]) {
@@ -871,9 +907,38 @@ void sff8636_show_all_ioctl(const __u8 *id, __u32 eeprom_len)
 	}
 }
 
+static void
+sff8636_memory_map_init_pages(struct sff8636_memory_map *map,
+			      const struct ethtool_module_eeprom *page_zero,
+			      const struct ethtool_module_eeprom *page_three)
+{
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to its base
+	 * address minus page size. For Page 00h, this is the address of the
+	 * Lower Memory.
+	 */
+	map->lower_memory = page_zero->data;
+	map->page_00h = page_zero->data;
+
+	/* Page 03h is only present when the module memory model is paged and
+	 * not flat.
+	 */
+	if (map->lower_memory[SFF8636_STATUS_2_OFFSET] &
+	    SFF8636_STATUS_PAGE_3_PRESENT)
+		return;
+
+	map->page_03h = page_three->data - SFF8636_PAGE_SIZE;
+}
+
 void sff8636_show_all_nl(const struct ethtool_module_eeprom *page_zero,
 			 const struct ethtool_module_eeprom *page_three)
 {
+	struct sff8636_memory_map map = {};
+
+	sff8636_memory_map_init_pages(&map, page_zero, page_three);
+
 	sff8636_show_identifier(page_zero->data);
 	sff8636_show_page_zero(page_zero->data);
 	if (page_three)
