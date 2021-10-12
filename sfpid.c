@@ -8,8 +8,13 @@
  */
 
 #include <stdio.h>
+#include <errno.h>
 #include "internal.h"
 #include "sff-common.h"
+#include "netlink/extapi.h"
+
+#define SFF8079_PAGE_SIZE	0x80
+#define SFF8079_I2C_ADDRESS_LOW	0x50
 
 static void sff8079_show_identifier(const __u8 *id)
 {
@@ -445,7 +450,18 @@ void sff8079_show_all_ioctl(const __u8 *id)
 	sff8079_show_all_common(id);
 }
 
-void sff8079_show_all_nl(const __u8 *id)
+int sff8079_show_all_nl(struct cmd_context *ctx)
 {
-	sff8079_show_all_common(id);
+	struct ethtool_module_eeprom request = {
+		.length = SFF8079_PAGE_SIZE,
+		.i2c_address = SFF8079_I2C_ADDRESS_LOW,
+	};
+	int ret;
+
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	sff8079_show_all_common(request.data);
+
+	return 0;
 }

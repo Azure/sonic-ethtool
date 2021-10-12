@@ -385,7 +385,7 @@ int rxclass_rule_del(struct cmd_context *ctx, __u32 loc);
 
 /* Module EEPROM parsing code */
 void sff8079_show_all_ioctl(const __u8 *id);
-void sff8079_show_all_nl(const __u8 *id);
+int sff8079_show_all_nl(struct cmd_context *ctx);
 
 /* Optics diagnostics */
 void sff8472_show_all(const __u8 *id);

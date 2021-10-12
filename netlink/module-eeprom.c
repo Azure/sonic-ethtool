@@ -321,7 +321,7 @@ static void decoder_print(struct cmd_context *ctx)
 
 	switch (module_id) {
 	case SFF8024_ID_SFP:
-		sff8079_show_all_nl(page_zero->data);
+		sff8079_show_all_nl(ctx);
 		break;
 	case SFF8024_ID_QSFP:
 	case SFF8024_ID_QSFP28:
