@@ -4,6 +4,8 @@
 /* Identifier and revision compliance (Page 0) */
 #define CMIS_ID_OFFSET				0x00
 #define CMIS_REV_COMPLIANCE_OFFSET		0x01
+#define CMIS_MEMORY_MODEL_OFFSET		0x02
+#define CMIS_MEMORY_MODEL_MASK			0x80
 
 #define CMIS_MODULE_TYPE_OFFSET			0x55
 #define CMIS_MT_MMF				0x01

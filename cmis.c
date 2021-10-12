@@ -13,6 +13,15 @@
 #include "sff-common.h"
 #include "cmis.h"
 
+struct cmis_memory_map {
+	const __u8 *lower_memory;
+	const __u8 *upper_memory[1][2];	/* Bank, Page */
+#define page_00h upper_memory[0x0][0x0]
+#define page_01h upper_memory[0x0][0x1]
+};
+
+#define CMIS_PAGE_SIZE		0x80
+
 static void cmis_show_identifier(const __u8 *id)
 {
 	sff8024_show_identifier(id, CMIS_ID_OFFSET);
@@ -326,8 +335,34 @@ static void cmis_show_vendor_info(const __u8 *id)
 			       "CLEI code");
 }
 
+static void cmis_memory_map_init_buf(struct cmis_memory_map *map,
+				     const __u8 *id)
+{
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to base address
+	 * plus page size multiplied by the page number.
+	 */
+	map->lower_memory = id;
+	map->page_00h = id;
+
+	/* Page 01h is only present when the module memory model is paged and
+	 * not flat.
+	 */
+	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
+	    CMIS_MEMORY_MODEL_MASK)
+		return;
+
+	map->page_01h = id + CMIS_PAGE_SIZE;
+}
+
 void cmis_show_all_ioctl(const __u8 *id)
 {
+	struct cmis_memory_map map = {};
+
+	cmis_memory_map_init_buf(&map, id);
+
 	cmis_show_identifier(id);
 	cmis_show_power_info(id);
 	cmis_show_connector(id);
@@ -340,10 +375,38 @@ void cmis_show_all_ioctl(const __u8 *id)
 	cmis_show_rev_compliance(id);
 }
 
+static void
+cmis_memory_map_init_pages(struct cmis_memory_map *map,
+			   const struct ethtool_module_eeprom *page_zero,
+			   const struct ethtool_module_eeprom *page_one)
+{
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to its base
+	 * address minus page size. For Page 00h, this is the address of the
+	 * Lower Memory.
+	 */
+	map->lower_memory = page_zero->data;
+	map->page_00h = page_zero->data;
+
+	/* Page 01h is only present when the module memory model is paged and
+	 * not flat.
+	 */
+	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
+	    CMIS_MEMORY_MODEL_MASK)
+		return;
+
+	map->page_01h = page_one->data - CMIS_PAGE_SIZE;
+}
+
 void cmis_show_all_nl(const struct ethtool_module_eeprom *page_zero,
 		      const struct ethtool_module_eeprom *page_one)
 {
 	const __u8 *page_zero_data = page_zero->data;
+	struct cmis_memory_map map = {};
+
+	cmis_memory_map_init_pages(&map, page_zero, page_one);
 
 	cmis_show_identifier(page_zero_data);
 	cmis_show_power_info(page_zero_data);
