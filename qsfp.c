@@ -853,7 +853,7 @@ static void sff8636_show_page_zero(const __u8 *id)
 
 }
 
-void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
+void sff8636_show_all_ioctl(const __u8 *id, __u32 eeprom_len)
 {
 	if (id[SFF8636_ID_OFFSET] == SFF8024_ID_QSFP_DD) {
 		cmis_show_all_ioctl(id);
@@ -871,8 +871,8 @@ void sff8636_show_all(const __u8 *id, __u32 eeprom_len)
 	}
 }
 
-void sff8636_show_all_paged(const struct ethtool_module_eeprom *page_zero,
-			    const struct ethtool_module_eeprom *page_three)
+void sff8636_show_all_nl(const struct ethtool_module_eeprom *page_zero,
+			 const struct ethtool_module_eeprom *page_three)
 {
 	sff8636_show_identifier(page_zero->data);
 	sff8636_show_page_zero(page_zero->data);

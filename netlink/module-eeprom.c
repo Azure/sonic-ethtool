@@ -328,7 +328,7 @@ static void decoder_print(void)
 	case SFF8024_ID_QSFP:
 	case SFF8024_ID_QSFP28:
 	case SFF8024_ID_QSFP_PLUS:
-		sff8636_show_all_paged(page_zero, page_three);
+		sff8636_show_all_nl(page_zero, page_three);
 		break;
 	case SFF8024_ID_QSFP_DD:
 	case SFF8024_ID_DSFP:
