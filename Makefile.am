@@ -8,7 +8,8 @@ EXTRA_DIST = LICENSE ethtool.8 ethtool.spec.in aclocal.m4 ChangeLog autogen.sh
 sbin_PROGRAMS = ethtool
 ethtool_SOURCES = ethtool.c uapi/linux/ethtool.h internal.h \
 		  uapi/linux/net_tstamp.h rxclass.c common.c common.h \
-		  json_writer.c json_writer.h json_print.c json_print.h
+		  json_writer.c json_writer.h json_print.c json_print.h \
+		  list.h
 if ETHTOOL_ENABLE_PRETTY_DUMP
 ethtool_SOURCES += \
 		  amd8111e.c de2104x.c dsa.c e100.c e1000.c et131x.c igb.c	\
@@ -17,7 +18,7 @@ ethtool_SOURCES += \
 		  smsc911x.c at76c50x-usb.c sfc.c stmmac.c	\
 		  sff-common.c sff-common.h sfpid.c sfpdiag.c	\
 		  ixgbevf.c tse.c vmxnet3.c qsfp.c qsfp.h fjes.c lan78xx.c \
-		  igc.c qsfp-dd.c qsfp-dd.h bnxt.c
+		  igc.c cmis.c cmis.h bnxt.c
 endif
 
 if ENABLE_BASH_COMPLETION
@@ -35,8 +36,10 @@ ethtool_SOURCES += \
 		  netlink/permaddr.c netlink/prettymsg.c netlink/prettymsg.h \
 		  netlink/features.c netlink/privflags.c netlink/rings.c \
 		  netlink/channels.c netlink/coalesce.c netlink/pause.c \
-		  netlink/eee.c netlink/tsinfo.c \
+		  netlink/eee.c netlink/tsinfo.c netlink/fec.c \
+		  netlink/stats.c \
 		  netlink/desc-ethtool.c netlink/desc-genlctrl.c \
+		  netlink/module-eeprom.c \
 		  netlink/desc-rtnl.c netlink/cable_test.c netlink/tunnels.c \
 		  uapi/linux/ethtool_netlink.h \
 		  uapi/linux/netlink.h uapi/linux/genetlink.h \

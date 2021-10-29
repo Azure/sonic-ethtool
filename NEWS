@@ -1,3 +1,31 @@
+Version 5.14 - September 12, 2021
+	* Feature: do not silently ignore --json if unsupported
+	* Feature: support new message types in pretty print
+
+Version 5.13 - July 9, 2021
+	* Feature: netlink handler for FEC (--show-fec and --set-fec)
+	* Feature: FEC stats support (--show-fec)
+	* Feature: standard based stats support (-S)
+	* Feature: netlink handler for module EEPROM dump (-m)
+	* Feature: page, bank and i2c selection in module dump (-m)
+
+Version 5.12 - May 2, 2021
+	* Feature: support lanes count (no option and -s)
+	* Fix: fix help message for master-slave parameter (-s)
+	* Fix: better error message for master-slave in ioctl code path
+	* Fix: get rid of compiler warnings in "make check"
+
+Version 5.10 - Dec 16, 2020
+	* Feature: infrastructure for JSON output
+	* Feature: separate FLAGS in -h output
+	* Feature: use policy dumps to check flags support
+	* Feature: show pause stats (-a)
+	* Feature: pretty printing of policy dumps
+	* Feature: improve error message when SFP module is missing
+	* Fix: use after free in netlink_run_handler()
+	* Fix: leaked instances of struct nl_socket
+	* Fix: improve compatibility between netlink and ioctl (-s)
+
 Version 5.9 - Oct 15, 2020
 	* Feature: extended link state
 	* Feature: QSFP-DD support

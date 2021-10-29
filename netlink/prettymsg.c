@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
+#include <inttypes.h>
 #include <linux/genetlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_link.h>
@@ -110,6 +111,9 @@ static int pretty_print_attr(const struct nlattr *attr,
 	case NLA_U32:
 		printf("%u", mnl_attr_get_u32(attr));
 		break;
+	case NLA_U64:
+		printf("%" PRIu64, mnl_attr_get_u64(attr));
+		break;
 	case NLA_X8:
 		printf("0x%02x", mnl_attr_get_u8(attr));
 		break;
@@ -118,6 +122,9 @@ static int pretty_print_attr(const struct nlattr *attr,
 		break;
 	case NLA_X32:
 		printf("0x%08x", mnl_attr_get_u32(attr));
+		break;
+	case NLA_X64:
+		printf("%" PRIx64, mnl_attr_get_u64(attr));
 		break;
 	case NLA_S8:
 		printf("%d", (int)mnl_attr_get_u8(attr));
@@ -128,6 +135,9 @@ static int pretty_print_attr(const struct nlattr *attr,
 	case NLA_S32:
 		printf("%d", (int)mnl_attr_get_u32(attr));
 		break;
+	case NLA_S64:
+		printf("%" PRId64, (int64_t)mnl_attr_get_u64(attr));
+		break;
 	case NLA_STRING:
 		printf("\"%.*s\"", alen, (const char *)adata);
 		break;
@@ -137,6 +147,15 @@ static int pretty_print_attr(const struct nlattr *attr,
 	case NLA_BOOL:
 		printf("%s", mnl_attr_get_u8(attr) ? "on" : "off");
 		break;
+	case NLA_U32_ENUM: {
+		uint32_t val = mnl_attr_get_u32(attr);
+
+		if (adesc && val < adesc->n_names && adesc->names[val])
+			printf("%s", adesc->names[val]);
+		else
+			printf("%u", val);
+		break;
+	}
 	default:
 		if (alen <= __DUMP_LINE)
 			__print_binary_short(adata, alen);

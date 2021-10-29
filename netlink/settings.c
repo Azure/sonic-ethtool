@@ -473,6 +473,12 @@ int linkmodes_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 		else
 			printf("\tSpeed: %uMb/s\n", val);
 	}
+	if (tb[ETHTOOL_A_LINKMODES_LANES]) {
+		uint32_t val = mnl_attr_get_u32(tb[ETHTOOL_A_LINKMODES_LANES]);
+
+		print_banner(nlctx);
+		printf("\tLanes: %u\n", val);
+	}
 	if (tb[ETHTOOL_A_LINKMODES_DUPLEX]) {
 		uint8_t val = mnl_attr_get_u8(tb[ETHTOOL_A_LINKMODES_DUPLEX]);
 
@@ -1068,6 +1074,13 @@ static const struct param_parser sset_params[] = {
 		.min_argc	= 1,
 	},
 	{
+		.arg		= "lanes",
+		.group		= ETHTOOL_MSG_LINKMODES_SET,
+		.type		= ETHTOOL_A_LINKMODES_LANES,
+		.handler	= nl_parse_direct_u32,
+		.min_argc	= 1,
+	},
+	{
 		.arg		= "duplex",
 		.group		= ETHTOOL_MSG_LINKMODES_SET,
 		.type		= ETHTOOL_A_LINKMODES_DUPLEX,
@@ -1110,9 +1123,103 @@ static const struct param_parser sset_params[] = {
 	{}
 };
 
+/* Maximum number of request messages sent to kernel; must be equal to the
+ * number of different .group values in sset_params[] array.
+ */
+#define SSET_MAX_MSGS 4
+
+static int linkmodes_reply_advert_all_cb(const struct nlmsghdr *nlhdr,
+					 void *data)
+{
+	const struct nlattr *tb[ETHTOOL_A_LINKMODES_MAX + 1] = {};
+	DECLARE_ATTR_TB_INFO(tb);
+	struct nl_msg_buff *req_msgbuff = data;
+	const struct nlattr *ours_attr;
+	struct nlattr *req_bitset;
+	uint32_t *supported_modes;
+	unsigned int modes_count;
+	unsigned int i;
+	int ret;
+
+	ret = mnl_attr_parse(nlhdr, GENL_HDRLEN, attr_cb, &tb_info);
+	if (ret < 0)
+		return MNL_CB_ERROR;
+	ours_attr = tb[ETHTOOL_A_LINKMODES_OURS];
+	if (!ours_attr)
+		return MNL_CB_ERROR;
+	modes_count = bitset_get_count(tb[ETHTOOL_A_LINKMODES_OURS], &ret);
+	if (ret < 0)
+		return MNL_CB_ERROR;
+	supported_modes = get_compact_bitset_mask(tb[ETHTOOL_A_LINKMODES_OURS]);
+	if (!supported_modes)
+		return MNL_CB_ERROR;
+
+	/* keep only "real" link modes */
+	for (i = 0; i < modes_count; i++)
+		if (!lm_class_match(i, LM_CLASS_REAL))
+			supported_modes[i / 32] &= ~((uint32_t)1 << (i % 32));
+
+	req_bitset = ethnla_nest_start(req_msgbuff, ETHTOOL_A_LINKMODES_OURS);
+	if (!req_bitset)
+		return MNL_CB_ERROR;
+
+	if (ethnla_put_u32(req_msgbuff, ETHTOOL_A_BITSET_SIZE, modes_count) ||
+	    ethnla_put(req_msgbuff, ETHTOOL_A_BITSET_VALUE,
+		       DIV_ROUND_UP(modes_count, 32) * sizeof(uint32_t),
+		       supported_modes) ||
+	    ethnla_put(req_msgbuff, ETHTOOL_A_BITSET_MASK,
+		       DIV_ROUND_UP(modes_count, 32) * sizeof(uint32_t),
+		       supported_modes)) {
+		ethnla_nest_cancel(req_msgbuff, req_bitset);
+		return MNL_CB_ERROR;
+	}
+
+	ethnla_nest_end(req_msgbuff, req_bitset);
+	return MNL_CB_OK;
+}
+
+/* For compatibility reasons with ioctl-based ethtool, when "autoneg on" is
+ * specified without "advertise", "speed" and "duplex", we need to query the
+ * supported link modes from the kernel and advertise all the "real" ones.
+ */
+static int nl_sset_compat_linkmodes(struct nl_context *nlctx,
+				    struct nl_msg_buff *msgbuff)
+{
+	const struct nlattr *tb[ETHTOOL_A_LINKMODES_MAX + 1] = {};
+	DECLARE_ATTR_TB_INFO(tb);
+	struct nl_socket *nlsk = nlctx->ethnl_socket;
+	int ret;
+
+	ret = mnl_attr_parse(msgbuff->nlhdr, GENL_HDRLEN, attr_cb, &tb_info);
+	if (ret < 0)
+		return ret;
+	if (!tb[ETHTOOL_A_LINKMODES_AUTONEG] || tb[ETHTOOL_A_LINKMODES_OURS] ||
+	    tb[ETHTOOL_A_LINKMODES_SPEED] || tb[ETHTOOL_A_LINKMODES_DUPLEX])
+		return 0;
+	if (!mnl_attr_get_u8(tb[ETHTOOL_A_LINKMODES_AUTONEG]))
+		return 0;
+
+	/* all conditions satisfied, create ETHTOOL_A_LINKMODES_OURS */
+	if (netlink_cmd_check(nlctx->ctx, ETHTOOL_MSG_LINKMODES_GET, false) ||
+	    netlink_cmd_check(nlctx->ctx, ETHTOOL_MSG_LINKMODES_SET, false))
+		return -EOPNOTSUPP;
+	ret = nlsock_prep_get_request(nlsk, ETHTOOL_MSG_LINKMODES_GET,
+				      ETHTOOL_A_LINKMODES_HEADER,
+				      ETHTOOL_FLAG_COMPACT_BITSETS);
+	if (ret < 0)
+		return ret;
+	ret = nlsock_sendmsg(nlsk, NULL);
+	if (ret < 0)
+		return ret;
+	return nlsock_process_reply(nlsk, linkmodes_reply_advert_all_cb,
+				    msgbuff);
+}
+
 int nl_sset(struct cmd_context *ctx)
 {
+	struct nl_msg_buff *msgbuffs[SSET_MAX_MSGS] = {};
 	struct nl_context *nlctx = ctx->nlctx;
+	unsigned int i;
 	int ret;
 
 	nlctx->cmd = "-s";
@@ -1120,11 +1227,34 @@ int nl_sset(struct cmd_context *ctx)
 	nlctx->argc = ctx->argc;
 	nlctx->devname = ctx->devname;
 
-	ret = nl_parser(nlctx, sset_params, NULL, PARSER_GROUP_MSG);
-	if (ret < 0)
-		return 1;
+	ret = nl_parser(nlctx, sset_params, NULL, PARSER_GROUP_MSG, msgbuffs);
+	if (ret < 0) {
+		ret = 1;
+		goto out_free;
+	}
 
-	if (ret == 0)
-		return 0;
+	for (i = 0; i < SSET_MAX_MSGS && msgbuffs[i]; i++) {
+		struct nl_socket *nlsk = nlctx->ethnl_socket;
+
+		if (msgbuffs[i]->genlhdr->cmd == ETHTOOL_MSG_LINKMODES_SET) {
+			ret = nl_sset_compat_linkmodes(nlctx, msgbuffs[i]);
+			if (ret < 0)
+				goto out_free;
+		}
+		ret = nlsock_sendmsg(nlsk, msgbuffs[i]);
+		if (ret < 0)
+			goto out_free;
+		ret = nlsock_process_reply(nlsk, nomsg_reply_cb, NULL);
+		if (ret < 0)
+			goto out_free;
+	}
+
+out_free:
+	for (i = 0; i < SSET_MAX_MSGS && msgbuffs[i]; i++) {
+		msgbuff_done(msgbuffs[i]);
+		free(msgbuffs[i]);
+	}
+	if (ret >= 0)
+		return ret;
 	return nlctx->exit_code ?: 75;
 }

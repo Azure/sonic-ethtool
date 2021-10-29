@@ -287,9 +287,10 @@ static struct test_case {
 	{ 0, "--set-fec devname encoding off" },
 	{ 0, "--set-fec devname encoding baser rs" },
 	{ 0, "--set-fec devname encoding auto auto" },
-	{ 1, "--set-fec devname encoding foo" },
-	{ 1, "--set-fec devname encoding auto foo" },
-	{ 1, "--set-fec devname encoding none" },
+	/* encoding names are validated by kernel with netlink */
+	{ !IS_NL, "--set-fec devname encoding foo" },
+	{ !IS_NL, "--set-fec devname encoding auto foo" },
+	{ !IS_NL, "--set-fec devname encoding none" },
 	{ 1, "--set-fec devname auto" },
 	/* can't test --set-priv-flags yet */
 	{ 0, "-h" },
@@ -300,7 +301,7 @@ static struct test_case {
 	{ 1, "-0" },
 };
 
-int send_ioctl(struct cmd_context *ctx, void *cmd)
+int send_ioctl(struct cmd_context *ctx __maybe_unused, void *cmd __maybe_unused)
 {
 	/* If we get this far then parsing succeeded */
 	test_exit(0);
@@ -310,7 +311,8 @@ int send_ioctl(struct cmd_context *ctx, void *cmd)
 struct nl_socket;
 struct nl_msg_buff;
 
-ssize_t nlsock_sendmsg(struct nl_socket *nlsk, struct nl_msg_buff *altbuff)
+ssize_t nlsock_sendmsg(struct nl_socket *nlsk __maybe_unused,
+		       struct nl_msg_buff *altbuff __maybe_unused)
 {
 	/* If we get this far then parsing succeeded */
 	test_exit(0);

@@ -72,6 +72,16 @@ static void exit_bad_args(void)
 	exit(1);
 }
 
+static void exit_nlonly_param(const char *name) __attribute__((noreturn));
+
+static void exit_nlonly_param(const char *name)
+{
+	fprintf(stderr,
+		"ethtool: parameter '%s' can be used only with netlink\n",
+		name);
+	exit(1);
+}
+
 typedef enum {
 	CMDL_NONE,
 	CMDL_BOOL,
@@ -2112,7 +2122,7 @@ static int do_gchannels(struct cmd_context *ctx)
 		if (err)
 			return err;
 	} else {
-		perror("Cannot get device channel parameters\n");
+		perror("Cannot get device channel parameters");
 		return 1;
 	}
 	return 0;
@@ -3066,6 +3076,8 @@ static int do_sset(struct cmd_context *ctx)
 					ARRAY_SIZE(cmdline_msglvl));
 				break;
 			}
+		} else if (!strcmp(argp[i], "master-slave")) {
+			exit_nlonly_param(argp[i]);
 		} else {
 			exit_bad_args();
 		}
@@ -4601,7 +4613,7 @@ static int do_getfwdump(struct cmd_context *ctx)
 
 	err = send_ioctl(ctx, &edata);
 	if (err < 0) {
-		perror("Can not get dump level\n");
+		perror("Can not get dump level");
 		return 1;
 	}
 	if (dump_flag != ETHTOOL_GET_DUMP_DATA) {
@@ -4611,14 +4623,14 @@ static int do_getfwdump(struct cmd_context *ctx)
 	}
 	data = calloc(1, offsetof(struct ethtool_dump, data) + edata.len);
 	if (!data) {
-		perror("Can not allocate enough memory\n");
+		perror("Can not allocate enough memory");
 		return 1;
 	}
 	data->cmd = ETHTOOL_GET_DUMP_DATA;
 	data->len = edata.len;
 	err = send_ioctl(ctx, data);
 	if (err < 0) {
-		perror("Can not get dump data\n");
+		perror("Can not get dump data");
 		err = 1;
 		goto free;
 	}
@@ -4642,7 +4654,7 @@ static int do_setfwdump(struct cmd_context *ctx)
 	dump.flag = dump_flag;
 	err = send_ioctl(ctx, &dump);
 	if (err < 0) {
-		perror("Can not set dump level\n");
+		perror("Can not set dump level");
 		return 1;
 	}
 	return 0;
@@ -4855,7 +4867,12 @@ static int do_getmodule(struct cmd_context *ctx)
 	eeprom->offset = geeprom_offset;
 	err = send_ioctl(ctx, eeprom);
 	if (err < 0) {
+		int saved_errno = errno;
+
 		perror("Cannot get Module EEPROM data");
+		if (saved_errno == ENODEV || saved_errno == EIO ||
+		    saved_errno == ENXIO)
+			fprintf(stderr, "SFP module not in cage?\n");
 		free(eeprom);
 		return 1;
 	}
@@ -5602,7 +5619,9 @@ static int show_usage(struct cmd_context *ctx);
 struct option {
 	const char	*opts;
 	bool		no_dev;
+	bool		json;
 	int		(*func)(struct cmd_context *);
+	nl_chk_t	nlchk;
 	nl_func_t	nlfunc;
 	const char	*help;
 	const char	*xhelp;
@@ -5610,11 +5629,19 @@ struct option {
 
 static const struct option args[] = {
 	{
+		/* "default" entry when no switch is used */
+		.opts	= "",
+		.func	= do_gset,
+		.nlfunc	= nl_gset,
+		.help	= "Display standard information about device",
+	},
+	{
 		.opts	= "-s|--change",
 		.func	= do_sset,
 		.nlfunc	= nl_sset,
 		.help	= "Change generic options",
 		.xhelp	= "		[ speed %d ]\n"
+			  "		[ lanes %d ]\n"
 			  "		[ duplex half|full ]\n"
 			  "		[ port tp|aui|bnc|mii|fibre|da ]\n"
 			  "		[ mdix auto|on|off ]\n"
@@ -5625,10 +5652,11 @@ static const struct option args[] = {
 			  "		[ wol %d[/%d] | p|u|m|b|a|g|s|f|d... ]\n"
 			  "		[ sopass %x:%x:%x:%x:%x:%x ]\n"
 			  "		[ msglvl %d[/%d] | type on|off ... [--] ]\n"
-			  "		[ master-slave master-preferred|slave-preferred|master-force|slave-force ]\n"
+			  "		[ master-slave preferred-master|preferred-slave|forced-master|forced-slave ]\n"
 	},
 	{
 		.opts	= "-a|--show-pause",
+		.json	= true,
 		.func	= do_gpause,
 		.nlfunc	= nl_gpause,
 		.help	= "Show pause options"
@@ -5753,8 +5781,12 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "-S|--statistics",
+		.json	= true,
 		.func	= do_gnicstats,
-		.help	= "Show adapter statistics"
+		.nlchk	= nl_gstats_chk,
+		.nlfunc	= nl_gstats,
+		.help	= "Show adapter statistics",
+		.xhelp	= "               [ --all-groups | --groups [eth-phy] [eth-mac] [eth-ctrl] [rmon] ]\n"
 	},
 	{
 		.opts	= "--phy-statistics",
@@ -5875,11 +5907,15 @@ static const struct option args[] = {
 	{
 		.opts	= "-m|--dump-module-eeprom|--module-info",
 		.func	= do_getmodule,
+		.nlfunc = nl_getmodule,
 		.help	= "Query/Decode Module EEPROM information and optical diagnostics if available",
 		.xhelp	= "		[ raw on|off ]\n"
 			  "		[ hex on|off ]\n"
 			  "		[ offset N ]\n"
 			  "		[ length N ]\n"
+			  "		[ page N ]\n"
+			  "		[ bank N ]\n"
+			  "		[ i2c N ]\n"
 	},
 	{
 		.opts	= "--show-eee",
@@ -5957,12 +5993,15 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--show-fec",
+		.json	= true,
 		.func	= do_gfec,
+		.nlfunc	= nl_gfec,
 		.help	= "Show FEC settings",
 	},
 	{
 		.opts	= "--set-fec",
 		.func	= do_sfec,
+		.nlfunc	= nl_sfec,
 		.help	= "Set FEC settings",
 		.xhelp	= "		[ encoding auto|off|rs|baser|llrs [...]]\n"
 	},
@@ -5975,11 +6014,13 @@ static const struct option args[] = {
 	},
 	{
 		.opts	= "--cable-test",
+		.json	= true,
 		.nlfunc	= nl_cable_test,
 		.help	= "Perform a cable test",
 	},
 	{
 		.opts	= "--cable-test-tdr",
+		.json	= true,
 		.nlfunc	= nl_cable_test_tdr,
 		.help	= "Print cable test time domain reflectrometery data",
 		.xhelp	= "		[ first N ]\n"
@@ -6013,12 +6054,9 @@ static int show_usage(struct cmd_context *ctx __maybe_unused)
 
 	/* ethtool -h */
 	fprintf(stdout, PACKAGE " version " VERSION "\n");
-	fprintf(stdout,
-		"Usage:\n"
-		"        ethtool [ --debug MASK ][ --json ] DEVNAME\t"
-		"Display standard information about device\n");
+	fprintf(stdout,	"Usage:\n");
 	for (i = 0; args[i].opts; i++) {
-		fputs("        ethtool [ --debug MASK ][ --json ] ", stdout);
+		fputs("        ethtool [ FLAGS ] ", stdout);
 		fprintf(stdout, "%s %s\t%s\n",
 			args[i].opts,
 			args[i].no_dev ? "\t" : "DEVNAME",
@@ -6027,7 +6065,11 @@ static int show_usage(struct cmd_context *ctx __maybe_unused)
 			fputs(args[i].xhelp, stdout);
 	}
 	nl_monitor_usage();
-	fprintf(stdout, "Not all options support JSON output\n");
+	fprintf(stdout, "\n");
+	fprintf(stdout, "FLAGS:\n");
+	fprintf(stdout, "	--debug MASK	turn on debugging messages\n");
+	fprintf(stdout, "	--json		enable JSON output format (not supported by all commands)\n");
+	fprintf(stdout, "	-I|--include-statistics		request device statistics related to the command (not supported by all commands)\n");
 
 	return 0;
 }
@@ -6038,7 +6080,7 @@ static int find_option(char *arg)
 	size_t len;
 	int k;
 
-	for (k = 0; args[k].opts; k++) {
+	for (k = 1; args[k].opts; k++) {
 		opt = args[k].opts;
 		for (;;) {
 			len = strcspn(opt, "|");
@@ -6255,10 +6297,7 @@ static int ioctl_init(struct cmd_context *ctx, bool no_dev)
 
 int main(int argc, char **argp)
 {
-	int (*func)(struct cmd_context *);
 	struct cmd_context ctx = {};
-	nl_func_t nlfunc = NULL;
-	bool no_dev;
 	int ret;
 	int k;
 
@@ -6288,6 +6327,13 @@ int main(int argc, char **argp)
 			argc -= 1;
 			continue;
 		}
+		if (*argp && (!strcmp(*argp, "--include-statistics") ||
+			      !strcmp(*argp, "-I"))) {
+			ctx.show_stats = true;
+			argp += 1;
+			argc -= 1;
+			continue;
+		}
 		break;
 	}
 	if (*argp && !strcmp(*argp, "--monitor")) {
@@ -6305,35 +6351,34 @@ int main(int argc, char **argp)
 		exit_bad_args();
 
 	k = find_option(*argp);
-	if (k >= 0) {
+	if (k > 0) {
 		argp++;
 		argc--;
-		func = args[k].func;
-		nlfunc = args[k].nlfunc;
-		no_dev = args[k].no_dev;
-		goto opt_found;
+	} else {
+		if ((*argp)[0] == '-')
+			exit_bad_args();
+		k = 0;
 	}
-	if ((*argp)[0] == '-')
-		exit_bad_args();
-	nlfunc = nl_gset;
-	func = do_gset;
-	no_dev = false;
 
-opt_found:
-	if (!no_dev) {
+	if (!args[k].no_dev) {
 		ctx.devname = *argp++;
 		argc--;
 
 		if (!ctx.devname)
 			exit_bad_args();
 	}
+	if (ctx.json && !args[k].json)
+		exit_bad_args();
 	ctx.argc = argc;
 	ctx.argp = argp;
-	netlink_run_handler(&ctx, nlfunc, !func);
+	netlink_run_handler(&ctx, args[k].nlchk, args[k].nlfunc, !args[k].func);
 
-	ret = ioctl_init(&ctx, no_dev);
+	if (ctx.json) /* no IOCTL command supports JSON output */
+		exit_bad_args();
+
+	ret = ioctl_init(&ctx, args[k].no_dev);
 	if (ret)
 		return ret;
 
-	return func(&ctx);
+	return args[k].func(&ctx);
 }

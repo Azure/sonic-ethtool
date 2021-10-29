@@ -11,11 +11,12 @@ struct cmd_context;
 struct nl_context;
 
 typedef int (*nl_func_t)(struct cmd_context *);
+typedef bool (*nl_chk_t)(struct cmd_context *);
 
 #ifdef ETHTOOL_ENABLE_NETLINK
 
-void netlink_run_handler(struct cmd_context *ctx, nl_func_t nlfunc,
-			 bool no_fallback);
+void netlink_run_handler(struct cmd_context *ctx, nl_chk_t nlchk,
+			 nl_func_t nlfunc, bool no_fallback);
 
 int nl_gset(struct cmd_context *ctx);
 int nl_sset(struct cmd_context *ctx);
@@ -38,13 +39,19 @@ int nl_tsinfo(struct cmd_context *ctx);
 int nl_cable_test(struct cmd_context *ctx);
 int nl_cable_test_tdr(struct cmd_context *ctx);
 int nl_gtunnels(struct cmd_context *ctx);
+int nl_gfec(struct cmd_context *ctx);
+int nl_sfec(struct cmd_context *ctx);
+bool nl_gstats_chk(struct cmd_context *ctx);
+int nl_gstats(struct cmd_context *ctx);
 int nl_monitor(struct cmd_context *ctx);
+int nl_getmodule(struct cmd_context *ctx);
 
 void nl_monitor_usage(void);
 
 #else /* ETHTOOL_ENABLE_NETLINK */
 
 static inline void netlink_run_handler(struct cmd_context *ctx __maybe_unused,
+				       nl_chk_t nlchk __maybe_unused,
 				       nl_func_t nlfunc __maybe_unused,
 				       bool no_fallback)
 {
@@ -87,6 +94,11 @@ static inline void nl_monitor_usage(void)
 #define nl_cable_test		NULL
 #define nl_cable_test_tdr	NULL
 #define nl_gtunnels		NULL
+#define nl_gfec			NULL
+#define nl_sfec			NULL
+#define nl_gstats_chk		NULL
+#define nl_gstats		NULL
+#define nl_getmodule		NULL
 
 #endif /* ETHTOOL_ENABLE_NETLINK */
 

@@ -67,6 +67,10 @@ static struct {
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_TDR_NTF,
 		.cb	= cable_test_tdr_ntf_cb,
 	},
+	{
+		.cmd	= ETHTOOL_MSG_FEC_NTF,
+		.cb	= fec_reply_cb,
+	},
 };
 
 static void clear_filter(struct nl_context *nlctx)
