@@ -560,7 +560,7 @@ int linkinfo_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 		print_enum(names_transceiver, ARRAY_SIZE(names_transceiver),
 			   val, "Transceiver");
 	}
-	if (tb[ETHTOOL_A_LINKINFO_TP_MDIX] && tb[ETHTOOL_A_LINKINFO_TP_MDIX] &&
+	if (tb[ETHTOOL_A_LINKINFO_TP_MDIX] && tb[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL] &&
 	    port == PORT_TP) {
 		uint8_t mdix = mnl_attr_get_u8(tb[ETHTOOL_A_LINKINFO_TP_MDIX]);
 		uint8_t mdix_ctrl =
