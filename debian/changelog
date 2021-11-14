@@ -1,4 +1,4 @@
-ethtool (1:5.14-1) UNRELEASED; urgency=medium
+ethtool (1:5.15-1) UNRELEASED; urgency=medium
 
   [ Romain Perier ]
   * New upstream release (Closes: #998009)
@@ -6,6 +6,7 @@ ethtool (1:5.14-1) UNRELEASED; urgency=medium
   [ Salvatore Bonaccorso ]
   * Bump Debhelper compat level to 13
   * Declare compliance with Debian policy 4.6.0
+  * New upstream release: 5.15
 
  -- Romain Perier <romain.perier@gmail.com>  Fri, 29 Oct 2021 16:09:50 +0200
 
