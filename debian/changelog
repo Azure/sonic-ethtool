@@ -5,6 +5,7 @@ ethtool (1:5.14-1) UNRELEASED; urgency=medium
 
   [ Salvatore Bonaccorso ]
   * Bump Debhelper compat level to 13
+  * Declare compliance with Debian policy 4.6.0
 
  -- Romain Perier <romain.perier@gmail.com>  Fri, 29 Oct 2021 16:09:50 +0200
 
