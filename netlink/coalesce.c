@@ -66,6 +66,10 @@ int coalesce_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 	show_u32(tb[ETHTOOL_A_COALESCE_TX_USECS_HIGH], "tx-usecs-high: ");
 	show_u32(tb[ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH], "tx-frame-high: ");
 	putchar('\n');
+	show_bool("rx", "CQE mode RX: %s  ",
+		  tb[ETHTOOL_A_COALESCE_USE_CQE_MODE_RX]);
+	show_bool("tx", "TX: %s\n", tb[ETHTOOL_A_COALESCE_USE_CQE_MODE_TX]);
+	putchar('\n');
 
 	return MNL_CB_OK;
 }
@@ -224,6 +228,18 @@ static const struct param_parser scoalesce_params[] = {
 		.arg		= "tx-frames-high",
 		.type		= ETHTOOL_A_COALESCE_TX_MAX_FRAMES_HIGH,
 		.handler	= nl_parse_direct_u32,
+		.min_argc	= 1,
+	},
+	{
+		.arg		= "cqe-mode-rx",
+		.type		= ETHTOOL_A_COALESCE_USE_CQE_MODE_RX,
+		.handler	= nl_parse_u8bool,
+		.min_argc	= 1,
+	},
+	{
+		.arg		= "cqe-mode-tx",
+		.type		= ETHTOOL_A_COALESCE_USE_CQE_MODE_TX,
+		.handler	= nl_parse_u8bool,
 		.min_argc	= 1,
 	},
 	{}

@@ -1,3 +1,9 @@
+Version 5.15 - November 9, 2021
+	* Feature: new extended link substates for bad signal (no arg)
+	* Feature: coalesce cqe mode attributes (-c and -C)
+	* Fix: multiple fixes of EEPROM module data parsing (-m)
+	* Fix: fix condition to display MDI-X info (no arg)
+
 Version 5.14 - September 12, 2021
 	* Feature: do not silently ignore --json if unsupported
 	* Feature: support new message types in pretty print

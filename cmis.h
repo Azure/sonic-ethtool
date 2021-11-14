@@ -11,7 +11,7 @@
 
 /* Module-Level Monitors (Page 0) */
 #define CMIS_CURR_TEMP_OFFSET			0x0E
-#define CMIS_CURR_CURR_OFFSET			0x10
+#define CMIS_CURR_VCC_OFFSET			0x10
 
 #define CMIS_CTOR_OFFSET			0xCB
 
@@ -34,10 +34,10 @@
 #define CMIS_DATE_VENDOR_LOT_OFFSET		0xBC
 
 /* CLEI Code (Page 0) */
-#define CMIS_CLEI_PRESENT_BYTE			0x02
-#define CMIS_CLEI_PRESENT_MASK			0x20
 #define CMIS_CLEI_START_OFFSET			0xBE
 #define CMIS_CLEI_END_OFFSET			0xC7
+#define CMIS_CLEI_BLANK				"          "
+#define CMIS_CLEI_LEN				0x0A
 
 /* Cable assembly length */
 #define CMIS_CBL_ASM_LEN_OFFSET			0xCA

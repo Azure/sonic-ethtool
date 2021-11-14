@@ -560,7 +560,7 @@ int linkinfo_reply_cb(const struct nlmsghdr *nlhdr, void *data)
 		print_enum(names_transceiver, ARRAY_SIZE(names_transceiver),
 			   val, "Transceiver");
 	}
-	if (tb[ETHTOOL_A_LINKINFO_TP_MDIX] && tb[ETHTOOL_A_LINKINFO_TP_MDIX] &&
+	if (tb[ETHTOOL_A_LINKINFO_TP_MDIX] && tb[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL] &&
 	    port == PORT_TP) {
 		uint8_t mdix = mnl_attr_get_u8(tb[ETHTOOL_A_LINKINFO_TP_MDIX]);
 		uint8_t mdix_ctrl =
@@ -639,6 +639,10 @@ static const char *const names_bad_signal_integrity_link_ext_substate[] = {
 		"Large number of physical errors",
 	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE]		=
 		"Unsupported rate",
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_REFERENCE_CLOCK_LOST]	=
+		"Serdes reference clock lost",
+	[ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_ALOS]			=
+		"Serdes ALOS",
 };
 
 static const char *const names_cable_issue_link_ext_substate[] = {

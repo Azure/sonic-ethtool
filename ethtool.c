@@ -1089,12 +1089,12 @@ static int parse_hkey(char **rss_hkey, u32 key_size,
 	return 0;
 }
 
+#ifdef ETHTOOL_ENABLE_PRETTY_DUMP
 static const struct {
 	const char *name;
 	int (*func)(struct ethtool_drvinfo *info, struct ethtool_regs *regs);
 
 } driver_list[] = {
-#ifdef ETHTOOL_ENABLE_PRETTY_DUMP
 	{ "8139cp", realtek_dump_regs },
 	{ "8139too", realtek_dump_regs },
 	{ "r8169", realtek_dump_regs },
@@ -1129,8 +1129,8 @@ static const struct {
 	{ "fec", fec_dump_regs },
 	{ "igc", igc_dump_regs },
 	{ "bnxt_en", bnxt_dump_regs },
-#endif
 };
+#endif
 
 void dump_hex(FILE *file, const u8 *data, int len, int offset)
 {
@@ -1149,14 +1149,15 @@ void dump_hex(FILE *file, const u8 *data, int len, int offset)
 static int dump_regs(int gregs_dump_raw, int gregs_dump_hex,
 		     struct ethtool_drvinfo *info, struct ethtool_regs *regs)
 {
-	unsigned int i;
-
 	if (gregs_dump_raw) {
 		fwrite(regs->data, regs->len, 1, stdout);
 		goto nested;
 	}
 
-	if (!gregs_dump_hex)
+#ifdef ETHTOOL_ENABLE_PRETTY_DUMP
+	if (!gregs_dump_hex) {
+		unsigned int i;
+
 		for (i = 0; i < ARRAY_SIZE(driver_list); i++)
 			if (!strncmp(driver_list[i].name, info->driver,
 				     ETHTOOL_BUSINFO_LEN)) {
@@ -1168,6 +1169,8 @@ static int dump_regs(int gregs_dump_raw, int gregs_dump_hex,
 				 */
 				break;
 			}
+	}
+#endif
 
 	dump_hex(stdout, regs->data, regs->len, 0);
 
@@ -5703,6 +5706,8 @@ static const struct option args[] = {
 			  "		[tx-usecs-high N]\n"
 			  "		[tx-frames-high N]\n"
 			  "		[sample-interval N]\n"
+			  "		[cqe-mode-rx on|off]\n"
+			  "		[cqe-mode-tx on|off]\n"
 	},
 	{
 		.opts	= "-g|--show-ring",

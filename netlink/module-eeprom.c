@@ -275,6 +275,7 @@ static int page_fetch(struct nl_context *nlctx, const struct ethtool_module_eepr
 	return nlsock_process_reply(nlsock, nomsg_reply_cb, NULL);
 }
 
+#ifdef ETHTOOL_ENABLE_PRETTY_DUMP
 static int decoder_prefetch(struct nl_context *nlctx)
 {
 	struct ethtool_module_eeprom *page_zero_lower = cache_get(0, 0, ETH_I2C_ADDRESS_LOW);
@@ -338,6 +339,7 @@ static void decoder_print(void)
 		break;
 	}
 }
+#endif
 
 int nl_getmodule(struct cmd_context *ctx)
 {
@@ -363,6 +365,16 @@ int nl_getmodule(struct cmd_context *ctx)
 	if (getmodule_cmd_params.dump_hex && getmodule_cmd_params.dump_raw) {
 		fprintf(stderr, "Hex and raw dump cannot be specified together\n");
 		return -EINVAL;
+	}
+
+	/* When complete hex/raw dump of the EEPROM is requested, fallback to
+	 * ioctl. Netlink can only request specific pages.
+	 */
+	if ((getmodule_cmd_params.dump_hex || getmodule_cmd_params.dump_raw) &&
+	    !getmodule_cmd_params.page && !getmodule_cmd_params.bank &&
+	    !getmodule_cmd_params.i2c_address) {
+		nlctx->ioctl_fallback = true;
+		return -EOPNOTSUPP;
 	}
 
 	request.i2c_address = ETH_I2C_ADDRESS_LOW;
@@ -404,10 +416,12 @@ int nl_getmodule(struct cmd_context *ctx)
 		else
 			dump_hex(stdout, eeprom_data, dump_length, request.offset);
 	} else {
+#ifdef ETHTOOL_ENABLE_PRETTY_DUMP
 		ret = decoder_prefetch(nlctx);
 		if (ret)
 			goto cleanup;
 		decoder_print();
+#endif
 	}
 
 cleanup:

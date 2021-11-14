@@ -117,7 +117,7 @@
 .  hy \\n(HY
 ..
 .
-.TH ETHTOOL 8 "September 2021" "Ethtool version @VERSION@"
+.TH ETHTOOL 8 "November 2021" "Ethtool version @VERSION@"
 .SH NAME
 ethtool \- query or control network driver and hardware settings
 .
@@ -186,6 +186,8 @@ ethtool \- query or control network driver and hardware settings
 .BN tx\-usecs\-high
 .BN tx\-frames\-high
 .BN sample\-interval
+.B2 cqe\-mode\-rx on off
+.B2 cqe\-mode\-tx on off
 .HP
 .B ethtool \-g|\-\-show\-ring
 .I devname
