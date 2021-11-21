@@ -4,6 +4,8 @@
 /* Identifier and revision compliance (Page 0) */
 #define CMIS_ID_OFFSET				0x00
 #define CMIS_REV_COMPLIANCE_OFFSET		0x01
+#define CMIS_MEMORY_MODEL_OFFSET		0x02
+#define CMIS_MEMORY_MODEL_MASK			0x80
 
 #define CMIS_MODULE_TYPE_OFFSET			0x55
 #define CMIS_MT_MMF				0x01
@@ -98,7 +100,6 @@
  * that are unique to active modules and cable assemblies.
  * GlobalOffset = 2 * 0x80 + LocalOffset
  */
-#define PAG01H_UPPER_OFFSET			(0x02 * 0x80)
 
 /* Supported Link Length (Page 1) */
 #define CMIS_SMF_LEN_OFFSET			0x84
@@ -120,9 +121,8 @@
 #define YESNO(x) (((x) != 0) ? "Yes" : "No")
 #define ONOFF(x) (((x) != 0) ? "On" : "Off")
 
-void qsfp_dd_show_all(const __u8 *id);
+void cmis_show_all_ioctl(const __u8 *id);
 
-void cmis_show_all(const struct ethtool_module_eeprom *page_zero,
-		   const struct ethtool_module_eeprom *page_one);
+int cmis_show_all_nl(struct cmd_context *ctx);
 
 #endif /* CMIS_H__ */

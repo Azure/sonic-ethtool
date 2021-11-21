@@ -9,23 +9,35 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
 #include "internal.h"
 #include "sff-common.h"
 #include "cmis.h"
+#include "netlink/extapi.h"
 
-static void cmis_show_identifier(const __u8 *id)
+struct cmis_memory_map {
+	const __u8 *lower_memory;
+	const __u8 *upper_memory[1][2];	/* Bank, Page */
+#define page_00h upper_memory[0x0][0x0]
+#define page_01h upper_memory[0x0][0x1]
+};
+
+#define CMIS_PAGE_SIZE		0x80
+#define CMIS_I2C_ADDRESS	0x50
+
+static void cmis_show_identifier(const struct cmis_memory_map *map)
 {
-	sff8024_show_identifier(id, CMIS_ID_OFFSET);
+	sff8024_show_identifier(map->lower_memory, CMIS_ID_OFFSET);
 }
 
-static void cmis_show_connector(const __u8 *id)
+static void cmis_show_connector(const struct cmis_memory_map *map)
 {
-	sff8024_show_connector(id, CMIS_CTOR_OFFSET);
+	sff8024_show_connector(map->page_00h, CMIS_CTOR_OFFSET);
 }
 
-static void cmis_show_oui(const __u8 *id)
+static void cmis_show_oui(const struct cmis_memory_map *map)
 {
-	sff8024_show_oui(id, CMIS_VENDOR_OUI_OFFSET);
+	sff8024_show_oui(map->page_00h, CMIS_VENDOR_OUI_OFFSET);
 }
 
 /**
@@ -33,9 +45,9 @@ static void cmis_show_oui(const __u8 *id)
  * [1] CMIS Rev. 3, pag. 45, section 1.7.2.1, Table 18
  * [2] CMIS Rev. 4, pag. 81, section 8.2.1, Table 8-2
  */
-static void cmis_show_rev_compliance(const __u8 *id)
+static void cmis_show_rev_compliance(const struct cmis_memory_map *map)
 {
-	__u8 rev = id[CMIS_REV_COMPLIANCE_OFFSET];
+	__u8 rev = map->lower_memory[CMIS_REV_COMPLIANCE_OFFSET];
 	int major = (rev >> 4) & 0x0F;
 	int minor = rev & 0x0F;
 
@@ -49,17 +61,17 @@ static void cmis_show_rev_compliance(const __u8 *id)
  * [2] CMIS Rev. 4, pag. 94, section 8.3.9, Table 8-18
  * [3] QSFP-DD Hardware Rev 5.0, pag. 22, section 4.2.1
  */
-static void cmis_show_power_info(const __u8 *id)
+static void cmis_show_power_info(const struct cmis_memory_map *map)
 {
 	float max_power = 0.0f;
 	__u8 base_power = 0;
 	__u8 power_class;
 
 	/* Get the power class (first 3 most significat bytes) */
-	power_class = (id[CMIS_PWR_CLASS_OFFSET] >> 5) & 0x07;
+	power_class = (map->page_00h[CMIS_PWR_CLASS_OFFSET] >> 5) & 0x07;
 
 	/* Get the base power in multiples of 0.25W */
-	base_power = id[CMIS_PWR_MAX_POWER_OFFSET];
+	base_power = map->page_00h[CMIS_PWR_MAX_POWER_OFFSET];
 	max_power = base_power * 0.25f;
 
 	printf("\t%-41s : %d\n", "Power class", power_class + 1);
@@ -74,20 +86,20 @@ static void cmis_show_power_info(const __u8 *id)
  * [1] CMIS Rev. 3, pag. 59, section 1.7.3.10, Table 31
  * [2] CMIS Rev. 4, pag. 94, section 8.3.10, Table 8-19
  */
-static void cmis_show_cbl_asm_len(const __u8 *id)
+static void cmis_show_cbl_asm_len(const struct cmis_memory_map *map)
 {
 	static const char *fn = "Cable assembly length";
 	float mul = 1.0f;
 	float val = 0.0f;
 
 	/* Check if max length */
-	if (id[CMIS_CBL_ASM_LEN_OFFSET] == CMIS_6300M_MAX_LEN) {
+	if (map->page_00h[CMIS_CBL_ASM_LEN_OFFSET] == CMIS_6300M_MAX_LEN) {
 		printf("\t%-41s : > 6.3km\n", fn);
 		return;
 	}
 
 	/* Get the multiplier from the first two bits */
-	switch (id[CMIS_CBL_ASM_LEN_OFFSET] & CMIS_LEN_MUL_MASK) {
+	switch (map->page_00h[CMIS_CBL_ASM_LEN_OFFSET] & CMIS_LEN_MUL_MASK) {
 	case CMIS_MULTIPLIER_00:
 		mul = 0.1f;
 		break;
@@ -105,7 +117,7 @@ static void cmis_show_cbl_asm_len(const __u8 *id)
 	}
 
 	/* Get base value from first 6 bits and multiply by mul */
-	val = (id[CMIS_CBL_ASM_LEN_OFFSET] & CMIS_LEN_VAL_MASK);
+	val = (map->page_00h[CMIS_CBL_ASM_LEN_OFFSET] & CMIS_LEN_VAL_MASK);
 	val = (float)val * mul;
 	printf("\t%-41s : %0.2fm\n", fn, val);
 }
@@ -117,14 +129,17 @@ static void cmis_show_cbl_asm_len(const __u8 *id)
  * [1] CMIS Rev. 3, pag. 63, section 1.7.4.2, Table 39
  * [2] CMIS Rev. 4, pag. 99, section 8.4.2, Table 8-27
  */
-static void cmis_print_smf_cbl_len(const __u8 *id)
+static void cmis_print_smf_cbl_len(const struct cmis_memory_map *map)
 {
 	static const char *fn = "Length (SMF)";
 	float mul = 1.0f;
 	float val = 0.0f;
 
+	if (!map->page_01h)
+		return;
+
 	/* Get the multiplier from the first two bits */
-	switch (id[CMIS_SMF_LEN_OFFSET] & CMIS_LEN_MUL_MASK) {
+	switch (map->page_01h[CMIS_SMF_LEN_OFFSET] & CMIS_LEN_MUL_MASK) {
 	case CMIS_MULTIPLIER_00:
 		mul = 0.1f;
 		break;
@@ -136,7 +151,7 @@ static void cmis_print_smf_cbl_len(const __u8 *id)
 	}
 
 	/* Get base value from first 6 bits and multiply by mul */
-	val = (id[CMIS_SMF_LEN_OFFSET] & CMIS_LEN_VAL_MASK);
+	val = (map->page_01h[CMIS_SMF_LEN_OFFSET] & CMIS_LEN_VAL_MASK);
 	val = (float)val * mul;
 	printf("\t%-41s : %0.2fkm\n", fn, val);
 }
@@ -146,21 +161,24 @@ static void cmis_print_smf_cbl_len(const __u8 *id)
  * [1] CMIS Rev. 3, pag. 71, section 1.7.4.10, Table 46
  * [2] CMIS Rev. 4, pag. 105, section 8.4.10, Table 8-34
  */
-static void cmis_show_sig_integrity(const __u8 *id)
+static void cmis_show_sig_integrity(const struct cmis_memory_map *map)
 {
+	if (!map->page_01h)
+		return;
+
 	/* CDR Bypass control: 2nd bit from each byte */
 	printf("\t%-41s : ", "Tx CDR bypass control");
-	printf("%s\n", YESNO(id[CMIS_SIG_INTEG_TX_OFFSET] & 0x02));
+	printf("%s\n", YESNO(map->page_01h[CMIS_SIG_INTEG_TX_OFFSET] & 0x02));
 
 	printf("\t%-41s : ", "Rx CDR bypass control");
-	printf("%s\n", YESNO(id[CMIS_SIG_INTEG_RX_OFFSET] & 0x02));
+	printf("%s\n", YESNO(map->page_01h[CMIS_SIG_INTEG_RX_OFFSET] & 0x02));
 
 	/* CDR Implementation: 1st bit from each byte */
 	printf("\t%-41s : ", "Tx CDR");
-	printf("%s\n", YESNO(id[CMIS_SIG_INTEG_TX_OFFSET] & 0x01));
+	printf("%s\n", YESNO(map->page_01h[CMIS_SIG_INTEG_TX_OFFSET] & 0x01));
 
 	printf("\t%-41s : ", "Rx CDR");
-	printf("%s\n", YESNO(id[CMIS_SIG_INTEG_RX_OFFSET] & 0x01));
+	printf("%s\n", YESNO(map->page_01h[CMIS_SIG_INTEG_RX_OFFSET] & 0x01));
 }
 
 /**
@@ -173,14 +191,14 @@ static void cmis_show_sig_integrity(const __u8 *id)
  * --> pag. 98, section 8.4, Table 8-25
  * --> page 100, section 8.4.3, 8.4.4
  */
-static void cmis_show_mit_compliance(const __u8 *id)
+static void cmis_show_mit_compliance(const struct cmis_memory_map *map)
 {
 	static const char *cc = " (Copper cable,";
 
 	printf("\t%-41s : 0x%02x", "Transmitter technology",
-	       id[CMIS_MEDIA_INTF_TECH_OFFSET]);
+	       map->page_00h[CMIS_MEDIA_INTF_TECH_OFFSET]);
 
-	switch (id[CMIS_MEDIA_INTF_TECH_OFFSET]) {
+	switch (map->page_00h[CMIS_MEDIA_INTF_TECH_OFFSET]) {
 	case CMIS_850_VCSEL:
 		printf(" (850 nm VCSEL)\n");
 		break;
@@ -231,22 +249,22 @@ static void cmis_show_mit_compliance(const __u8 *id)
 		break;
 	}
 
-	if (id[CMIS_MEDIA_INTF_TECH_OFFSET] >= CMIS_COPPER_UNEQUAL) {
+	if (map->page_00h[CMIS_MEDIA_INTF_TECH_OFFSET] >= CMIS_COPPER_UNEQUAL) {
 		printf("\t%-41s : %udb\n", "Attenuation at 5GHz",
-		       id[CMIS_COPPER_ATT_5GHZ]);
+		       map->page_00h[CMIS_COPPER_ATT_5GHZ]);
 		printf("\t%-41s : %udb\n", "Attenuation at 7GHz",
-		       id[CMIS_COPPER_ATT_7GHZ]);
+		       map->page_00h[CMIS_COPPER_ATT_7GHZ]);
 		printf("\t%-41s : %udb\n", "Attenuation at 12.9GHz",
-		       id[CMIS_COPPER_ATT_12P9GHZ]);
+		       map->page_00h[CMIS_COPPER_ATT_12P9GHZ]);
 		printf("\t%-41s : %udb\n", "Attenuation at 25.8GHz",
-		       id[CMIS_COPPER_ATT_25P8GHZ]);
-	} else {
+		       map->page_00h[CMIS_COPPER_ATT_25P8GHZ]);
+	} else if (map->page_01h) {
 		printf("\t%-41s : %.3lfnm\n", "Laser wavelength",
-		       (((id[CMIS_NOM_WAVELENGTH_MSB] << 8) |
-				id[CMIS_NOM_WAVELENGTH_LSB]) * 0.05));
+		       (((map->page_01h[CMIS_NOM_WAVELENGTH_MSB] << 8) |
+			  map->page_01h[CMIS_NOM_WAVELENGTH_LSB]) * 0.05));
 		printf("\t%-41s : %.3lfnm\n", "Laser wavelength tolerance",
-		       (((id[CMIS_WAVELENGTH_TOL_MSB] << 8) |
-		       id[CMIS_WAVELENGTH_TOL_LSB]) * 0.005));
+		       (((map->page_01h[CMIS_WAVELENGTH_TOL_MSB] << 8) |
+			  map->page_01h[CMIS_WAVELENGTH_TOL_LSB]) * 0.005));
 	}
 }
 
@@ -266,27 +284,15 @@ static void cmis_show_mit_compliance(const __u8 *id)
  * [2] CMIS Rev. 4:
  * --> pag. 84, section 8.2.4, Table 8-6
  */
-static void cmis_show_mod_lvl_monitors(const __u8 *id)
+static void cmis_show_mod_lvl_monitors(const struct cmis_memory_map *map)
 {
+	const __u8 *id = map->lower_memory;
+
 	PRINT_TEMP("Module temperature",
 		   OFFSET_TO_TEMP(CMIS_CURR_TEMP_OFFSET));
 	PRINT_VCC("Module voltage",
 		  OFFSET_TO_U16(CMIS_CURR_VCC_OFFSET));
 }
-
-static void cmis_show_link_len_from_page(const __u8 *page_one_data)
-{
-	cmis_print_smf_cbl_len(page_one_data);
-	sff_show_value_with_unit(page_one_data, CMIS_OM5_LEN_OFFSET,
-				 "Length (OM5)", 2, "m");
-	sff_show_value_with_unit(page_one_data, CMIS_OM4_LEN_OFFSET,
-				 "Length (OM4)", 2, "m");
-	sff_show_value_with_unit(page_one_data, CMIS_OM3_LEN_OFFSET,
-				 "Length (OM3 50/125um)", 2, "m");
-	sff_show_value_with_unit(page_one_data, CMIS_OM2_LEN_OFFSET,
-				 "Length (OM2 50/125um)", 1, "m");
-}
-
 
 /**
  * Print relevant info about the maximum supported fiber media length
@@ -295,9 +301,19 @@ static void cmis_show_link_len_from_page(const __u8 *page_one_data)
  * [1] CMIS Rev. 3, page 64, section 1.7.4.2, Table 39
  * [2] CMIS Rev. 4, page 99, section 8.4.2, Table 8-27
  */
-static void cmis_show_link_len(const __u8 *id)
+static void cmis_show_link_len(const struct cmis_memory_map *map)
 {
-	cmis_show_link_len_from_page(id);
+	cmis_print_smf_cbl_len(map);
+	if (!map->page_01h)
+		return;
+	sff_show_value_with_unit(map->page_01h, CMIS_OM5_LEN_OFFSET,
+				 "Length (OM5)", 2, "m");
+	sff_show_value_with_unit(map->page_01h, CMIS_OM4_LEN_OFFSET,
+				 "Length (OM4)", 2, "m");
+	sff_show_value_with_unit(map->page_01h, CMIS_OM3_LEN_OFFSET,
+				 "Length (OM3 50/125um)", 2, "m");
+	sff_show_value_with_unit(map->page_01h, CMIS_OM2_LEN_OFFSET,
+				 "Length (OM2 50/125um)", 1, "m");
 }
 
 /**
@@ -305,57 +321,133 @@ static void cmis_show_link_len(const __u8 *id)
  * [1] CMIS Rev. 3, page 56, section 1.7.3, Table 27
  * [2] CMIS Rev. 4, page 91, section 8.2, Table 8-15
  */
-static void cmis_show_vendor_info(const __u8 *id)
+static void cmis_show_vendor_info(const struct cmis_memory_map *map)
 {
-	const char *clei = (const char *)(id + CMIS_CLEI_START_OFFSET);
+	const char *clei;
 
-	sff_show_ascii(id, CMIS_VENDOR_NAME_START_OFFSET,
+	sff_show_ascii(map->page_00h, CMIS_VENDOR_NAME_START_OFFSET,
 		       CMIS_VENDOR_NAME_END_OFFSET, "Vendor name");
-	cmis_show_oui(id);
-	sff_show_ascii(id, CMIS_VENDOR_PN_START_OFFSET,
+	cmis_show_oui(map);
+	sff_show_ascii(map->page_00h, CMIS_VENDOR_PN_START_OFFSET,
 		       CMIS_VENDOR_PN_END_OFFSET, "Vendor PN");
-	sff_show_ascii(id, CMIS_VENDOR_REV_START_OFFSET,
+	sff_show_ascii(map->page_00h, CMIS_VENDOR_REV_START_OFFSET,
 		       CMIS_VENDOR_REV_END_OFFSET, "Vendor rev");
-	sff_show_ascii(id, CMIS_VENDOR_SN_START_OFFSET,
+	sff_show_ascii(map->page_00h, CMIS_VENDOR_SN_START_OFFSET,
 		       CMIS_VENDOR_SN_END_OFFSET, "Vendor SN");
-	sff_show_ascii(id, CMIS_DATE_YEAR_OFFSET,
+	sff_show_ascii(map->page_00h, CMIS_DATE_YEAR_OFFSET,
 		       CMIS_DATE_VENDOR_LOT_OFFSET + 1, "Date code");
 
+	clei = (const char *)(map->page_00h + CMIS_CLEI_START_OFFSET);
 	if (*clei && strncmp(clei, CMIS_CLEI_BLANK, CMIS_CLEI_LEN))
-		sff_show_ascii(id, CMIS_CLEI_START_OFFSET, CMIS_CLEI_END_OFFSET,
-			       "CLEI code");
+		sff_show_ascii(map->page_00h, CMIS_CLEI_START_OFFSET,
+			       CMIS_CLEI_END_OFFSET, "CLEI code");
 }
 
-void qsfp_dd_show_all(const __u8 *id)
+static void cmis_show_all_common(const struct cmis_memory_map *map)
 {
-	cmis_show_identifier(id);
-	cmis_show_power_info(id);
-	cmis_show_connector(id);
-	cmis_show_cbl_asm_len(id);
-	cmis_show_sig_integrity(id);
-	cmis_show_mit_compliance(id);
-	cmis_show_mod_lvl_monitors(id);
-	cmis_show_link_len(id);
-	cmis_show_vendor_info(id);
-	cmis_show_rev_compliance(id);
+	cmis_show_identifier(map);
+	cmis_show_power_info(map);
+	cmis_show_connector(map);
+	cmis_show_cbl_asm_len(map);
+	cmis_show_sig_integrity(map);
+	cmis_show_mit_compliance(map);
+	cmis_show_mod_lvl_monitors(map);
+	cmis_show_link_len(map);
+	cmis_show_vendor_info(map);
+	cmis_show_rev_compliance(map);
 }
 
-void cmis_show_all(const struct ethtool_module_eeprom *page_zero,
-		   const struct ethtool_module_eeprom *page_one)
+static void cmis_memory_map_init_buf(struct cmis_memory_map *map,
+				     const __u8 *id)
 {
-	const __u8 *page_zero_data = page_zero->data;
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to base address
+	 * plus page size multiplied by the page number.
+	 */
+	map->lower_memory = id;
+	map->page_00h = id;
 
-	cmis_show_identifier(page_zero_data);
-	cmis_show_power_info(page_zero_data);
-	cmis_show_connector(page_zero_data);
-	cmis_show_cbl_asm_len(page_zero_data);
-	cmis_show_sig_integrity(page_zero_data);
-	cmis_show_mit_compliance(page_zero_data);
-	cmis_show_mod_lvl_monitors(page_zero_data);
+	/* Page 01h is only present when the module memory model is paged and
+	 * not flat.
+	 */
+	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
+	    CMIS_MEMORY_MODEL_MASK)
+		return;
 
-	if (page_one)
-		cmis_show_link_len_from_page(page_one->data - 0x80);
+	map->page_01h = id + CMIS_PAGE_SIZE;
+}
 
-	cmis_show_vendor_info(page_zero_data);
-	cmis_show_rev_compliance(page_zero_data);
+void cmis_show_all_ioctl(const __u8 *id)
+{
+	struct cmis_memory_map map = {};
+
+	cmis_memory_map_init_buf(&map, id);
+	cmis_show_all_common(&map);
+}
+
+static void cmis_request_init(struct ethtool_module_eeprom *request, u8 bank,
+			      u8 page, u32 offset)
+{
+	request->offset = offset;
+	request->length = CMIS_PAGE_SIZE;
+	request->page = page;
+	request->bank = bank;
+	request->i2c_address = CMIS_I2C_ADDRESS;
+	request->data = NULL;
+}
+
+static int
+cmis_memory_map_init_pages(struct cmd_context *ctx,
+			   struct cmis_memory_map *map)
+{
+	struct ethtool_module_eeprom request;
+	int ret;
+
+	/* Lower Memory and Page 00h are always present.
+	 *
+	 * Offset into Upper Memory is between page size and twice the page
+	 * size. Therefore, set the base address of each page to its base
+	 * address minus page size.
+	 */
+	cmis_request_init(&request, 0, 0x0, 0);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->lower_memory = request.data;
+
+	cmis_request_init(&request, 0, 0x0, CMIS_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_00h = request.data - CMIS_PAGE_SIZE;
+
+	/* Page 01h is only present when the module memory model is paged and
+	 * not flat.
+	 */
+	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
+	    CMIS_MEMORY_MODEL_MASK)
+		return 0;
+
+	cmis_request_init(&request, 0, 0x1, CMIS_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_01h = request.data - CMIS_PAGE_SIZE;
+
+	return 0;
+}
+
+int cmis_show_all_nl(struct cmd_context *ctx)
+{
+	struct cmis_memory_map map = {};
+	int ret;
+
+	ret = cmis_memory_map_init_pages(ctx, &map);
+	if (ret < 0)
+		return ret;
+	cmis_show_all_common(&map);
+
+	return 0;
 }
