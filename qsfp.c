@@ -700,7 +700,6 @@ sff8636_show_wavelength_or_copper_compliance(const struct sff8636_memory_map *ma
  * Second byte are 1/256th of degree, which are added to the dec part.
  */
 #define SFF8636_OFFSET_TO_TEMP(offset) ((__s16)OFFSET_TO_U16(offset))
-#define OFFSET_TO_U16_PTR(ptr, offset) (ptr[offset] << 8 | ptr[(offset) + 1])
 
 static void sff8636_dom_parse(const struct sff8636_memory_map *map,
 			      struct sff_diags *sd)

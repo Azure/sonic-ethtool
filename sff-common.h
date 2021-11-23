@@ -126,8 +126,8 @@
 #define  SFF8024_ENCODING_PAM4			0x08
 
 /* Most common case: 16-bit unsigned integer in a certain unit */
-#define OFFSET_TO_U16(offset) \
-		(id[offset] << 8 | id[(offset) + 1])
+#define OFFSET_TO_U16_PTR(ptr, offset) (ptr[offset] << 8 | ptr[(offset) + 1])
+#define OFFSET_TO_U16(offset) OFFSET_TO_U16_PTR(id, offset)
 
 # define PRINT_xX_PWR(string, var)                             \
 		printf("\t%-41s : %.4f mW / %.2f dBm\n", (string),         \
