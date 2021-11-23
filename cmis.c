@@ -17,9 +17,10 @@
 
 struct cmis_memory_map {
 	const __u8 *lower_memory;
-	const __u8 *upper_memory[1][2];	/* Bank, Page */
+	const __u8 *upper_memory[1][3];	/* Bank, Page */
 #define page_00h upper_memory[0x0][0x0]
 #define page_01h upper_memory[0x0][0x1]
+#define page_02h upper_memory[0x0][0x2]
 };
 
 #define CMIS_PAGE_SIZE		0x80
@@ -423,8 +424,8 @@ cmis_memory_map_init_pages(struct cmd_context *ctx,
 		return ret;
 	map->page_00h = request.data - CMIS_PAGE_SIZE;
 
-	/* Page 01h is only present when the module memory model is paged and
-	 * not flat.
+	/* Pages 01h and 02h are only present when the module memory model is
+	 * paged and not flat.
 	 */
 	if (map->lower_memory[CMIS_MEMORY_MODEL_OFFSET] &
 	    CMIS_MEMORY_MODEL_MASK)
@@ -435,6 +436,12 @@ cmis_memory_map_init_pages(struct cmd_context *ctx,
 	if (ret < 0)
 		return ret;
 	map->page_01h = request.data - CMIS_PAGE_SIZE;
+
+	cmis_request_init(&request, 0, 0x2, CMIS_PAGE_SIZE);
+	ret = nl_get_eeprom_page(ctx, &request);
+	if (ret < 0)
+		return ret;
+	map->page_02h = request.data - CMIS_PAGE_SIZE;
 
 	return 0;
 }
