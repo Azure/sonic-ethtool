@@ -36,6 +36,11 @@
 #define CMIS_CURR_TEMP_OFFSET			0x0E
 #define CMIS_CURR_VCC_OFFSET			0x10
 
+/* Module Global Controls (Page 0) */
+#define CMIS_MODULE_CONTROL_OFFSET		0x1A
+#define CMIS_LOW_PWR_ALLOW_REQUEST_HW_MASK	0x40
+#define CMIS_LOW_PWR_REQUEST_SW_MASK		0x10
+
 /* Module Fault Information (Page 0) */
 #define CMIS_MODULE_FAULT_OFFSET		0x29
 #define CMIS_MODULE_FAULT_NO_FAULT		0x00

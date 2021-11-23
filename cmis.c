@@ -470,6 +470,20 @@ static void cmis_show_mod_fault_cause(const struct cmis_memory_map *map)
 	}
 }
 
+/* Print the current Module-Level Controls. Relevant documents:
+ * [1] CMIS Rev. 5, pag. 58, section 6.3.2.2, Table 6-12
+ * [2] CMIS Rev. 5, pag. 111, section 8.2.6, Table 8-10
+ */
+static void cmis_show_mod_lvl_controls(const struct cmis_memory_map *map)
+{
+	printf("\t%-41s : ", "LowPwrAllowRequestHW");
+	printf("%s\n", ONOFF(map->lower_memory[CMIS_MODULE_CONTROL_OFFSET] &
+			     CMIS_LOW_PWR_ALLOW_REQUEST_HW_MASK));
+	printf("\t%-41s : ", "LowPwrRequestSW");
+	printf("%s\n", ONOFF(map->lower_memory[CMIS_MODULE_CONTROL_OFFSET] &
+			     CMIS_LOW_PWR_REQUEST_SW_MASK));
+}
+
 static void cmis_parse_dom_power_type(const struct cmis_memory_map *map,
 				      struct sff_diags *sd)
 {
@@ -845,6 +859,7 @@ static void cmis_show_all_common(const struct cmis_memory_map *map)
 	cmis_show_rev_compliance(map);
 	cmis_show_mod_state(map);
 	cmis_show_mod_fault_cause(map);
+	cmis_show_mod_lvl_controls(map);
 	cmis_show_dom(map);
 }
 
