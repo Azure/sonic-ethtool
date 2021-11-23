@@ -114,6 +114,13 @@
 #define CMIS_WAVELENGTH_TOL_MSB			0x8C
 #define CMIS_WAVELENGTH_TOL_LSB			0x8D
 
+/* Supported Pages Advertising (Page 1) */
+#define CMIS_PAGES_ADVER_OFFSET			0x8E
+#define CMIS_BANKS_SUPPORTED_MASK		0x03
+#define CMIS_BANK_0_SUPPORTED			0x00
+#define CMIS_BANK_0_1_SUPPORTED			0x01
+#define CMIS_BANK_0_3_SUPPORTED			0x02
+
 /* Signal integrity controls */
 #define CMIS_SIG_INTEG_TX_OFFSET		0xA1
 #define CMIS_SIG_INTEG_RX_OFFSET		0xA2

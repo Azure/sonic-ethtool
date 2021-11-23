@@ -15,9 +15,17 @@
 #include "cmis.h"
 #include "netlink/extapi.h"
 
+/* The maximum number of supported Banks. Relevant documents:
+ * [1] CMIS Rev. 5, page. 128, section 8.4.4, Table 8-40
+ */
+#define CMIS_MAX_BANKS	4
+
+/* We are not parsing further than Page 11h. */
+#define CMIS_MAX_PAGES	18
+
 struct cmis_memory_map {
 	const __u8 *lower_memory;
-	const __u8 *upper_memory[1][3];	/* Bank, Page */
+	const __u8 *upper_memory[CMIS_MAX_BANKS][CMIS_MAX_PAGES];
 #define page_00h upper_memory[0x0][0x0]
 #define page_01h upper_memory[0x0][0x1]
 #define page_02h upper_memory[0x0][0x2]
@@ -399,12 +407,33 @@ static void cmis_request_init(struct ethtool_module_eeprom *request, u8 bank,
 	request->data = NULL;
 }
 
+static int cmis_num_banks_get(const struct cmis_memory_map *map,
+			      int *p_num_banks)
+{
+	switch (map->page_01h[CMIS_PAGES_ADVER_OFFSET] &
+		CMIS_BANKS_SUPPORTED_MASK) {
+	case CMIS_BANK_0_SUPPORTED:
+		*p_num_banks = 1;
+		break;
+	case CMIS_BANK_0_1_SUPPORTED:
+		*p_num_banks = 2;
+		break;
+	case CMIS_BANK_0_3_SUPPORTED:
+		*p_num_banks = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int
 cmis_memory_map_init_pages(struct cmd_context *ctx,
 			   struct cmis_memory_map *map)
 {
 	struct ethtool_module_eeprom request;
-	int ret;
+	int num_banks, i, ret;
 
 	/* Lower Memory and Page 00h are always present.
 	 *
@@ -442,6 +471,22 @@ cmis_memory_map_init_pages(struct cmd_context *ctx,
 	if (ret < 0)
 		return ret;
 	map->page_02h = request.data - CMIS_PAGE_SIZE;
+
+	/* Bank 0 of Page 11h provides lane-specific registers for the first 8
+	 * lanes, and each additional Banks provides support for an additional
+	 * 8 lanes. Only initialize supported Banks.
+	 */
+	ret = cmis_num_banks_get(map, &num_banks);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < num_banks; i++) {
+		cmis_request_init(&request, i, 0x11, CMIS_PAGE_SIZE);
+		ret = nl_get_eeprom_page(ctx, &request);
+		if (ret < 0)
+			return ret;
+		map->upper_memory[i][0x11] = request.data - CMIS_PAGE_SIZE;
+	}
 
 	return 0;
 }
