@@ -402,6 +402,74 @@ static void cmis_show_vendor_info(const struct cmis_memory_map *map)
 			       CMIS_CLEI_END_OFFSET, "CLEI code");
 }
 
+/* Print the current Module State. Relevant documents:
+ * [1] CMIS Rev. 5, pag. 57, section 6.3.2.2, Figure 6-3
+ * [2] CMIS Rev. 5, pag. 60, section 6.3.2.3, Figure 6-4
+ * [3] CMIS Rev. 5, pag. 107, section 8.2.2, Table 8-6
+ */
+static void cmis_show_mod_state(const struct cmis_memory_map *map)
+{
+	__u8 mod_state;
+
+	mod_state = (map->lower_memory[CMIS_MODULE_STATE_OFFSET] &
+		     CMIS_MODULE_STATE_MASK) >> 1;
+	printf("\t%-41s : 0x%02x", "Module State", mod_state);
+	switch (mod_state) {
+	case CMIS_MODULE_STATE_MODULE_LOW_PWR:
+		printf(" (ModuleLowPwr)\n");
+		break;
+	case CMIS_MODULE_STATE_MODULE_PWR_UP:
+		printf(" (ModulePwrUp)\n");
+		break;
+	case CMIS_MODULE_STATE_MODULE_READY:
+		printf(" (ModuleReady)\n");
+		break;
+	case CMIS_MODULE_STATE_MODULE_PWR_DN:
+		printf(" (ModulePwrDn)\n");
+		break;
+	case CMIS_MODULE_STATE_MODULE_FAULT:
+		printf(" (ModuleFault)\n");
+		break;
+	default:
+		printf(" (reserved or unknown)\n");
+		break;
+	}
+}
+
+/* Print the Module Fault Information. Relevant documents:
+ * [1] CMIS Rev. 5, pag. 64, section 6.3.2.12
+ * [2] CMIS Rev. 5, pag. 115, section 8.2.10, Table 8-15
+ */
+static void cmis_show_mod_fault_cause(const struct cmis_memory_map *map)
+{
+	__u8 mod_state, fault_cause;
+
+	mod_state = (map->lower_memory[CMIS_MODULE_STATE_OFFSET] &
+		     CMIS_MODULE_STATE_MASK) >> 1;
+	if (mod_state != CMIS_MODULE_STATE_MODULE_FAULT)
+		return;
+
+	fault_cause = map->lower_memory[CMIS_MODULE_FAULT_OFFSET];
+	printf("\t%-41s : 0x%02x", "Module Fault Cause", fault_cause);
+	switch (fault_cause) {
+	case CMIS_MODULE_FAULT_NO_FAULT:
+		printf(" (No fault detected / not supported)\n");
+		break;
+	case CMIS_MODULE_FAULT_TEC_RUNAWAY:
+		printf(" (TEC runaway)\n");
+		break;
+	case CMIS_MODULE_FAULT_DATA_MEM_CORRUPTED:
+		printf(" (Data memory corrupted)\n");
+		break;
+	case CMIS_MODULE_FAULT_PROG_MEM_CORRUPTED:
+		printf(" (Program memory corrupted)\n");
+		break;
+	default:
+		printf(" (reserved or unknown)\n");
+		break;
+	}
+}
+
 static void cmis_parse_dom_power_type(const struct cmis_memory_map *map,
 				      struct sff_diags *sd)
 {
@@ -775,6 +843,8 @@ static void cmis_show_all_common(const struct cmis_memory_map *map)
 	cmis_show_link_len(map);
 	cmis_show_vendor_info(map);
 	cmis_show_rev_compliance(map);
+	cmis_show_mod_state(map);
+	cmis_show_mod_fault_cause(map);
 	cmis_show_dom(map);
 }
 
