@@ -7,6 +7,18 @@
 #define CMIS_MEMORY_MODEL_OFFSET		0x02
 #define CMIS_MEMORY_MODEL_MASK			0x80
 
+/* Module Flags (Page 0) */
+#define CMIS_VCC_AW_OFFSET			0x09
+#define CMIS_VCC_LWARN_STATUS			0x80
+#define CMIS_VCC_HWARN_STATUS			0x40
+#define CMIS_VCC_LALARM_STATUS			0x20
+#define CMIS_VCC_HALARM_STATUS			0x10
+#define CMIS_TEMP_AW_OFFSET			0x09
+#define CMIS_TEMP_LWARN_STATUS			0x08
+#define CMIS_TEMP_HWARN_STATUS			0x04
+#define CMIS_TEMP_LALARM_STATUS			0x02
+#define CMIS_TEMP_HALARM_STATUS			0x01
+
 #define CMIS_MODULE_TYPE_OFFSET			0x55
 #define CMIS_MT_MMF				0x01
 #define CMIS_MT_SMF				0x02
@@ -121,9 +133,76 @@
 #define CMIS_BANK_0_1_SUPPORTED			0x01
 #define CMIS_BANK_0_3_SUPPORTED			0x02
 
+/* Module Characteristics Advertising (Page 1) */
+#define CMIS_DIAG_TYPE_OFFSET			0x97
+#define CMIS_RX_PWR_TYPE_MASK			0x10
+
+/* Supported Monitors Advertisement (Page 1) */
+#define CMIS_DIAG_CHAN_ADVER_OFFSET		0xA0
+#define CMIS_TX_BIAS_MON_MASK			0x01
+#define CMIS_TX_PWR_MON_MASK			0x02
+#define CMIS_RX_PWR_MON_MASK			0x04
+#define CMIS_TX_BIAS_MUL_MASK			0x18
+#define CMIS_TX_BIAS_MUL_1			0x00
+#define CMIS_TX_BIAS_MUL_2			0x08
+#define CMIS_TX_BIAS_MUL_4			0x10
+
 /* Signal integrity controls */
 #define CMIS_SIG_INTEG_TX_OFFSET		0xA1
 #define CMIS_SIG_INTEG_RX_OFFSET		0xA2
+
+/*-----------------------------------------------------------------------
+ * Upper Memory Page 0x02: Optional Page that informs about module-defined
+ * thresholds for module-level and lane-specific threshold crossing monitors.
+ */
+
+/* Module-Level Monitor Thresholds (Page 2) */
+#define CMIS_TEMP_HALRM_OFFSET			0x80
+#define CMIS_TEMP_LALRM_OFFSET			0x82
+#define CMIS_TEMP_HWARN_OFFSET			0x84
+#define CMIS_TEMP_LWARN_OFFSET			0x86
+#define CMIS_VCC_HALRM_OFFSET			0x88
+#define CMIS_VCC_LALRM_OFFSET			0x8A
+#define CMIS_VCC_HWARN_OFFSET			0x8C
+#define CMIS_VCC_LWARN_OFFSET			0x8E
+
+/* Lane-Related Monitor Thresholds (Page 2) */
+#define CMIS_TX_PWR_HALRM_OFFSET		0xB0
+#define CMIS_TX_PWR_LALRM_OFFSET		0xB2
+#define CMIS_TX_PWR_HWARN_OFFSET		0xB4
+#define CMIS_TX_PWR_LWARN_OFFSET		0xB6
+#define CMIS_TX_BIAS_HALRM_OFFSET		0xB8
+#define CMIS_TX_BIAS_LALRM_OFFSET		0xBA
+#define CMIS_TX_BIAS_HWARN_OFFSET		0xBC
+#define CMIS_TX_BIAS_LWARN_OFFSET		0xBE
+#define CMIS_RX_PWR_HALRM_OFFSET		0xC0
+#define CMIS_RX_PWR_LALRM_OFFSET		0xC2
+#define CMIS_RX_PWR_HWARN_OFFSET		0xC4
+#define CMIS_RX_PWR_LWARN_OFFSET		0xC6
+
+/*-----------------------------------------------------------------------
+ * Upper Memory Page 0x11: Optional Page that contains lane dynamic status
+ * bytes.
+ */
+
+/* Media Lane-Specific Flags (Page 0x11) */
+#define CMIS_TX_PWR_AW_HALARM_OFFSET		0x8B
+#define CMIS_TX_PWR_AW_LALARM_OFFSET		0x8C
+#define CMIS_TX_PWR_AW_HWARN_OFFSET		0x8D
+#define CMIS_TX_PWR_AW_LWARN_OFFSET		0x8E
+#define CMIS_TX_BIAS_AW_HALARM_OFFSET		0x8F
+#define CMIS_TX_BIAS_AW_LALARM_OFFSET		0x90
+#define CMIS_TX_BIAS_AW_HWARN_OFFSET		0x91
+#define CMIS_TX_BIAS_AW_LWARN_OFFSET		0x92
+#define CMIS_RX_PWR_AW_HALARM_OFFSET		0x95
+#define CMIS_RX_PWR_AW_LALARM_OFFSET		0x96
+#define CMIS_RX_PWR_AW_HWARN_OFFSET		0x97
+#define CMIS_RX_PWR_AW_LWARN_OFFSET		0x98
+
+/* Media Lane-Specific Monitors (Page 0x11) */
+#define CMIS_TX_PWR_OFFSET			0x9A
+#define CMIS_TX_BIAS_OFFSET			0xAA
+#define CMIS_RX_PWR_OFFSET			0xBA
 
 #define YESNO(x) (((x) != 0) ? "Yes" : "No")
 #define ONOFF(x) (((x) != 0) ? "On" : "Off")
