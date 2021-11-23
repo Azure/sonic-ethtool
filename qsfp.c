@@ -71,6 +71,7 @@ struct sff8636_memory_map {
 
 #define SFF8636_PAGE_SIZE	0x80
 #define SFF8636_I2C_ADDRESS	0x50
+#define SFF8636_MAX_CHANNEL_NUM	4
 
 #define MAX_DESC_SIZE	42
 
@@ -761,7 +762,7 @@ static void sff8636_dom_parse(const struct sff8636_memory_map *map,
 
 out:
 	/* Channel Specific Data */
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		u8 rx_power_offset, tx_bias_offset;
 		u8 tx_power_offset;
 
@@ -832,13 +833,13 @@ static void sff8636_show_dom(const struct sff8636_memory_map *map)
 	printf("\t%-41s : %s\n", "Alarm/warning flags implemented",
 		(sd.supports_alarms ? "Yes" : "No"));
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s (Channel %d)",
 					"Laser tx bias current", i+1);
 		PRINT_BIAS(power_string, sd.scd[i].bias_cur);
 	}
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s (Channel %d)",
 					"Transmit avg optical power", i+1);
 		PRINT_xX_PWR(power_string, sd.scd[i].tx_power);
@@ -849,7 +850,7 @@ static void sff8636_show_dom(const struct sff8636_memory_map *map)
 	else
 		rx_power_string = "Rcvr signal avg optical power";
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s(Channel %d)",
 					rx_power_string, i+1);
 		PRINT_xX_PWR(power_string, sd.scd[i].rx_power);

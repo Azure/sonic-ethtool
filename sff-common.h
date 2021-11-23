@@ -160,7 +160,7 @@ struct sff_channel_diags {
 /* Module Monitoring Fields */
 struct sff_diags {
 
-#define MAX_CHANNEL_NUM 4
+#define MAX_CHANNEL_NUM 32
 #define LWARN 0
 #define HWARN 1
 #define LALRM 2
