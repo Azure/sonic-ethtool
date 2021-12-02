@@ -71,6 +71,7 @@ struct sff8636_memory_map {
 
 #define SFF8636_PAGE_SIZE	0x80
 #define SFF8636_I2C_ADDRESS	0x50
+#define SFF8636_MAX_CHANNEL_NUM	4
 
 #define MAX_DESC_SIZE	42
 
@@ -267,6 +268,12 @@ static void sff8636_show_ext_identifier(const struct sff8636_memory_map *map)
 		printf(" High Power Class (> 3.5 W) enabled\n");
 	else
 		printf(" High Power Class (> 3.5 W) not enabled\n");
+	printf("\t%-41s : ", "Power set");
+	printf("%s\n", ONOFF(map->lower_memory[SFF8636_PWR_MODE_OFFSET] &
+			     SFF8636_LOW_PWR_SET));
+	printf("\t%-41s : ", "Power override");
+	printf("%s\n", ONOFF(map->lower_memory[SFF8636_PWR_MODE_OFFSET] &
+			     SFF8636_PWR_OVERRIDE));
 }
 
 static void sff8636_show_connector(const struct sff8636_memory_map *map)
@@ -699,7 +706,6 @@ sff8636_show_wavelength_or_copper_compliance(const struct sff8636_memory_map *ma
  * Second byte are 1/256th of degree, which are added to the dec part.
  */
 #define SFF8636_OFFSET_TO_TEMP(offset) ((__s16)OFFSET_TO_U16(offset))
-#define OFFSET_TO_U16_PTR(ptr, offset) (ptr[offset] << 8 | ptr[(offset) + 1])
 
 static void sff8636_dom_parse(const struct sff8636_memory_map *map,
 			      struct sff_diags *sd)
@@ -761,7 +767,7 @@ static void sff8636_dom_parse(const struct sff8636_memory_map *map,
 
 out:
 	/* Channel Specific Data */
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		u8 rx_power_offset, tx_bias_offset;
 		u8 tx_power_offset;
 
@@ -832,13 +838,13 @@ static void sff8636_show_dom(const struct sff8636_memory_map *map)
 	printf("\t%-41s : %s\n", "Alarm/warning flags implemented",
 		(sd.supports_alarms ? "Yes" : "No"));
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s (Channel %d)",
 					"Laser tx bias current", i+1);
 		PRINT_BIAS(power_string, sd.scd[i].bias_cur);
 	}
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s (Channel %d)",
 					"Transmit avg optical power", i+1);
 		PRINT_xX_PWR(power_string, sd.scd[i].tx_power);
@@ -849,7 +855,7 @@ static void sff8636_show_dom(const struct sff8636_memory_map *map)
 	else
 		rx_power_string = "Rcvr signal avg optical power";
 
-	for (i = 0; i < MAX_CHANNEL_NUM; i++) {
+	for (i = 0; i < SFF8636_MAX_CHANNEL_NUM; i++) {
 		snprintf(power_string, MAX_DESC_SIZE, "%s(Channel %d)",
 					rx_power_string, i+1);
 		PRINT_xX_PWR(power_string, sd.scd[i].rx_power);
