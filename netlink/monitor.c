@@ -302,6 +302,8 @@ void nl_monitor_usage(void)
 	      stdout);
 	fputs("                ( [ --all ]", stdout);
 	for (i = 1; i < MNL_ARRAY_SIZE(monitor_opts); i++) {
+		if (!strcmp(monitor_opts[i].pattern, monitor_opts[i - 1].pattern))
+			continue;
 		fputs("\n                  | ", stdout);
 		for (p = monitor_opts[i].pattern; *p; p++)
 			if (*p == '|')
