@@ -1,0 +1,8 @@
+include:
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/salsa-ci.yml
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/pipeline-jobs.yml
+
+variables:
+  RELEASE: 'unstable'
+  # Currently triggering falsely (bugs #973313, #1000977)
+  SALSA_CI_LINTIAN_SUPPRESS_TAGS: 'groff-message,elf-error'
