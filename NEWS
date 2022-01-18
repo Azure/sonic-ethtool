@@ -1,3 +1,10 @@
+Version 5.16 - January 19, 2022
+	* Feature: use memory maps for module EEPROM parsing (-m)
+	* Feature: show CMIS diagnostic information (-m)
+	* Fix: fix dumping advertised FEC modes (--show-fec)
+	* Fix: ignore cable test notifications from other devices (--cable-test)
+	* Fix: do not show duplicate options in help text (--help)
+
 Version 5.15 - November 9, 2021
 	* Feature: new extended link substates for bad signal (no arg)
 	* Feature: coalesce cqe mode attributes (-c and -C)
