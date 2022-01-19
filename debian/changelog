@@ -1,6 +1,10 @@
-ethtool (1:5.15-2) UNRELEASED; urgency=medium
+ethtool (1:5.16-1) UNRELEASED; urgency=medium
 
+  [ Ben Hutchings ]
   * d/salsa-ci.yml: Add CI configuration for salsa.debian.org
+
+  [ Salvatore Bonaccorso ]
+  * New upstream release: 5.16
 
  -- Ben Hutchings <benh@debian.org>  Mon, 17 Jan 2022 16:24:18 +0100
 
