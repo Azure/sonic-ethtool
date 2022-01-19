@@ -115,7 +115,7 @@ Files: sfpdiag.c
 Copyright: 2012, Aurelien Guillaume
 License: GPL-2
 
-Files: smsc.c
+Files: smsc911x.c
 Copyright: 2007, SMSC
 License: GPL-2
 
