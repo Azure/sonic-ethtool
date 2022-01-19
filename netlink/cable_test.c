@@ -225,6 +225,7 @@ static int nl_cable_test_process_results(struct cmd_context *ctx)
 	nlctx->is_monitor = true;
 	nlsk->port = 0;
 	nlsk->seq = 0;
+	nlctx->filter_devname = ctx->devname;
 
 	ctctx.breakout = false;
 	nlctx->cmd_private = &ctctx;
@@ -496,6 +497,7 @@ static int nl_cable_test_tdr_process_results(struct cmd_context *ctx)
 	nlctx->is_monitor = true;
 	nlsk->port = 0;
 	nlsk->seq = 0;
+	nlctx->filter_devname = ctx->devname;
 
 	ctctx.breakout = false;
 	nlctx->cmd_private = &ctctx;

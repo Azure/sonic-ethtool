@@ -4900,16 +4900,16 @@ static int do_getmodule(struct cmd_context *ctx)
 			switch (modinfo.type) {
 #ifdef ETHTOOL_ENABLE_PRETTY_DUMP
 			case ETH_MODULE_SFF_8079:
-				sff8079_show_all(eeprom->data);
+				sff8079_show_all_ioctl(eeprom->data);
 				break;
 			case ETH_MODULE_SFF_8472:
-				sff8079_show_all(eeprom->data);
+				sff8079_show_all_ioctl(eeprom->data);
 				sff8472_show_all(eeprom->data);
 				break;
 			case ETH_MODULE_SFF_8436:
 			case ETH_MODULE_SFF_8636:
-				sff8636_show_all(eeprom->data,
-						 modinfo.eeprom_len);
+				sff8636_show_all_ioctl(eeprom->data,
+						       modinfo.eeprom_len);
 				break;
 #endif
 			default:

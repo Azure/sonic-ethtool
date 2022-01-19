@@ -402,7 +402,7 @@ static int dump_our_modes(struct nl_context *nlctx, const struct nlattr *attr)
 		return ret;
 	printf("\tAdvertised auto-negotiation: %s\n", autoneg ? "Yes" : "No");
 
-	ret = dump_link_modes(nlctx, attr, true, LM_CLASS_FEC,
+	ret = dump_link_modes(nlctx, attr, false, LM_CLASS_FEC,
 			      "Advertised FEC modes: ", " ", "\n",
 			      "Not reported");
 	return ret;
