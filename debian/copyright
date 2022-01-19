@@ -33,11 +33,11 @@ Files: et131x.c
 Copyright: 2012, 2013, Mark Einon
 License: GPL-2
 
-Files: ethtool-copy.h
+Files: uapi/linux/ethtool.h
 Copyright: 1998, David S. Miller (davem@redhat.com)
            2001, Jeff Garzik <jgarzik@pobox.com>
            2001, 2008, Sun Microsystems (thockin@sun.com)
-           2002, Intel (eli.kupermann@intel.com, scott.feldman@intel.com)
+           2002, Intel (eli.kupermann@intel.com, christopher.leech@intel.com, scott.feldman@intel.com)
 License: GPL-2
 
 Files: internal.h
@@ -85,7 +85,7 @@ Files: natsemi.c
 Copyright: 2001, Sun Microsystems (thockin@sun.com)
 License: GPL-2
 
-Files: net_tstamp-copy.h
+Files: uapi/linux/net_tstamp.h
 Copyright: 2008, 2009, Intel Corporation
 License: GPL-2
 

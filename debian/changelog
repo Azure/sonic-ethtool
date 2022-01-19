@@ -5,6 +5,7 @@ ethtool (1:5.16-1) UNRELEASED; urgency=medium
 
   [ Salvatore Bonaccorso ]
   * New upstream release: 5.16
+  * debian/copyright: Adjust information for uapi/linux/{ethtool,net_tstamp}.h
 
  -- Ben Hutchings <benh@debian.org>  Mon, 17 Jan 2022 16:24:18 +0100
 
